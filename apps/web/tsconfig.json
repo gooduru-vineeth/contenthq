@@ -4,6 +4,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@contenthq/api/*": [
+        "../api/*"
       ]
     },
     "allowJs": true,
