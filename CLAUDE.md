@@ -14,8 +14,20 @@ pnpm build                        # Build all packages (Turborepo)
 pnpm --filter @contenthq/web build   # Build web only
 pnpm --filter @contenthq/api build   # Type-check API only (tsc --noEmit)
 
-# Lint
-pnpm lint
+# Lint + Typecheck + Test (full quality check)
+pnpm check                        # Runs lint, typecheck, test across all apps
+pnpm lint                         # Lint all apps
+pnpm lint:fix                     # Auto-fix lint issues
+pnpm typecheck                    # TypeScript checks across all apps
+
+# Test
+pnpm test                         # Run all tests (Vitest)
+pnpm --filter @contenthq/api test           # API tests only
+pnpm --filter @contenthq/web test           # Web tests only
+pnpm --filter @contenthq/api test:watch     # API tests in watch mode
+pnpm --filter @contenthq/web test:watch     # Web tests in watch mode
+pnpm --filter @contenthq/api test:coverage  # API test coverage
+pnpm --filter @contenthq/web test:coverage  # Web test coverage
 
 # Database (requires .env with DATABASE_URL at root, loaded via dotenv-cli)
 pnpm db:generate                  # Generate Drizzle migrations
@@ -83,3 +95,57 @@ web (trpc hooks) → HTTP /trpc/* → api (Hono) → tRPC router → Drizzle →
 ### Provider Wrapping Order
 
 Root layout → `<Providers>` → `<TRPCProvider>` (includes QueryClientProvider) → `<TooltipProvider>` → children + `<Toaster>`.
+
+## Testing
+
+**Framework**: Vitest v4 with globals enabled.
+
+- **API tests** (`apps/api/src/__tests__/`): Node environment. Tests for middleware, env validation, tRPC routers, and app setup.
+- **Web tests** (`apps/web/src/__tests__/`): jsdom environment with `@testing-library/react` + `@vitejs/plugin-react`. Setup file at `apps/web/src/test-setup.ts`.
+- **Config files**: `apps/api/vitest.config.ts`, `apps/web/vitest.config.ts`.
+- **Do NOT test** `apps/web/src/components/ui/` (shadcn generated components).
+
+### Testing Rules
+
+- ALWAYS write tests for new logic (utilities, middleware, API routes, hooks).
+- ALWAYS run `pnpm test` after making code changes.
+- Place test files alongside source in `__tests__/` directories mirroring the source structure.
+- Use `vi.mock()` for external dependencies (database, auth, etc.).
+- Use `vi.spyOn()` for observing side effects (console, fetch, etc.).
+- When testing modules that read `process.env`, use `vi.resetModules()` + dynamic `import()` for isolation.
+- Type all `res.json()` results with `as` assertions to satisfy strict TypeScript.
+
+## Linting
+
+**ESLint 9** flat config at root (`eslint.config.mjs`). Shared across all apps.
+
+### Key Rules
+
+- `@typescript-eslint/consistent-type-imports`: Enforces `import type` for type-only imports.
+- `@typescript-eslint/no-unused-vars`: Error, but allows `_`-prefixed vars/args.
+- `@typescript-eslint/no-explicit-any`: Warning (error-free in test files).
+- `no-console`: Warning — only `console.warn` and `console.error` are allowed.
+- **Web-specific**: `react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps`, Next.js rules via `@next/eslint-plugin-next`.
+- **Test files**: `no-console` and `no-explicit-any` are relaxed.
+
+### Linting Rules
+
+- ALWAYS run `pnpm lint` before committing.
+- Use `import type` for type-only imports (enforced by ESLint).
+- Avoid `console.log` — use `console.warn` or `console.error` instead.
+- Prefix intentionally unused variables with `_` (e.g., `_unused`).
+
+## Git Hooks
+
+**Husky** manages git hooks. Hooks are in `.husky/`.
+
+| Hook | What runs | Purpose |
+|------|-----------|---------|
+| **pre-commit** | `lint-staged` (ESLint `--fix` on staged `.ts`/`.tsx`) | Catch lint issues before commit |
+| **pre-push** | `pnpm typecheck && pnpm test` | Block push if types or tests fail |
+
+### Commit Rules
+
+- ALWAYS verify `pnpm check` passes before pushing.
+- NEVER skip hooks with `--no-verify` unless explicitly necessary.
+- NEVER commit `.env` files, secrets, or credentials.

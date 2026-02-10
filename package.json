@@ -5,6 +5,11 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "check": "turbo run lint typecheck test",
+    "prepare": "husky",
     "db:generate": "dotenv -- pnpm --filter @contenthq/db generate",
     "db:migrate": "dotenv -- pnpm --filter @contenthq/db migrate",
     "db:push": "dotenv -- pnpm --filter @contenthq/db push",
@@ -12,9 +17,22 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down"
   },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix"
+    ]
+  },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@next/eslint-plugin-next": "^16.1.6",
     "dotenv-cli": "^11.0.0",
-    "turbo": "^2.3.0"
+    "eslint": "^9.39.2",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "turbo": "^2.3.0",
+    "typescript-eslint": "^8.55.0",
+    "vitest": "^4.0.18"
   },
   "packageManager": "pnpm@9.15.0"
 }
