@@ -1,0 +1,17 @@
+{
+  "name": "@contenthq/queue",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.4.0",
+    "@contenthq/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@contenthq/typescript-config": "workspace:*",
+    "typescript": "^5.7.0"
+  }
+}

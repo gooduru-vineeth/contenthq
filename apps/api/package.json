@@ -15,10 +15,19 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@contenthq/ai": "workspace:*",
     "@contenthq/db": "workspace:*",
+    "@contenthq/ingestion": "workspace:*",
+    "@contenthq/queue": "workspace:*",
+    "@contenthq/shared": "workspace:*",
+    "@contenthq/storage": "workspace:*",
+    "@contenthq/tts": "workspace:*",
+    "@contenthq/video": "workspace:*",
+    "bullmq": "^5.0.0",
     "@hono/node-server": "^1.13.0",
     "@trpc/server": "^11.10.0",
     "better-auth": "^1.2.0",
+    "drizzle-orm": "^0.39.0",
     "hono": "^4.7.0",
     "superjson": "^2.2.6",
     "zod": "^3.24.0"
