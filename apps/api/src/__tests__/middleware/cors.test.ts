@@ -12,6 +12,7 @@ describe("corsMiddleware", () => {
       BETTER_AUTH_URL: "http://localhost:3001",
       CORS_ORIGIN: "http://localhost:3000",
       PORT: "3001",
+      REDIS_URL: "redis://localhost:6379",
     };
   });
 

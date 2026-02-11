@@ -7,6 +7,9 @@
       ],
       "@contenthq/api/*": [
         "../api/*"
+      ],
+      "@contenthq/shared": [
+        "../../packages/shared/src/index.ts"
       ]
     },
     "allowJs": true,

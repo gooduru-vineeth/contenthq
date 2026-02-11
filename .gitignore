@@ -6,3 +6,5 @@ dist/
 .turbo
 *.tsbuildinfo
 .DS_Store
+PRD.md
+creds.json

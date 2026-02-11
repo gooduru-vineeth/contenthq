@@ -1,0 +1,18 @@
+{
+  "name": "@contenthq/ingestion",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@contenthq/shared": "workspace:*",
+    "cheerio": "^1.0.0",
+    "jsdom": "^26.0.0"
+  },
+  "devDependencies": {
+    "@contenthq/typescript-config": "workspace:*",
+    "@types/jsdom": "^21.1.0",
+    "typescript": "^5.7.0"
+  }
+}
