@@ -1,14 +1,23 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
+import { TRPCError } from "@trpc/server";
 import { db } from "@contenthq/db/client";
-import { stories, scenes, generationJobs } from "@contenthq/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { stories, scenes, projects, generationJobs } from "@contenthq/db/schema";
+import { eq, and, asc } from "drizzle-orm";
 import { addStoryWritingJob } from "@contenthq/queue";
 
 export const storyRouter = router({
   getByProject: protectedProcedure
     .input(z.object({ projectId: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
       const [story] = await db
         .select()
         .from(stories)
@@ -33,8 +42,18 @@ export const storyRouter = router({
         synopsis: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+
+      const [story] = await db
+        .select()
+        .from(stories)
+        .innerJoin(projects, eq(stories.projectId, projects.id))
+        .where(
+          and(eq(stories.id, id), eq(projects.userId, ctx.user.id))
+        );
+      if (!story) throw new TRPCError({ code: "NOT_FOUND" });
+
       const [updated] = await db
         .update(stories)
         .set({ ...data, updatedAt: new Date() })

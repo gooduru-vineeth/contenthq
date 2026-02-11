@@ -50,3 +50,18 @@ export const mediaTypeEnum = pgEnum("media_type", [
   "audio",
   "thumbnail",
 ]);
+
+export const promptTypeEnum = pgEnum("prompt_type", [
+  "story_writing",
+  "scene_generation",
+  "image_generation",
+  "image_refinement",
+  "visual_verification",
+]);
+
+export const personaCategoryEnum = pgEnum("persona_category", [
+  "tone",
+  "audience",
+  "visual_style",
+  "narrative_style",
+]);

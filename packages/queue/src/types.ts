@@ -1,11 +1,21 @@
-export interface IngestionJobData {
+/** Common fields for flow-aware job data */
+export interface BaseFlowJobData {
+  /** If part of a flow execution */
+  flowExecutionId?: string;
+  /** Which flow node dispatched this */
+  flowNodeId?: string;
+  /** Agent to use instead of inline LLM calls */
+  agentId?: string;
+}
+
+export interface IngestionJobData extends BaseFlowJobData {
   projectId: string;
   userId: string;
   sourceUrl: string;
   sourceType: string;
 }
 
-export interface StoryWritingJobData {
+export interface StoryWritingJobData extends BaseFlowJobData {
   projectId: string;
   userId: string;
   ingestedContentIds: string[];
@@ -13,20 +23,20 @@ export interface StoryWritingJobData {
   targetDuration: number;
 }
 
-export interface SceneGenerationJobData {
+export interface SceneGenerationJobData extends BaseFlowJobData {
   projectId: string;
   storyId: string;
   userId: string;
 }
 
-export interface VisualGenerationJobData {
+export interface VisualGenerationJobData extends BaseFlowJobData {
   projectId: string;
   sceneId: string;
   userId: string;
   imagePrompt: string;
 }
 
-export interface VisualVerificationJobData {
+export interface VisualVerificationJobData extends BaseFlowJobData {
   projectId: string;
   sceneId: string;
   userId: string;
@@ -34,7 +44,7 @@ export interface VisualVerificationJobData {
   visualDescription: string;
 }
 
-export interface VideoGenerationJobData {
+export interface VideoGenerationJobData extends BaseFlowJobData {
   projectId: string;
   sceneId: string;
   userId: string;
@@ -42,7 +52,7 @@ export interface VideoGenerationJobData {
   motionSpec: Record<string, unknown>;
 }
 
-export interface TTSGenerationJobData {
+export interface TTSGenerationJobData extends BaseFlowJobData {
   projectId: string;
   sceneId: string;
   userId: string;
@@ -51,7 +61,7 @@ export interface TTSGenerationJobData {
   provider: string;
 }
 
-export interface AudioMixingJobData {
+export interface AudioMixingJobData extends BaseFlowJobData {
   projectId: string;
   sceneId: string;
   userId: string;
@@ -59,7 +69,7 @@ export interface AudioMixingJobData {
   musicTrackId: string | null;
 }
 
-export interface VideoAssemblyJobData {
+export interface VideoAssemblyJobData extends BaseFlowJobData {
   projectId: string;
   userId: string;
   sceneIds: string[];

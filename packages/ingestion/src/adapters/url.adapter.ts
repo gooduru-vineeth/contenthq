@@ -1,6 +1,7 @@
 import { JSDOM } from "jsdom";
 import * as cheerio from "cheerio";
 import type { IngestionAdapter, ExtractionResult } from "../types";
+import { validatePublicUrl } from "../utils";
 
 export const urlAdapter: IngestionAdapter = {
   name: "url",
@@ -15,7 +16,11 @@ export const urlAdapter: IngestionAdapter = {
   },
 
   async extract(input: string): Promise<ExtractionResult> {
-    const response = await fetch(input);
+    validatePublicUrl(input);
+    const response = await fetch(input, { signal: AbortSignal.timeout(30000) });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
+    }
     const html = await response.text();
 
     // Parse with cheerio for metadata

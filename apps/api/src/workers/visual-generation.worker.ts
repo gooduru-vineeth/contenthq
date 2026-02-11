@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES, addVisualVerificationJob } from "@contenthq/queue";
 import type { VisualGenerationJobData } from "@contenthq/queue";
-import { generateImage } from "@contenthq/ai";
+import { generateImage, executeAgent } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
 import { scenes, sceneVisuals, projects } from "@contenthq/db/schema";
 import { eq } from "drizzle-orm";
@@ -10,18 +10,34 @@ export function createVisualGenerationWorker(): Worker {
   return new Worker<VisualGenerationJobData>(
     QUEUE_NAMES.VISUAL_GENERATION,
     async (job) => {
-      const { projectId, sceneId, userId, imagePrompt } = job.data;
+      const { projectId, sceneId, userId, imagePrompt, agentId } = job.data;
       console.warn(`[VisualGeneration] Processing job ${job.id} for scene ${sceneId}`);
 
       try {
         await job.updateProgress(10);
 
-        // Generate image using AI
-        const result = await generateImage({
-          prompt: imagePrompt,
-          size: "1024x1024",
-          quality: "standard",
-        });
+        let imageUrl: string;
+
+        if (agentId) {
+          // New path: use agent executor
+          const result = await executeAgent({
+            agentId,
+            variables: { prompt: imagePrompt },
+            projectId,
+            userId,
+            db,
+          });
+          const resultData = result.data as { url: string };
+          imageUrl = resultData.url;
+        } else {
+          // Existing path: generate image directly
+          const result = await generateImage({
+            prompt: imagePrompt,
+            size: "1024x1024",
+            quality: "standard",
+          });
+          imageUrl = result.url;
+        }
 
         await job.updateProgress(60);
 
@@ -34,7 +50,7 @@ export function createVisualGenerationWorker(): Worker {
         // Store generated visual in database
         await db.insert(sceneVisuals).values({
           sceneId,
-          imageUrl: result.url,
+          imageUrl,
           prompt: imagePrompt,
         });
 
@@ -51,14 +67,14 @@ export function createVisualGenerationWorker(): Worker {
           projectId,
           sceneId,
           userId,
-          imageUrl: result.url,
+          imageUrl,
           visualDescription: scene?.visualDescription ?? imagePrompt,
         });
 
         await job.updateProgress(100);
         console.warn(`[VisualGeneration] Completed for scene ${sceneId}`);
 
-        return { success: true, imageUrl: result.url };
+        return { success: true, imageUrl };
       } catch (error) {
         console.error(`[VisualGeneration] Failed for scene ${sceneId}:`, error);
         await db

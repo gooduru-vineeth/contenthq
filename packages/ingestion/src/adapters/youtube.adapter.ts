@@ -1,4 +1,5 @@
 import type { IngestionAdapter, ExtractionResult } from "../types";
+import { validatePublicUrl } from "../utils";
 
 const YOUTUBE_REGEX =
   /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -18,9 +19,12 @@ export const youtubeAdapter: IngestionAdapter = {
     }
 
     // Fetch video page for metadata
-    const response = await fetch(
-      `https://www.youtube.com/watch?v=${videoId}`
-    );
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    validatePublicUrl(videoUrl);
+    const response = await fetch(videoUrl, { signal: AbortSignal.timeout(15000) });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch YouTube page: ${response.status} ${response.statusText}`);
+    }
     const html = await response.text();
 
     // Extract title from page

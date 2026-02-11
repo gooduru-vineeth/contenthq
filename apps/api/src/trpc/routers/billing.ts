@@ -7,7 +7,7 @@ import {
   subscriptions,
   subscriptionPlans,
 } from "@contenthq/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 export const billingRouter = router({
   getBalance: protectedProcedure.query(async ({ ctx }) => {
@@ -73,37 +73,42 @@ export const billingRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [balance] = await db
-        .select()
-        .from(creditBalances)
-        .where(eq(creditBalances.userId, ctx.user.id));
+      return await db.transaction(async (tx) => {
+        // Lock the row with SELECT ... FOR UPDATE to prevent race conditions
+        const result = await tx.execute(
+          sql`SELECT * FROM credit_balances WHERE user_id = ${ctx.user.id} FOR UPDATE`
+        );
+        const balance = result.rows?.[0] as
+          | { id: string; user_id: string; balance: number | null; last_updated: Date }
+          | undefined;
 
-      if (!balance || (balance.balance ?? 0) < input.amount) {
-        throw new Error("Insufficient credits");
-      }
+        if (!balance || (balance.balance ?? 0) < input.amount) {
+          throw new Error("Insufficient credits");
+        }
 
-      // Deduct credits
-      await db
-        .update(creditBalances)
-        .set({
-          balance: (balance.balance ?? 0) - input.amount,
-          lastUpdated: new Date(),
-        })
-        .where(eq(creditBalances.userId, ctx.user.id));
+        // Deduct credits atomically
+        await tx
+          .update(creditBalances)
+          .set({
+            balance: (balance.balance ?? 0) - input.amount,
+            lastUpdated: new Date(),
+          })
+          .where(eq(creditBalances.userId, ctx.user.id));
 
-      // Record transaction
-      const [transaction] = await db
-        .insert(creditTransactions)
-        .values({
-          userId: ctx.user.id,
-          type: "deduction",
-          amount: -input.amount,
-          description: input.description,
-          jobId: input.jobId,
-        })
-        .returning();
+        // Record transaction
+        const [transaction] = await tx
+          .insert(creditTransactions)
+          .values({
+            userId: ctx.user.id,
+            type: "deduction",
+            amount: -input.amount,
+            description: input.description,
+            jobId: input.jobId,
+          })
+          .returning();
 
-      return transaction;
+        return transaction;
+      });
     }),
 
   addCredits: protectedProcedure
@@ -114,36 +119,40 @@ export const billingRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Upsert balance
-      const [existing] = await db
-        .select()
-        .from(creditBalances)
-        .where(eq(creditBalances.userId, ctx.user.id));
+      return await db.transaction(async (tx) => {
+        // Lock the row with SELECT ... FOR UPDATE to prevent race conditions
+        const result = await tx.execute(
+          sql`SELECT * FROM credit_balances WHERE user_id = ${ctx.user.id} FOR UPDATE`
+        );
+        const existing = result.rows?.[0] as
+          | { id: string; user_id: string; balance: number | null; last_updated: Date }
+          | undefined;
 
-      if (existing) {
-        await db
-          .update(creditBalances)
-          .set({
-            balance: (existing.balance ?? 0) + input.amount,
-            lastUpdated: new Date(),
+        if (existing) {
+          await tx
+            .update(creditBalances)
+            .set({
+              balance: (existing.balance ?? 0) + input.amount,
+              lastUpdated: new Date(),
+            })
+            .where(eq(creditBalances.userId, ctx.user.id));
+        } else {
+          await tx
+            .insert(creditBalances)
+            .values({ userId: ctx.user.id, balance: input.amount });
+        }
+
+        const [transaction] = await tx
+          .insert(creditTransactions)
+          .values({
+            userId: ctx.user.id,
+            type: "credit",
+            amount: input.amount,
+            description: input.description,
           })
-          .where(eq(creditBalances.userId, ctx.user.id));
-      } else {
-        await db
-          .insert(creditBalances)
-          .values({ userId: ctx.user.id, balance: input.amount });
-      }
+          .returning();
 
-      const [transaction] = await db
-        .insert(creditTransactions)
-        .values({
-          userId: ctx.user.id,
-          type: "credit",
-          amount: input.amount,
-          description: input.description,
-        })
-        .returning();
-
-      return transaction;
+        return transaction;
+      });
     }),
 });

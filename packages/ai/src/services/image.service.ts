@@ -1,12 +1,15 @@
 import type { ImageGenerationOptions, ImageGenerationResult } from "../types";
+import { OPENAI_MODELS } from "../providers/openai";
 
 export async function generateImage(
-  options: ImageGenerationOptions
+  options: ImageGenerationOptions & { model?: string }
 ): Promise<ImageGenerationResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is required for image generation");
   }
+
+  const model = options.model || OPENAI_MODELS.DALLE3;
 
   const response = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
@@ -15,7 +18,7 @@ export async function generateImage(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "dall-e-3",
+      model,
       prompt: options.prompt,
       n: 1,
       size: options.size || "1024x1024",

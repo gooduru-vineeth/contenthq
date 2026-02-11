@@ -7,7 +7,7 @@ export const aiModels = pgTable("ai_models", {
     .$defaultFn(() => crypto.randomUUID()),
   providerId: text("provider_id")
     .notNull()
-    .references(() => aiProviders.id),
+    .references(() => aiProviders.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   modelId: text("model_id").notNull(),
   type: text("type"),

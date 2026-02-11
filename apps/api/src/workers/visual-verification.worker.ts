@@ -1,7 +1,8 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES, addVisualGenerationJob } from "@contenthq/queue";
 import type { VisualVerificationJobData } from "@contenthq/queue";
-import { verifyImage } from "@contenthq/ai";
+import { verifyImage, resolvePromptForStage, executeAgent } from "@contenthq/ai";
+import type { VerificationResult } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
 import { scenes, sceneVisuals, projects } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -10,14 +11,45 @@ export function createVisualVerificationWorker(): Worker {
   return new Worker<VisualVerificationJobData>(
     QUEUE_NAMES.VISUAL_VERIFICATION,
     async (job) => {
-      const { projectId, sceneId, userId, imageUrl, visualDescription } = job.data;
+      const { projectId, sceneId, userId, imageUrl, visualDescription, agentId } = job.data;
       console.warn(`[VisualVerification] Processing job ${job.id} for scene ${sceneId}`);
 
       try {
         await job.updateProgress(10);
 
-        // Verify the generated image against the scene description
-        const result = await verifyImage(imageUrl, visualDescription);
+        let result: VerificationResult;
+
+        if (agentId) {
+          // New path: use agent executor
+          const agentResult = await executeAgent({
+            agentId,
+            variables: {
+              imageUrl,
+              sceneDescription: visualDescription,
+            },
+            projectId,
+            userId,
+            db,
+          });
+          result = agentResult.data as VerificationResult;
+        } else {
+          // Existing path: resolve verification prompt + call verifyImage
+          let customPrompt: string | undefined;
+          try {
+            const resolved = await resolvePromptForStage(
+              db,
+              projectId,
+              userId,
+              "visual_verification",
+              { sceneDescription: visualDescription }
+            );
+            customPrompt = resolved.composedPrompt;
+          } catch {
+            // If no template exists yet, verifyImage falls back to its built-in prompt
+          }
+
+          result = await verifyImage(imageUrl, visualDescription, 60, customPrompt);
+        }
 
         await job.updateProgress(60);
 

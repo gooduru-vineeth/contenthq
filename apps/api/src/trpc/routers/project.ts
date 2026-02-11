@@ -69,7 +69,19 @@ export const projectRouter = router({
     .input(
       z.object({
         id: z.string(),
-        status: z.string(),
+        status: z.enum([
+          "draft",
+          "ingesting",
+          "writing",
+          "generating_scenes",
+          "verifying",
+          "generating_video",
+          "mixing_audio",
+          "assembling",
+          "completed",
+          "failed",
+          "cancelled",
+        ]),
         progressPercent: z.number().optional(),
       })
     )
@@ -77,7 +89,7 @@ export const projectRouter = router({
       const [updated] = await db
         .update(projects)
         .set({
-          status: input.status as typeof projects.status.enumValues[number],
+          status: input.status,
           progressPercent: input.progressPercent,
           updatedAt: new Date(),
         })

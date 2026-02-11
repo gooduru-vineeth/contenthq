@@ -10,6 +10,28 @@ import { imageToVideo, mixAudio, checkFFmpeg, createTempDir } from "./ffmpeg";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+function validatePublicUrl(url: string): void {
+  const parsed = new URL(url);
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('Only HTTP and HTTPS protocols are allowed');
+  }
+  const hostname = parsed.hostname;
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    hostname.startsWith('10.') ||
+    hostname.startsWith('172.') ||
+    hostname.startsWith('192.168.') ||
+    hostname === '169.254.169.254' ||
+    hostname.startsWith('169.254.') ||
+    hostname === '[::1]' ||
+    hostname === '0000:0000:0000:0000:0000:0000:0000:0001'
+  ) {
+    throw new Error('Access to private/internal URLs is not allowed');
+  }
+}
+
 export class VideoService {
   async generateSceneVideo(options: VideoGenerationOptions): Promise<VideoResult> {
     const available = await checkFFmpeg();
@@ -18,7 +40,8 @@ export class VideoService {
     }
 
     // Download image
-    const response = await fetch(options.imageUrl);
+    validatePublicUrl(options.imageUrl);
+    const response = await fetch(options.imageUrl, { signal: AbortSignal.timeout(60000) });
     if (!response.ok) throw new Error(`Failed to download image: ${response.statusText}`);
     const imageBuffer = Buffer.from(await response.arrayBuffer());
 

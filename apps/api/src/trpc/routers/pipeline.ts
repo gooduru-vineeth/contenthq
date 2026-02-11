@@ -76,6 +76,14 @@ export const pipelineRouter = router({
   retryStage: protectedProcedure
     .input(retryStageSchema)
     .mutation(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) throw new Error("Project not found");
+
       const [job] = await db
         .insert(generationJobs)
         .values({

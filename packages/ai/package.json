@@ -10,7 +10,9 @@
     "@ai-sdk/openai": "^1.0.0",
     "@ai-sdk/anthropic": "^1.0.0",
     "@ai-sdk/google": "^1.0.0",
+    "@contenthq/db": "workspace:*",
     "@contenthq/shared": "workspace:*",
+    "drizzle-orm": "^0.39.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

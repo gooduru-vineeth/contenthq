@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { Save, RotateCcw, Loader2, BookOpen } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -27,17 +27,22 @@ export function StoryEditor({ projectId }: StoryEditorProps) {
   });
   const utils = trpc.useUtils();
 
-  const [prevStoryId, setPrevStoryId] = useState<string | null>(story?.id ?? null);
   const [title, setTitle] = useState(story?.title ?? "");
   const [hook, setHook] = useState(story?.hook ?? "");
   const [synopsis, setSynopsis] = useState(story?.synopsis ?? "");
 
-  if (story && prevStoryId !== story.id) {
-    setPrevStoryId(story.id);
-    setTitle(story.title);
-    setHook(story.hook ?? "");
-    setSynopsis(story.synopsis ?? "");
-  }
+  useEffect(() => {
+    if (story) {
+      const t = story.title;
+      const h = story.hook ?? "";
+      const s = story.synopsis ?? "";
+      startTransition(() => {
+        setTitle(t);
+        setHook(h);
+        setSynopsis(s);
+      });
+    }
+  }, [story]);
 
   const updateMutation = trpc.story.update.useMutation({
     onSuccess: () => {

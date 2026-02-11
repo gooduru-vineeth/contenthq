@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
+import { TRPCError } from "@trpc/server";
 import { db } from "@contenthq/db/client";
 import { mediaAssets } from "@contenthq/db/schema";
 import { eq, and, desc } from "drizzle-orm";
@@ -26,7 +27,18 @@ export const mediaRouter = router({
 
   getSignedUrl: protectedProcedure
     .input(z.object({ storageKey: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      const [asset] = await db
+        .select()
+        .from(mediaAssets)
+        .where(
+          and(
+            eq(mediaAssets.storageKey, input.storageKey),
+            eq(mediaAssets.userId, ctx.user.id)
+          )
+        );
+      if (!asset) throw new TRPCError({ code: "NOT_FOUND" });
+
       const url = await storage.getSignedUrl(input.storageKey);
       return { url };
     }),

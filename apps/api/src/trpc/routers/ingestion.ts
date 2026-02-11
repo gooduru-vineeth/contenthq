@@ -1,14 +1,23 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
+import { TRPCError } from "@trpc/server";
 import { db } from "@contenthq/db/client";
-import { ingestedContent, generationJobs } from "@contenthq/db/schema";
-import { eq } from "drizzle-orm";
+import { ingestedContent, projects, generationJobs } from "@contenthq/db/schema";
+import { eq, and } from "drizzle-orm";
 import { addIngestionJob } from "@contenthq/queue";
 
 export const ingestionRouter = router({
   getByProject: protectedProcedure
     .input(z.object({ projectId: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
       return db
         .select()
         .from(ingestedContent)

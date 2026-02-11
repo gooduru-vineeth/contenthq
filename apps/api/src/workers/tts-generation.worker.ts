@@ -30,30 +30,32 @@ export function createTTSGenerationWorker(): Worker {
         // For now, we store a placeholder and the buffer could be uploaded by the storage service
         const voiceoverKey = `projects/${projectId}/scenes/${sceneId}/voiceover.${result.format}`;
 
-        // Update scene video record
-        const existing = await db
-          .select()
-          .from(sceneVideos)
-          .where(eq(sceneVideos.sceneId, sceneId));
+        // Update scene video record (wrapped in transaction to handle race conditions)
+        await db.transaction(async (tx) => {
+          const existing = await tx
+            .select()
+            .from(sceneVideos)
+            .where(eq(sceneVideos.sceneId, sceneId));
 
-        if (existing.length > 0) {
-          await db
-            .update(sceneVideos)
-            .set({
+          if (existing.length > 0) {
+            await tx
+              .update(sceneVideos)
+              .set({
+                voiceoverUrl: voiceoverKey,
+                ttsProvider: provider,
+                ttsVoiceId: voiceId,
+                updatedAt: new Date(),
+              })
+              .where(eq(sceneVideos.sceneId, sceneId));
+          } else {
+            await tx.insert(sceneVideos).values({
+              sceneId,
               voiceoverUrl: voiceoverKey,
               ttsProvider: provider,
               ttsVoiceId: voiceId,
-              updatedAt: new Date(),
-            })
-            .where(eq(sceneVideos.sceneId, sceneId));
-        } else {
-          await db.insert(sceneVideos).values({
-            sceneId,
-            voiceoverUrl: voiceoverKey,
-            ttsProvider: provider,
-            ttsVoiceId: voiceId,
-          });
-        }
+            });
+          }
+        });
 
         await job.updateProgress(100);
         console.warn(`[TTS] Completed for scene ${sceneId}, duration: ${result.duration}s`);

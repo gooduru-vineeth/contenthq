@@ -1,9 +1,9 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { StoryWritingJobData } from "@contenthq/queue";
-import { generateStructuredContent, getStoryWritingPrompt } from "@contenthq/ai";
+import { generateStructuredContent, resolvePromptForStage, executeAgent } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
-import { stories, scenes, ingestedContent, projects } from "@contenthq/db/schema";
+import { stories, scenes, ingestedContent, projects, aiGenerations } from "@contenthq/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -31,7 +31,7 @@ export function createStoryWritingWorker(): Worker {
   return new Worker<StoryWritingJobData>(
     QUEUE_NAMES.STORY_WRITING,
     async (job) => {
-      const { projectId, tone, targetDuration } = job.data;
+      const { projectId, userId, tone, targetDuration, agentId } = job.data;
       console.warn(`[StoryWriting] Processing job ${job.id} for project ${projectId}`);
 
       try {
@@ -52,16 +52,55 @@ export function createStoryWritingWorker(): Worker {
         const contentText = content.map((c) => `${c.title}\n${c.body}`).join("\n\n");
         await job.updateProgress(20);
 
-        // Generate story via LLM
-        const prompt = getStoryWritingPrompt(contentText, tone, targetDuration);
-        const result = await generateStructuredContent(prompt, storyOutputSchema, {
-          temperature: 0.7,
-          maxTokens: 4000,
-        });
+        const sceneCount = Math.max(3, Math.ceil(targetDuration / 8));
+
+        let storyData: z.infer<typeof storyOutputSchema>;
+        let templateId: string | undefined;
+        let composedPrompt: string | undefined;
+        let usedModel: string | undefined;
+
+        if (agentId) {
+          // New path: use agent executor
+          const result = await executeAgent({
+            agentId,
+            variables: {
+              content: contentText,
+              tone,
+              targetDuration: String(targetDuration),
+              sceneCount: String(sceneCount),
+            },
+            projectId,
+            userId,
+            db,
+          });
+          storyData = result.data as z.infer<typeof storyOutputSchema>;
+          usedModel = result.model;
+        } else {
+          // Existing path: resolvePromptForStage + generateStructuredContent
+          const resolved = await resolvePromptForStage(
+            db,
+            projectId,
+            userId,
+            "story_writing",
+            {
+              content: contentText,
+              tone,
+              targetDuration: String(targetDuration),
+              sceneCount: String(sceneCount),
+            }
+          );
+          composedPrompt = resolved.composedPrompt;
+          templateId = resolved.template.id;
+
+          const result = await generateStructuredContent(composedPrompt, storyOutputSchema, {
+            temperature: 0.7,
+            maxTokens: 4000,
+          });
+          storyData = result.data;
+          usedModel = result.model;
+        }
 
         await job.updateProgress(70);
-
-        const storyData = result.data;
 
         // Store story
         const [story] = await db
@@ -73,7 +112,7 @@ export function createStoryWritingWorker(): Worker {
             synopsis: storyData.synopsis,
             narrativeArc: storyData.narrativeArc,
             sceneCount: storyData.scenes.length,
-            aiModelUsed: result.model,
+            aiModelUsed: usedModel,
           })
           .returning();
 
@@ -87,6 +126,19 @@ export function createStoryWritingWorker(): Worker {
             narrationScript: sceneData.narrationScript,
             duration: sceneData.duration,
             status: "outlined",
+          });
+        }
+
+        // Track prompt usage in ai_generations (only for non-agent path, agent executor records its own)
+        if (!agentId && composedPrompt) {
+          await db.insert(aiGenerations).values({
+            userId,
+            projectId,
+            type: "story_writing",
+            input: { tone, targetDuration, sceneCount },
+            output: storyData,
+            promptTemplateId: templateId,
+            composedPrompt,
           });
         }
 

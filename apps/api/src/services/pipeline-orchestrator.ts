@@ -1,5 +1,5 @@
 import { db } from "@contenthq/db/client";
-import { projects, scenes, stories } from "@contenthq/db/schema";
+import { projects, scenes, stories, projectFlowConfigs, flows } from "@contenthq/db/schema";
 import { eq, asc } from "drizzle-orm";
 import {
   addIngestionJob,
@@ -10,8 +10,58 @@ import {
   addAudioMixingJob,
   addVideoAssemblyJob,
 } from "@contenthq/queue";
+import { FlowEngine } from "./flow-engine";
 
 export class PipelineOrchestrator {
+  private flowEngine = new FlowEngine();
+
+  /**
+   * Start pipeline via the flow engine (opt-in).
+   * Used when a project has a project_flow_configs record.
+   */
+  async startPipelineWithFlow(
+    projectId: string,
+    userId: string,
+    inputData: Record<string, unknown> = {}
+  ): Promise<{ executionId: string } | null> {
+    // Check if this project has a flow config
+    const [config] = await db
+      .select()
+      .from(projectFlowConfigs)
+      .where(eq(projectFlowConfigs.projectId, projectId));
+
+    if (!config) {
+      // No flow config — caller should fall back to startPipeline()
+      return null;
+    }
+
+    // Verify the flow exists and is active
+    const [flow] = await db
+      .select()
+      .from(flows)
+      .where(eq(flows.id, config.flowId));
+
+    if (!flow || flow.status !== "active") {
+      console.warn(
+        `[Pipeline] Flow ${config.flowId} not found or inactive for project ${projectId}, falling back to standard pipeline`
+      );
+      return null;
+    }
+
+    console.warn(
+      `[Pipeline] Starting flow-based pipeline for project ${projectId} using flow "${flow.name}"`
+    );
+
+    const result = await this.flowEngine.executeFlow(
+      config.flowId,
+      projectId,
+      userId,
+      inputData
+    );
+
+    return { executionId: result.executionId };
+  }
+
   async startPipeline(projectId: string, userId: string): Promise<void> {
     const [project] = await db
       .select()
@@ -126,6 +176,12 @@ export class PipelineOrchestrator {
       .where(eq(scenes.projectId, projectId))
       .orderBy(asc(scenes.index));
 
+    // Check all scenes have reached visual_verified or visual_failed status
+    const allVerified = sceneList.every(
+      (s) => s.status === "visual_verified" || s.status === "failed"
+    );
+    if (!allVerified) return; // Not all scenes done yet, wait
+
     // Queue TTS generation for all scenes
     for (const scene of sceneList) {
       if (scene.narrationScript) {
@@ -159,6 +215,12 @@ export class PipelineOrchestrator {
       .where(eq(scenes.projectId, projectId))
       .orderBy(asc(scenes.index));
 
+    // Check all scenes have reached video_generated status (TTS complete)
+    const allTTSDone = sceneList.every(
+      (s) => s.status === "video_generated" || s.status === "failed"
+    );
+    if (!allTTSDone) return; // Not all scenes done yet, wait
+
     // Queue audio mixing for all scenes
     for (const scene of sceneList) {
       await addAudioMixingJob({
@@ -182,6 +244,12 @@ export class PipelineOrchestrator {
       .from(scenes)
       .where(eq(scenes.projectId, projectId))
       .orderBy(asc(scenes.index));
+
+    // Check all scenes have reached audio_mixed status
+    const allMixed = sceneList.every(
+      (s) => s.status === "audio_mixed" || s.status === "failed"
+    );
+    if (!allMixed) return; // Not all scenes done yet, wait
 
     // Queue final video assembly
     await addVideoAssemblyJob({
