@@ -17,9 +17,10 @@ const PROVIDERS = [
 ];
 
 export default function VoicesPage() {
-  const { data: profiles, isLoading, refetch } = trpc.voice.list.useQuery();
-  const createMutation = trpc.voice.create.useMutation({ onSuccess: () => { refetch(); setShowForm(false); } });
-  const deleteMutation = trpc.voice.delete.useMutation({ onSuccess: () => refetch() });
+  const utils = trpc.useUtils();
+  const { data: profiles, isLoading } = trpc.voice.list.useQuery();
+  const createMutation = trpc.voice.create.useMutation({ onSuccess: () => { utils.voice.list.invalidate(); setShowForm(false); } });
+  const deleteMutation = trpc.voice.delete.useMutation({ onSuccess: () => utils.voice.list.invalidate() });
 
   const [showForm, setShowForm] = useState(false);
   const [provider, setProvider] = useState("openai");

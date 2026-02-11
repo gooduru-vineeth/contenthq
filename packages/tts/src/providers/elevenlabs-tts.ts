@@ -31,6 +31,7 @@ export async function generateElevenLabsTTS(options: TTSOptions): Promise<TTSRes
           similarity_boost: 0.75,
         },
       }),
+      signal: AbortSignal.timeout(60000),
     }
   );
 

@@ -11,6 +11,8 @@ import {
   Server,
   Cpu,
   Shield,
+  Bot,
+  GitBranch,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -36,4 +38,6 @@ export const adminNavigation: NavItem[] = [
   { label: "Prompts", href: "/admin/prompts", icon: Shield },
   { label: "Providers", href: "/admin/providers", icon: Server },
   { label: "Models", href: "/admin/models", icon: Cpu },
+  { label: "Agents", href: "/admin/agents", icon: Bot },
+  { label: "Flows", href: "/admin/flows", icon: GitBranch },
 ];

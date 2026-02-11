@@ -11,6 +11,9 @@ export function getRedisConnection(): IORedis {
     connection = new IORedis(redisUrl, {
       maxRetriesPerRequest: null, // Required by BullMQ
     });
+    connection.on("error", (err) => {
+      console.error("Redis connection error:", err);
+    });
   }
   return connection;
 }

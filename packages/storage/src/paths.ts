@@ -1,5 +1,16 @@
+function sanitizePathSegment(segment: string): string {
+  // Remove path traversal attempts and dangerous characters
+  return segment.replace(/[/\\.]+/g, '').replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
+function sanitizeFilename(filename: string): string {
+  // Get just the filename, no directory components
+  const base = filename.split('/').pop()?.split('\\').pop() ?? filename;
+  return base.replace(/[^a-zA-Z0-9._-]/g, '');
+}
+
 export function getProjectPath(userId: string, projectId: string): string {
-  return `users/${userId}/projects/${projectId}`;
+  return `users/${sanitizePathSegment(userId)}/projects/${sanitizePathSegment(projectId)}`;
 }
 
 export function getSceneVisualPath(
@@ -8,7 +19,7 @@ export function getSceneVisualPath(
   sceneId: string,
   filename: string
 ): string {
-  return `users/${userId}/projects/${projectId}/scenes/${sceneId}/visuals/${filename}`;
+  return `users/${sanitizePathSegment(userId)}/projects/${sanitizePathSegment(projectId)}/scenes/${sanitizePathSegment(sceneId)}/visuals/${sanitizeFilename(filename)}`;
 }
 
 export function getSceneVideoPath(
@@ -17,7 +28,7 @@ export function getSceneVideoPath(
   sceneId: string,
   filename: string
 ): string {
-  return `users/${userId}/projects/${projectId}/scenes/${sceneId}/video/${filename}`;
+  return `users/${sanitizePathSegment(userId)}/projects/${sanitizePathSegment(projectId)}/scenes/${sanitizePathSegment(sceneId)}/video/${sanitizeFilename(filename)}`;
 }
 
 export function getSceneAudioPath(
@@ -26,7 +37,7 @@ export function getSceneAudioPath(
   sceneId: string,
   filename: string
 ): string {
-  return `users/${userId}/projects/${projectId}/scenes/${sceneId}/audio/${filename}`;
+  return `users/${sanitizePathSegment(userId)}/projects/${sanitizePathSegment(projectId)}/scenes/${sanitizePathSegment(sceneId)}/audio/${sanitizeFilename(filename)}`;
 }
 
 export function getOutputPath(
@@ -34,7 +45,7 @@ export function getOutputPath(
   projectId: string,
   filename: string
 ): string {
-  return `users/${userId}/projects/${projectId}/output/${filename}`;
+  return `users/${sanitizePathSegment(userId)}/projects/${sanitizePathSegment(projectId)}/output/${sanitizeFilename(filename)}`;
 }
 
 export function getIngestedContentPath(
@@ -42,5 +53,5 @@ export function getIngestedContentPath(
   projectId: string,
   contentId: string
 ): string {
-  return `users/${userId}/projects/${projectId}/ingested/content-${contentId}.json`;
+  return `users/${sanitizePathSegment(userId)}/projects/${sanitizePathSegment(projectId)}/ingested/content-${sanitizePathSegment(contentId)}.json`;
 }

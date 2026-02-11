@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, Check } from "lucide-react";
+import { Pencil, Trash2, Check, History } from "lucide-react";
 import type { PersonaCategory } from "@contenthq/shared";
 import { PERSONA_CATEGORY_LABELS } from "@contenthq/shared";
 
@@ -22,6 +22,7 @@ interface PersonaData {
   label: string;
   description: string | null;
   promptFragment: string;
+  version: number;
   isDefault: boolean;
 }
 
@@ -30,6 +31,7 @@ interface PersonaCardProps {
   onEdit: (persona: PersonaData) => void;
   onDelete: (id: string) => void;
   onSetDefault: (id: string) => void;
+  onViewHistory?: (id: string) => void;
 }
 
 export function PersonaCard({
@@ -37,6 +39,7 @@ export function PersonaCard({
   onEdit,
   onDelete,
   onSetDefault,
+  onViewHistory,
 }: PersonaCardProps) {
   return (
     <Card
@@ -56,6 +59,9 @@ export function PersonaCard({
           <div className="flex shrink-0 items-center gap-1.5">
             <Badge variant="secondary" className="text-xs">
               {PERSONA_CATEGORY_LABELS[persona.category]}
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              v{persona.version}
             </Badge>
             {persona.isDefault && (
               <Badge className="bg-green-600 text-xs hover:bg-green-600">
@@ -95,6 +101,16 @@ export function PersonaCard({
           <Trash2 className="h-4 w-4" />
           Delete
         </Button>
+        {onViewHistory && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onViewHistory(persona.id)}
+          >
+            <History className="h-4 w-4" />
+            History
+          </Button>
+        )}
         {!persona.isDefault && (
           <Button
             variant="ghost"

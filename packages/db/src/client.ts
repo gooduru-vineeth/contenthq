@@ -14,6 +14,14 @@ const pool = new pg.Pool({
   user: decodeURIComponent(url.username),
   password: decodeURIComponent(url.password),
   ssl: url.searchParams.get("sslmode") ? { rejectUnauthorized: false } : false,
+  max: 20,
+  min: 2,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+});
+
+pool.on("error", (err) => {
+  console.error("Unexpected database pool error:", err);
 });
 
 export const db = drizzle(pool, { schema });

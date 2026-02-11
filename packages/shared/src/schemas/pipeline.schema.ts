@@ -6,7 +6,17 @@ export const startPipelineSchema = z.object({
 
 export const retryStageSchema = z.object({
   projectId: z.string().min(1),
-  stage: z.string().min(1),
+  stage: z.enum([
+    "INGESTION",
+    "STORY_WRITING",
+    "SCENE_GENERATION",
+    "VISUAL_GENERATION",
+    "VISUAL_VERIFICATION",
+    "VIDEO_GENERATION",
+    "TTS_GENERATION",
+    "AUDIO_MIXING",
+    "VIDEO_ASSEMBLY",
+  ]),
 });
 
 export const pipelineConfigSchema = z.object({

@@ -1,5 +1,6 @@
 import { generateObject } from "ai";
-import { getOpenAIProvider, OPENAI_MODELS } from "../providers/openai";
+import { getModelInstance } from "../providers/model-factory";
+import { OPENAI_MODELS } from "../providers/openai";
 import { z } from "zod";
 
 const verificationSchema = z.object({
@@ -19,9 +20,10 @@ export async function verifyImage(
   sceneDescription: string,
   threshold = 60,
   customPrompt?: string,
+  provider = "openai",
+  modelId?: string,
 ): Promise<VerificationResult> {
-  const provider = getOpenAIProvider();
-  const model = provider(OPENAI_MODELS.GPT4O);
+  const model = getModelInstance(provider, modelId ?? OPENAI_MODELS.GPT4O);
 
   const result = await generateObject({
     model,

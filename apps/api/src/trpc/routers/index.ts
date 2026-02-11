@@ -13,6 +13,9 @@ import { billingRouter } from "./billing";
 import { promptRouter } from "./prompt";
 import { adminProviderRouter } from "./admin-providers";
 import { adminModelRouter } from "./admin-models";
+import { agentRouter } from "./agent";
+import { flowRouter } from "./flow";
+import { flowExecutionRouter } from "./flow-execution";
 
 export const appRouter = router({
   health: healthRouter,
@@ -29,6 +32,9 @@ export const appRouter = router({
   prompt: promptRouter,
   adminProvider: adminProviderRouter,
   adminModel: adminModelRouter,
+  agent: agentRouter,
+  flow: flowRouter,
+  flowExecution: flowExecutionRouter,
 });
 
 export type AppRouter = typeof appRouter;

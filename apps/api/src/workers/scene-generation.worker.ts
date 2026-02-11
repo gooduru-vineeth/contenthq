@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
-import { getRedisConnection, QUEUE_NAMES, addVisualGenerationJob } from "@contenthq/queue";
+import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { SceneGenerationJobData } from "@contenthq/queue";
-import { generateTextContent, resolvePromptForStage } from "@contenthq/ai";
+import { generateTextContent, resolvePromptForStage, executeAgent } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
 import { scenes, projects } from "@contenthq/db/schema";
 import { eq } from "drizzle-orm";
@@ -10,7 +10,7 @@ export function createSceneGenerationWorker(): Worker {
   return new Worker<SceneGenerationJobData>(
     QUEUE_NAMES.SCENE_GENERATION,
     async (job) => {
-      const { projectId, storyId, userId } = job.data;
+      const { projectId, storyId, userId, agentId } = job.data;
       console.warn(`[SceneGeneration] Processing job ${job.id} for project ${projectId}`);
 
       try {
@@ -33,49 +33,63 @@ export function createSceneGenerationWorker(): Worker {
         const totalScenes = projectScenes.length;
         let processed = 0;
 
-        // For each scene, generate a refined image prompt
+        // Collect all scene updates first, then apply atomically
+        const sceneUpdates: Array<{ sceneId: string; imagePrompt: string }> = [];
+
         for (const scene of projectScenes) {
           if (!scene.visualDescription) {
             processed++;
             continue;
           }
 
-          const { composedPrompt } = await resolvePromptForStage(
-            db,
-            projectId,
-            userId,
-            "image_refinement",
-            { visualDescription: scene.visualDescription }
-          );
-          const result = await generateTextContent(composedPrompt, {
-            temperature: 0.7,
-            maxTokens: 500,
-          });
+          let imagePrompt: string;
 
-          const imagePrompt = result.content;
+          if (agentId) {
+            // New path: use agent executor
+            const result = await executeAgent({
+              agentId,
+              variables: { visualDescription: scene.visualDescription },
+              projectId,
+              userId,
+              db,
+            });
+            imagePrompt = result.data as string;
+          } else {
+            // Existing path: resolvePromptForStage + generateTextContent
+            const { composedPrompt } = await resolvePromptForStage(
+              db,
+              projectId,
+              userId,
+              "image_refinement",
+              { visualDescription: scene.visualDescription }
+            );
+            const result = await generateTextContent(composedPrompt, {
+              temperature: 0.7,
+              maxTokens: 500,
+            });
+            imagePrompt = result.content;
+          }
 
-          // Update scene with generated image prompt
-          await db
-            .update(scenes)
-            .set({
-              imagePrompt,
-              status: "scripted",
-              updatedAt: new Date(),
-            })
-            .where(eq(scenes.id, scene.id));
-
-          // Queue visual generation for this scene
-          await addVisualGenerationJob({
-            projectId,
-            sceneId: scene.id,
-            userId,
-            imagePrompt,
-          });
+          sceneUpdates.push({ sceneId: scene.id, imagePrompt });
 
           processed++;
           const progress = 20 + Math.round((processed / totalScenes) * 70);
           await job.updateProgress(progress);
         }
+
+        // Apply all updates in a transaction so partial failures are rolled back
+        await db.transaction(async (tx) => {
+          for (const update of sceneUpdates) {
+            await tx
+              .update(scenes)
+              .set({
+                imagePrompt: update.imagePrompt,
+                status: "scripted",
+                updatedAt: new Date(),
+              })
+              .where(eq(scenes.id, update.sceneId));
+          }
+        });
 
         await job.updateProgress(100);
         console.warn(

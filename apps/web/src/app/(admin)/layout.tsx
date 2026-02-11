@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, FileText, LogOut, User, Users } from "lucide-react";
+import { ArrowLeft, Bot, FileText, GitBranch, LogOut, User, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -21,6 +21,8 @@ interface AdminNavItem {
 const adminNavigation: AdminNavItem[] = [
   { label: "Prompts", href: "/admin/prompts", icon: FileText },
   { label: "Personas", href: "/admin/personas", icon: Users },
+  { label: "Agents", href: "/admin/agents", icon: Bot },
+  { label: "Flows", href: "/admin/flows", icon: GitBranch },
 ];
 
 export default function AdminLayout({

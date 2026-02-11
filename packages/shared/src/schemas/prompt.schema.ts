@@ -31,6 +31,7 @@ export const updatePromptTemplateSchema = z.object({
   description: z.string().max(1000).nullable().optional(),
   variables: z.array(z.string()).optional(),
   outputSchemaHint: z.unknown().optional(),
+  changeNote: z.string().max(500).optional(),
 });
 
 export const createPersonaSchema = z.object({
@@ -64,6 +65,7 @@ export const updatePersonaSchema = z.object({
     })
     .nullable()
     .optional(),
+  changeNote: z.string().max(500).optional(),
 });
 
 export const updateProjectPromptConfigSchema = z.object({
@@ -79,6 +81,39 @@ export const previewPromptSchema = z.object({
   templateContent: z.string().optional(),
   variables: z.record(z.string(), z.string()).optional(),
   personaIds: z.array(z.string().uuid()).optional(),
+});
+
+// Version history schemas
+export const templateVersionHistorySchema = z.object({
+  templateId: z.string().uuid(),
+  limit: z.number().min(1).max(100).default(20),
+  offset: z.number().min(0).default(0),
+});
+
+export const getTemplateVersionSchema = z.object({
+  templateId: z.string().uuid(),
+  version: z.number().int().min(1),
+});
+
+export const revertTemplateSchema = z.object({
+  templateId: z.string().uuid(),
+  targetVersion: z.number().int().min(1),
+});
+
+export const personaVersionHistorySchema = z.object({
+  personaId: z.string().uuid(),
+  limit: z.number().min(1).max(100).default(20),
+  offset: z.number().min(0).default(0),
+});
+
+export const getPersonaVersionSchema = z.object({
+  personaId: z.string().uuid(),
+  version: z.number().int().min(1),
+});
+
+export const revertPersonaSchema = z.object({
+  personaId: z.string().uuid(),
+  targetVersion: z.number().int().min(1),
 });
 
 export type CreatePromptTemplateInput = z.infer<

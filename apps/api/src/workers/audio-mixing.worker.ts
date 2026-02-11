@@ -19,13 +19,32 @@ export function createAudioMixingWorker(): Worker {
         // For now, create the audio mix record with defaults
         const mixedAudioKey = `projects/${projectId}/scenes/${sceneId}/mixed-audio.mp3`;
 
-        await db.insert(sceneAudioMixes).values({
-          sceneId,
-          mixedAudioUrl: mixedAudioKey,
-          voiceoverVolume: 100,
-          musicVolume: musicTrackId ? 30 : 0,
-          musicDuckingEnabled: true,
-        });
+        // Check if a record already exists for idempotency
+        const existing = await db
+          .select()
+          .from(sceneAudioMixes)
+          .where(eq(sceneAudioMixes.sceneId, sceneId));
+
+        if (existing.length > 0) {
+          await db
+            .update(sceneAudioMixes)
+            .set({
+              mixedAudioUrl: mixedAudioKey,
+              voiceoverVolume: 100,
+              musicVolume: musicTrackId ? 30 : 0,
+              musicDuckingEnabled: true,
+              updatedAt: new Date(),
+            })
+            .where(eq(sceneAudioMixes.id, existing[0].id));
+        } else {
+          await db.insert(sceneAudioMixes).values({
+            sceneId,
+            mixedAudioUrl: mixedAudioKey,
+            voiceoverVolume: 100,
+            musicVolume: musicTrackId ? 30 : 0,
+            musicDuckingEnabled: true,
+          });
+        }
 
         await job.updateProgress(100);
 

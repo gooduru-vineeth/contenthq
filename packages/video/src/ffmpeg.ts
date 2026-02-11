@@ -1,10 +1,46 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import { writeFile, readFile, unlink, mkdtemp } from "node:fs/promises";
+import { writeFile, readFile, unlink, mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 const execAsync = promisify(exec);
+
+function validateNumeric(value: number, name: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`Invalid ${name}: must be a positive finite number`);
+  }
+  return value;
+}
+
+function validateDimensions(width: number, height: number): void {
+  validateNumeric(width, 'width');
+  validateNumeric(height, 'height');
+  if (!Number.isInteger(width) || width < 1 || width > 7680) {
+    throw new Error('Invalid width: must be an integer between 1 and 7680');
+  }
+  if (!Number.isInteger(height) || height < 1 || height > 4320) {
+    throw new Error('Invalid height: must be an integer between 1 and 4320');
+  }
+}
+
+function validateFps(fps: number): void {
+  validateNumeric(fps, 'fps');
+  if (fps < 1 || fps > 120) {
+    throw new Error('Invalid fps: must be between 1 and 120');
+  }
+}
+
+function validateDuration(duration: number): void {
+  validateNumeric(duration, 'duration');
+  if (duration < 0.1 || duration > 3600) {
+    throw new Error('Invalid duration: must be between 0.1 and 3600');
+  }
+}
+
+function validateVolume(volume: number, name: string): void {
+  validateNumeric(volume, name);
+}
 
 export async function checkFFmpeg(): Promise<boolean> {
   try {
@@ -26,6 +62,10 @@ export async function imageToVideo(
   height = 1080,
   fps = 30,
 ): Promise<Buffer> {
+  validateDimensions(width, height);
+  validateFps(fps);
+  validateDuration(duration);
+
   const tempDir = await createTempDir();
   const inputPath = join(tempDir, "input.png");
   const outputPath = join(tempDir, "output.mp4");
@@ -46,7 +86,7 @@ export async function imageToVideo(
     await execAsync(cmd, { timeout: 120000 });
     return readFile(outputPath);
   } finally {
-    await cleanup(inputPath, outputPath);
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -56,6 +96,9 @@ export async function mixAudio(
   voiceoverVolume = 100,
   musicVolume = 30,
 ): Promise<Buffer> {
+  validateVolume(voiceoverVolume, 'voiceoverVolume');
+  validateVolume(musicVolume, 'musicVolume');
+
   const tempDir = await createTempDir();
   const voicePath = join(tempDir, "voice.mp3");
   const outputPath = join(tempDir, "mixed.mp3");
@@ -79,7 +122,6 @@ export async function mixAudio(
       ].join(" ");
 
       await execAsync(cmd, { timeout: 120000 });
-      await unlink(musicPath);
     } else {
       const vVol = voiceoverVolume / 100;
       const cmd = [
@@ -94,7 +136,7 @@ export async function mixAudio(
 
     return readFile(outputPath);
   } finally {
-    await cleanup(voicePath, outputPath);
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -104,6 +146,8 @@ export async function assembleVideo(
   width = 1920,
   height = 1080,
 ): Promise<Buffer> {
+  validateDimensions(width, height);
+
   const tempDir = await createTempDir();
   const concatFile = join(tempDir, "concat.txt");
 
@@ -145,11 +189,11 @@ export async function assembleVideo(
     await execAsync(cmd, { timeout: 300000 });
     return readFile(outputPath);
   } finally {
-    await unlink(concatFile).catch(() => {});
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
-async function cleanup(...paths: string[]): Promise<void> {
+async function _cleanup(...paths: string[]): Promise<void> {
   await Promise.all(
     paths.map((p) => unlink(p).catch(() => {})),
   );

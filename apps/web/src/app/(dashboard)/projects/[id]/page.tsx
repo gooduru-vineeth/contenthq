@@ -73,6 +73,8 @@ export default function ProjectDetailPage({
   const { id } = use(params);
   const router = useRouter();
 
+  const utils = trpc.useUtils();
+
   const { data: project, isLoading: projectLoading } =
     trpc.project.getById.useQuery({ id });
   const { data: story } = trpc.story.getByProject.useQuery(
@@ -84,9 +86,16 @@ export default function ProjectDetailPage({
     { enabled: !!project },
   );
 
-  const ingestionMutation = trpc.ingestion.create.useMutation();
+  const ingestionMutation = trpc.ingestion.create.useMutation({
+    onSuccess: () => {
+      utils.project.getById.invalidate({ id });
+    },
+  });
   const deleteMutation = trpc.project.delete.useMutation({
-    onSuccess: () => router.push("/projects"),
+    onSuccess: () => {
+      utils.project.list.invalidate();
+      router.push("/projects");
+    },
   });
 
   if (projectLoading) {

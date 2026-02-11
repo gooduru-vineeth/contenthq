@@ -31,10 +31,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PersonaCard } from "@/components/personas/persona-card";
+import { VersionHistorySheet } from "@/components/admin/version-history-sheet";
 
 export default function PersonasPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
+  const [historyPersonaId, setHistoryPersonaId] = useState<string | null>(null);
 
   const [formCategory, setFormCategory] = useState<PersonaCategory>("tone");
   const [formName, setFormName] = useState("");
@@ -44,6 +46,12 @@ export default function PersonasPage() {
 
   const utils = trpc.useUtils();
   const { data: personas, isLoading } = trpc.prompt.listPersonas.useQuery();
+
+  const { data: historyData } =
+    trpc.prompt.getPersonaVersionHistory.useQuery(
+      { personaId: historyPersonaId! },
+      { enabled: !!historyPersonaId }
+    );
 
   const createMutation = trpc.prompt.createPersona.useMutation({
     onSuccess: () => {
@@ -61,6 +69,7 @@ export default function PersonasPage() {
     onSuccess: () => {
       toast.success("Persona updated");
       utils.prompt.listPersonas.invalidate();
+      utils.prompt.getPersonaVersionHistory.invalidate();
       resetForm();
       setEditingPersona(null);
       setDialogOpen(false);
@@ -74,6 +83,17 @@ export default function PersonasPage() {
     onSuccess: () => {
       toast.success("Persona deleted");
       utils.prompt.listPersonas.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  const revertMutation = trpc.prompt.revertPersona.useMutation({
+    onSuccess: () => {
+      toast.success("Persona reverted successfully");
+      utils.prompt.listPersonas.invalidate();
+      utils.prompt.getPersonaVersionHistory.invalidate();
     },
     onError: (err) => {
       toast.error(err.message);
@@ -282,21 +302,58 @@ export default function PersonasPage() {
               <div key={group.category} className="space-y-3">
                 <h2 className="text-lg font-semibold">{group.label}</h2>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {group.items.map((persona) => (
-                    <PersonaCard
-                      key={persona.id}
-                      persona={persona}
-                      isSystem={persona.createdBy === null}
-                      onEdit={() => openEditDialog(persona)}
-                      onDelete={() =>
-                        deleteMutation.mutate({ id: persona.id })
-                      }
-                    />
-                  ))}
+                  {group.items.map((persona) => {
+                    const isOwned = persona.createdBy !== null;
+                    return (
+                      <PersonaCard
+                        key={persona.id}
+                        persona={persona}
+                        isSystem={!isOwned}
+                        onEdit={isOwned ? () => openEditDialog(persona) : undefined}
+                        onDelete={
+                          isOwned
+                            ? () => deleteMutation.mutate({ id: persona.id })
+                            : undefined
+                        }
+                        onViewHistory={
+                          isOwned
+                            ? () => setHistoryPersonaId(persona.id)
+                            : undefined
+                        }
+                      />
+                    );
+                  })}
                 </div>
               </div>
             )
         )}
+
+      {historyData && (
+        <VersionHistorySheet
+          open={!!historyPersonaId}
+          onOpenChange={(open) => {
+            if (!open) setHistoryPersonaId(null);
+          }}
+          title={historyData.current.label}
+          currentVersion={historyData.current.version}
+          currentContent={historyData.current.promptFragment}
+          currentName={historyData.current.label}
+          history={historyData.history.map((h) => ({
+            ...h,
+            content: h.promptFragment,
+            createdAt: h.createdAt,
+          }))}
+          onRevert={(targetVersion) => {
+            if (historyPersonaId) {
+              revertMutation.mutate({
+                personaId: historyPersonaId,
+                targetVersion,
+              });
+            }
+          }}
+          isReverting={revertMutation.isPending}
+        />
+      )}
     </div>
   );
 }

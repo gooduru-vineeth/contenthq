@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, History } from "lucide-react";
 import type { Persona } from "@contenthq/shared";
 import { PERSONA_CATEGORY_LABELS } from "@contenthq/shared";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ interface PersonaCardProps {
   isSystem: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
+  onViewHistory?: () => void;
 }
 
 export function PersonaCard({
@@ -26,6 +27,7 @@ export function PersonaCard({
   isSystem,
   onEdit,
   onDelete,
+  onViewHistory,
 }: PersonaCardProps) {
   const truncatedFragment =
     persona.promptFragment.length > 100
@@ -66,6 +68,12 @@ export function PersonaCard({
             <Button variant="ghost" size="sm" onClick={onEdit}>
               <Pencil className="mr-1 h-3 w-3" />
               Edit
+            </Button>
+          )}
+          {onViewHistory && (
+            <Button variant="ghost" size="sm" onClick={onViewHistory}>
+              <History className="mr-1 h-3 w-3" />
+              History
             </Button>
           )}
           {onDelete && (

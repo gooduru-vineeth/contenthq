@@ -7,7 +7,7 @@ export const voiceProfiles = pgTable("voice_profiles", {
     .$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id")
     .notNull()
-    .references(() => user.id),
+    .references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   provider: text("provider").notNull(),
   providerVoiceId: text("provider_voice_id").notNull(),

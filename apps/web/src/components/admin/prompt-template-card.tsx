@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, Check } from "lucide-react";
+import { Pencil, Trash2, Check, History } from "lucide-react";
 import type { PromptType } from "@contenthq/shared";
 import { PROMPT_TYPE_LABELS } from "@contenthq/shared";
 
@@ -31,6 +31,7 @@ interface PromptTemplateCardProps {
   onEdit: (template: TemplateData) => void;
   onDelete: (id: string) => void;
   onSetActive: (id: string) => void;
+  onViewHistory?: (id: string) => void;
 }
 
 export function PromptTemplateCard({
@@ -38,6 +39,7 @@ export function PromptTemplateCard({
   onEdit,
   onDelete,
   onSetActive,
+  onViewHistory,
 }: PromptTemplateCardProps) {
   const variables = template.variables ?? [];
 
@@ -106,6 +108,16 @@ export function PromptTemplateCard({
           <Trash2 className="h-4 w-4" />
           Delete
         </Button>
+        {onViewHistory && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onViewHistory(template.id)}
+          >
+            <History className="h-4 w-4" />
+            History
+          </Button>
+        )}
         {!template.isActive && (
           <Button
             variant="ghost"

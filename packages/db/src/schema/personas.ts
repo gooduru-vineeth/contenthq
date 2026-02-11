@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -20,7 +21,10 @@ export const personas = pgTable(
     label: text("label").notNull(),
     description: text("description"),
     promptFragment: text("prompt_fragment").notNull(),
-    createdBy: text("created_by").references(() => user.id),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    version: integer("version").notNull().default(1),
     isDefault: boolean("is_default").notNull().default(false),
     uiConfig: jsonb("ui_config").$type<{
       gradient?: string;

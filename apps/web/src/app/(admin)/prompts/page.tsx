@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { PromptTemplateCard } from "@/components/admin/prompt-template-card";
 import { PromptTemplateForm } from "@/components/admin/prompt-template-form";
+import { VersionHistorySheet } from "@/components/admin/version-history-sheet";
 
 export default function AdminPromptsPage() {
   const [selectedType, setSelectedType] = useState<PromptType>("story_writing");
@@ -34,11 +35,20 @@ export default function AdminPromptsPage() {
     content: string;
     variables: string[] | null;
   } | null>(null);
+  const [historyTemplateId, setHistoryTemplateId] = useState<string | null>(
+    null
+  );
 
   const utils = trpc.useUtils();
 
   const { data: templates, isLoading } =
     trpc.prompt.admin.listAllTemplates.useQuery({ type: selectedType });
+
+  const { data: historyData } =
+    trpc.prompt.admin.getTemplateVersionHistory.useQuery(
+      { templateId: historyTemplateId! },
+      { enabled: !!historyTemplateId }
+    );
 
   const seedDefaults = trpc.prompt.admin.seedDefaults.useMutation({
     onSuccess: (data) => {
@@ -69,6 +79,7 @@ export default function AdminPromptsPage() {
       setDialogOpen(false);
       setEditingTemplate(null);
       utils.prompt.admin.listAllTemplates.invalidate();
+      utils.prompt.admin.getTemplateVersionHistory.invalidate();
     },
     onError: (err) => {
       toast.error(err.message);
@@ -95,9 +106,25 @@ export default function AdminPromptsPage() {
     },
   });
 
-  const handleSubmit = (data: CreatePromptTemplateInput) => {
+  const revertTemplate = trpc.prompt.admin.revertTemplate.useMutation({
+    onSuccess: () => {
+      toast.success("Template reverted successfully");
+      utils.prompt.admin.listAllTemplates.invalidate();
+      utils.prompt.admin.getTemplateVersionHistory.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  const handleSubmit = (
+    data: CreatePromptTemplateInput & { changeNote?: string }
+  ) => {
     if (editingTemplate) {
-      updateTemplate.mutate({ id: editingTemplate.id, ...data });
+      updateTemplate.mutate({
+        id: editingTemplate.id,
+        ...data,
+      });
     } else {
       createTemplate.mutate(data);
     }
@@ -199,6 +226,7 @@ export default function AdminPromptsPage() {
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onSetActive={handleSetActive}
+                    onViewHistory={(id) => setHistoryTemplateId(id)}
                   />
                 ))}
               </div>
@@ -239,9 +267,37 @@ export default function AdminPromptsPage() {
                 : { type: selectedType }
             }
             isLoading={createTemplate.isPending || updateTemplate.isPending}
+            isEditing={!!editingTemplate}
           />
         </DialogContent>
       </Dialog>
+
+      {historyData && (
+        <VersionHistorySheet
+          open={!!historyTemplateId}
+          onOpenChange={(open) => {
+            if (!open) setHistoryTemplateId(null);
+          }}
+          title={historyData.current.name}
+          currentVersion={historyData.current.version}
+          currentContent={historyData.current.content}
+          currentName={historyData.current.name}
+          history={historyData.history.map((h) => ({
+            ...h,
+            content: h.content,
+            createdAt: h.createdAt,
+          }))}
+          onRevert={(targetVersion) => {
+            if (historyTemplateId) {
+              revertTemplate.mutate({
+                templateId: historyTemplateId,
+                targetVersion,
+              });
+            }
+          }}
+          isReverting={revertTemplate.isPending}
+        />
+      )}
     </div>
   );
 }

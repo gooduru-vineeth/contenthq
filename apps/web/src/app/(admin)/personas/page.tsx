@@ -36,6 +36,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { PersonaCard } from "@/components/admin/persona-card";
+import { VersionHistorySheet } from "@/components/admin/version-history-sheet";
 
 export default function AdminPersonasPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -46,13 +47,21 @@ export default function AdminPersonasPage() {
     label: string;
     description: string | null;
     promptFragment: string;
+    version: number;
     isDefault: boolean;
   } | null>(null);
+  const [historyPersonaId, setHistoryPersonaId] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
 
   const { data: personas, isLoading } =
     trpc.prompt.admin.listAllPersonas.useQuery();
+
+  const { data: historyData } =
+    trpc.prompt.admin.getPersonaVersionHistory.useQuery(
+      { personaId: historyPersonaId! },
+      { enabled: !!historyPersonaId }
+    );
 
   const seedDefaults = trpc.prompt.admin.seedDefaults.useMutation({
     onSuccess: (data) => {
@@ -83,6 +92,7 @@ export default function AdminPersonasPage() {
       setDialogOpen(false);
       setEditingPersona(null);
       utils.prompt.admin.listAllPersonas.invalidate();
+      utils.prompt.admin.getPersonaVersionHistory.invalidate();
     },
     onError: (err) => {
       toast.error(err.message);
@@ -109,6 +119,17 @@ export default function AdminPersonasPage() {
     },
   });
 
+  const revertPersona = trpc.prompt.admin.revertPersona.useMutation({
+    onSuccess: () => {
+      toast.success("Persona reverted successfully");
+      utils.prompt.admin.listAllPersonas.invalidate();
+      utils.prompt.admin.getPersonaVersionHistory.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
   const grouped = useMemo(() => {
     if (!personas) return {};
     const groups: Partial<Record<PersonaCategory, typeof personas>> = {};
@@ -127,6 +148,7 @@ export default function AdminPersonasPage() {
     label: string;
     description: string | null;
     promptFragment: string;
+    version: number;
     isDefault: boolean;
   }) => {
     setEditingPersona(persona);
@@ -214,6 +236,7 @@ export default function AdminPersonasPage() {
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onSetDefault={handleSetDefault}
+                    onViewHistory={(id) => setHistoryPersonaId(id)}
                   />
                 ))}
               </div>
@@ -260,9 +283,37 @@ export default function AdminPersonasPage() {
                 : undefined
             }
             isLoading={createPersona.isPending || updatePersona.isPending}
+            isEditing={!!editingPersona}
           />
         </DialogContent>
       </Dialog>
+
+      {historyData && (
+        <VersionHistorySheet
+          open={!!historyPersonaId}
+          onOpenChange={(open) => {
+            if (!open) setHistoryPersonaId(null);
+          }}
+          title={historyData.current.label}
+          currentVersion={historyData.current.version}
+          currentContent={historyData.current.promptFragment}
+          currentName={historyData.current.label}
+          history={historyData.history.map((h) => ({
+            ...h,
+            content: h.promptFragment,
+            createdAt: h.createdAt,
+          }))}
+          onRevert={(targetVersion) => {
+            if (historyPersonaId) {
+              revertPersona.mutate({
+                personaId: historyPersonaId,
+                targetVersion,
+              });
+            }
+          }}
+          isReverting={revertPersona.isPending}
+        />
+      )}
     </div>
   );
 }
@@ -271,17 +322,19 @@ function PersonaForm({
   onSubmit,
   defaultValues,
   isLoading,
+  isEditing,
 }: {
-  onSubmit: (data: CreatePersonaInput) => void;
+  onSubmit: (data: CreatePersonaInput & { changeNote?: string }) => void;
   defaultValues?: Partial<CreatePersonaInput>;
   isLoading?: boolean;
+  isEditing?: boolean;
 }) {
   const {
     register,
     handleSubmit,
     setValue,
     formState: { errors },
-  } = useForm<CreatePersonaInput>({
+  } = useForm<CreatePersonaInput & { changeNote?: string }>({
     resolver: zodResolver(createPersonaSchema),
     defaultValues: {
       category: defaultValues?.category ?? "tone",
@@ -372,6 +425,17 @@ function PersonaForm({
           </p>
         )}
       </div>
+
+      {isEditing && (
+        <div className="space-y-2">
+          <Label htmlFor="changeNote">Change Note (optional)</Label>
+          <Input
+            id="changeNote"
+            placeholder="Describe what you changed"
+            {...register("changeNote")}
+          />
+        </div>
+      )}
 
       <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading

@@ -26,6 +26,7 @@ export async function generateOpenAITTS(options: TTSOptions): Promise<TTSResult>
       speed: options.speed ?? 1.0,
       response_format: "mp3",
     }),
+    signal: AbortSignal.timeout(60000),
   });
 
   if (!response.ok) {

@@ -7,7 +7,7 @@ export const musicTracks = pgTable("music_tracks", {
     .$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id")
     .notNull()
-    .references(() => user.id),
+    .references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   genre: text("genre"),
   category: text("category"),

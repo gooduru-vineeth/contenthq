@@ -13,7 +13,12 @@ export {
   getQueueStats,
 } from "./helpers";
 export { createQueueEvents, closeAllQueueEvents } from "./events";
+export {
+  createFlowJobCompletionListener,
+  waitForJobCompletion,
+} from "./flow-events";
 export type {
+  BaseFlowJobData,
   IngestionJobData,
   StoryWritingJobData,
   SceneGenerationJobData,

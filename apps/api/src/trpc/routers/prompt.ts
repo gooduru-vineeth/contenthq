@@ -4,10 +4,12 @@ import { router, protectedProcedure, adminProcedure } from "../trpc";
 import { db } from "@contenthq/db/client";
 import {
   promptTemplates,
+  promptTemplateVersions,
   personas,
+  personaVersions,
   projectPromptConfigs,
 } from "@contenthq/db/schema";
-import { eq, and, isNull, or, desc, count } from "drizzle-orm";
+import { eq, and, isNull, or, desc } from "drizzle-orm";
 import {
   createPromptTemplateSchema,
   updatePromptTemplateSchema,
@@ -15,6 +17,12 @@ import {
   updatePersonaSchema,
   updateProjectPromptConfigSchema,
   previewPromptSchema,
+  templateVersionHistorySchema,
+  getTemplateVersionSchema,
+  revertTemplateSchema,
+  personaVersionHistorySchema,
+  getPersonaVersionSchema,
+  revertPersonaSchema,
 } from "@contenthq/shared";
 import { composePrompt } from "@contenthq/ai";
 
@@ -39,17 +47,6 @@ export const promptRouter = router({
     createTemplate: adminProcedure
       .input(createPromptTemplateSchema)
       .mutation(async ({ input }) => {
-        const [versionCount] = await db
-          .select({ value: count() })
-          .from(promptTemplates)
-          .where(
-            and(
-              eq(promptTemplates.type, input.type),
-              isNull(promptTemplates.createdBy)
-            )
-          );
-        const nextVersion = (versionCount?.value ?? 0) + 1;
-
         return db.transaction(async (tx) => {
           // Deactivate existing admin templates of the same type
           await tx
@@ -72,7 +69,7 @@ export const promptRouter = router({
               description: input.description,
               variables: input.variables ?? [],
               outputSchemaHint: input.outputSchemaHint,
-              version: nextVersion,
+              version: 1,
               isActive: true,
               createdBy: null,
             })
@@ -83,27 +80,51 @@ export const promptRouter = router({
 
     updateTemplate: adminProcedure
       .input(updatePromptTemplateSchema)
-      .mutation(async ({ input }) => {
-        const { id, ...data } = input;
-        const [existing] = await db
-          .select()
-          .from(promptTemplates)
-          .where(
-            and(eq(promptTemplates.id, id), isNull(promptTemplates.createdBy))
-          );
-        if (!existing) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Admin template not found",
-          });
-        }
+      .mutation(async ({ ctx, input }) => {
+        const { id, changeNote, ...data } = input;
 
-        const [updated] = await db
-          .update(promptTemplates)
-          .set({ ...data, updatedAt: new Date() })
-          .where(eq(promptTemplates.id, id))
-          .returning();
-        return updated;
+        return db.transaction(async (tx) => {
+          const [existing] = await tx
+            .select()
+            .from(promptTemplates)
+            .where(
+              and(
+                eq(promptTemplates.id, id),
+                isNull(promptTemplates.createdBy)
+              )
+            );
+          if (!existing) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Admin template not found",
+            });
+          }
+
+          // Snapshot pre-edit state into history
+          await tx.insert(promptTemplateVersions).values({
+            templateId: existing.id,
+            version: existing.version,
+            type: existing.type,
+            name: existing.name,
+            description: existing.description,
+            content: existing.content,
+            variables: existing.variables,
+            outputSchemaHint: existing.outputSchemaHint,
+            editedBy: ctx.user.id,
+            changeNote: changeNote ?? null,
+          });
+
+          const [updated] = await tx
+            .update(promptTemplates)
+            .set({
+              ...data,
+              version: existing.version + 1,
+              updatedAt: new Date(),
+            })
+            .where(eq(promptTemplates.id, id))
+            .returning();
+          return updated;
+        });
       }),
 
     deleteTemplate: adminProcedure
@@ -198,6 +219,7 @@ export const promptRouter = router({
               description: input.description,
               isDefault: input.isDefault ?? false,
               uiConfig: input.uiConfig,
+              version: 1,
               createdBy: null,
             })
             .returning();
@@ -207,27 +229,48 @@ export const promptRouter = router({
 
     updatePersona: adminProcedure
       .input(updatePersonaSchema)
-      .mutation(async ({ input }) => {
-        const { id, ...data } = input;
-        const [existing] = await db
-          .select()
-          .from(personas)
-          .where(
-            and(eq(personas.id, id), isNull(personas.createdBy))
-          );
-        if (!existing) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Admin persona not found",
-          });
-        }
+      .mutation(async ({ ctx, input }) => {
+        const { id, changeNote, ...data } = input;
 
-        const [updated] = await db
-          .update(personas)
-          .set({ ...data, updatedAt: new Date() })
-          .where(eq(personas.id, id))
-          .returning();
-        return updated;
+        return db.transaction(async (tx) => {
+          const [existing] = await tx
+            .select()
+            .from(personas)
+            .where(
+              and(eq(personas.id, id), isNull(personas.createdBy))
+            );
+          if (!existing) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Admin persona not found",
+            });
+          }
+
+          // Snapshot pre-edit state into history
+          await tx.insert(personaVersions).values({
+            personaId: existing.id,
+            version: existing.version,
+            category: existing.category,
+            name: existing.name,
+            label: existing.label,
+            description: existing.description,
+            promptFragment: existing.promptFragment,
+            uiConfig: existing.uiConfig,
+            editedBy: ctx.user.id,
+            changeNote: changeNote ?? null,
+          });
+
+          const [updated] = await tx
+            .update(personas)
+            .set({
+              ...data,
+              version: existing.version + 1,
+              updatedAt: new Date(),
+            })
+            .where(eq(personas.id, id))
+            .returning();
+          return updated;
+        });
       }),
 
     deletePersona: adminProcedure
@@ -370,6 +413,246 @@ export const promptRouter = router({
           .where(and(...conditions))
           .orderBy(desc(personas.updatedAt));
       }),
+
+    // --- Version history admin endpoints ---
+
+    getTemplateVersionHistory: adminProcedure
+      .input(templateVersionHistorySchema)
+      .query(async ({ input }) => {
+        const [template] = await db
+          .select()
+          .from(promptTemplates)
+          .where(
+            and(
+              eq(promptTemplates.id, input.templateId),
+              isNull(promptTemplates.createdBy)
+            )
+          );
+        if (!template) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Admin template not found",
+          });
+        }
+
+        const history = await db
+          .select()
+          .from(promptTemplateVersions)
+          .where(eq(promptTemplateVersions.templateId, input.templateId))
+          .orderBy(desc(promptTemplateVersions.version))
+          .limit(input.limit)
+          .offset(input.offset);
+
+        return { current: template, history };
+      }),
+
+    getTemplateVersion: adminProcedure
+      .input(getTemplateVersionSchema)
+      .query(async ({ input }) => {
+        const [version] = await db
+          .select()
+          .from(promptTemplateVersions)
+          .where(
+            and(
+              eq(promptTemplateVersions.templateId, input.templateId),
+              eq(promptTemplateVersions.version, input.version)
+            )
+          );
+        if (!version) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Version ${input.version} not found for this template`,
+          });
+        }
+        return version;
+      }),
+
+    revertTemplate: adminProcedure
+      .input(revertTemplateSchema)
+      .mutation(async ({ ctx, input }) => {
+        return db.transaction(async (tx) => {
+          const [current] = await tx
+            .select()
+            .from(promptTemplates)
+            .where(
+              and(
+                eq(promptTemplates.id, input.templateId),
+                isNull(promptTemplates.createdBy)
+              )
+            );
+          if (!current) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Admin template not found",
+            });
+          }
+
+          const [targetVersion] = await tx
+            .select()
+            .from(promptTemplateVersions)
+            .where(
+              and(
+                eq(promptTemplateVersions.templateId, input.templateId),
+                eq(promptTemplateVersions.version, input.targetVersion)
+              )
+            );
+          if (!targetVersion) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `Version ${input.targetVersion} not found`,
+            });
+          }
+
+          // Snapshot current state before reverting
+          await tx.insert(promptTemplateVersions).values({
+            templateId: current.id,
+            version: current.version,
+            type: current.type,
+            name: current.name,
+            description: current.description,
+            content: current.content,
+            variables: current.variables,
+            outputSchemaHint: current.outputSchemaHint,
+            editedBy: ctx.user.id,
+            changeNote: `Reverted to version ${input.targetVersion}`,
+          });
+
+          // Copy target version fields back to main table
+          const [updated] = await tx
+            .update(promptTemplates)
+            .set({
+              name: targetVersion.name,
+              description: targetVersion.description,
+              content: targetVersion.content,
+              variables: targetVersion.variables,
+              outputSchemaHint: targetVersion.outputSchemaHint,
+              version: current.version + 1,
+              updatedAt: new Date(),
+            })
+            .where(eq(promptTemplates.id, input.templateId))
+            .returning();
+          return updated;
+        });
+      }),
+
+    getPersonaVersionHistory: adminProcedure
+      .input(personaVersionHistorySchema)
+      .query(async ({ input }) => {
+        const [persona] = await db
+          .select()
+          .from(personas)
+          .where(
+            and(
+              eq(personas.id, input.personaId),
+              isNull(personas.createdBy)
+            )
+          );
+        if (!persona) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Admin persona not found",
+          });
+        }
+
+        const history = await db
+          .select()
+          .from(personaVersions)
+          .where(eq(personaVersions.personaId, input.personaId))
+          .orderBy(desc(personaVersions.version))
+          .limit(input.limit)
+          .offset(input.offset);
+
+        return { current: persona, history };
+      }),
+
+    getPersonaVersion: adminProcedure
+      .input(getPersonaVersionSchema)
+      .query(async ({ input }) => {
+        const [version] = await db
+          .select()
+          .from(personaVersions)
+          .where(
+            and(
+              eq(personaVersions.personaId, input.personaId),
+              eq(personaVersions.version, input.version)
+            )
+          );
+        if (!version) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Version ${input.version} not found for this persona`,
+          });
+        }
+        return version;
+      }),
+
+    revertPersona: adminProcedure
+      .input(revertPersonaSchema)
+      .mutation(async ({ ctx, input }) => {
+        return db.transaction(async (tx) => {
+          const [current] = await tx
+            .select()
+            .from(personas)
+            .where(
+              and(
+                eq(personas.id, input.personaId),
+                isNull(personas.createdBy)
+              )
+            );
+          if (!current) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Admin persona not found",
+            });
+          }
+
+          const [targetVersion] = await tx
+            .select()
+            .from(personaVersions)
+            .where(
+              and(
+                eq(personaVersions.personaId, input.personaId),
+                eq(personaVersions.version, input.targetVersion)
+              )
+            );
+          if (!targetVersion) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `Version ${input.targetVersion} not found`,
+            });
+          }
+
+          // Snapshot current state before reverting
+          await tx.insert(personaVersions).values({
+            personaId: current.id,
+            version: current.version,
+            category: current.category,
+            name: current.name,
+            label: current.label,
+            description: current.description,
+            promptFragment: current.promptFragment,
+            uiConfig: current.uiConfig,
+            editedBy: ctx.user.id,
+            changeNote: `Reverted to version ${input.targetVersion}`,
+          });
+
+          // Copy target version fields back to main table
+          const [updated] = await tx
+            .update(personas)
+            .set({
+              name: targetVersion.name,
+              label: targetVersion.label,
+              description: targetVersion.description,
+              promptFragment: targetVersion.promptFragment,
+              uiConfig: targetVersion.uiConfig,
+              version: current.version + 1,
+              updatedAt: new Date(),
+            })
+            .where(eq(personas.id, input.personaId))
+            .returning();
+          return updated;
+        });
+      }),
   }),
 
   // === USER ENDPOINTS ===
@@ -458,17 +741,6 @@ export const promptRouter = router({
   createTemplate: protectedProcedure
     .input(createPromptTemplateSchema)
     .mutation(async ({ ctx, input }) => {
-      const [versionCount] = await db
-        .select({ value: count() })
-        .from(promptTemplates)
-        .where(
-          and(
-            eq(promptTemplates.type, input.type),
-            eq(promptTemplates.createdBy, ctx.user.id)
-          )
-        );
-      const nextVersion = (versionCount?.value ?? 0) + 1;
-
       const [template] = await db
         .insert(promptTemplates)
         .values({
@@ -478,7 +750,7 @@ export const promptRouter = router({
           description: input.description,
           variables: input.variables ?? [],
           outputSchemaHint: input.outputSchemaHint,
-          version: nextVersion,
+          version: 1,
           isActive: false,
           createdBy: ctx.user.id,
         })
@@ -489,29 +761,50 @@ export const promptRouter = router({
   updateTemplate: protectedProcedure
     .input(updatePromptTemplateSchema)
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
-      const [existing] = await db
-        .select()
-        .from(promptTemplates)
-        .where(
-          and(
-            eq(promptTemplates.id, id),
-            eq(promptTemplates.createdBy, ctx.user.id)
-          )
-        );
-      if (!existing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Template not found or not owned by you",
-        });
-      }
+      const { id, changeNote, ...data } = input;
 
-      const [updated] = await db
-        .update(promptTemplates)
-        .set({ ...data, updatedAt: new Date() })
-        .where(eq(promptTemplates.id, id))
-        .returning();
-      return updated;
+      return db.transaction(async (tx) => {
+        const [existing] = await tx
+          .select()
+          .from(promptTemplates)
+          .where(
+            and(
+              eq(promptTemplates.id, id),
+              eq(promptTemplates.createdBy, ctx.user.id)
+            )
+          );
+        if (!existing) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Template not found or not owned by you",
+          });
+        }
+
+        // Snapshot pre-edit state into history
+        await tx.insert(promptTemplateVersions).values({
+          templateId: existing.id,
+          version: existing.version,
+          type: existing.type,
+          name: existing.name,
+          description: existing.description,
+          content: existing.content,
+          variables: existing.variables,
+          outputSchemaHint: existing.outputSchemaHint,
+          editedBy: ctx.user.id,
+          changeNote: changeNote ?? null,
+        });
+
+        const [updated] = await tx
+          .update(promptTemplates)
+          .set({
+            ...data,
+            version: existing.version + 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(promptTemplates.id, id))
+          .returning();
+        return updated;
+      });
     }),
 
   deleteTemplate: protectedProcedure
@@ -579,30 +872,141 @@ export const promptRouter = router({
       });
     }),
 
-  getTemplateHistory: protectedProcedure
-    .input(
-      z.object({
-        type: promptTypeEnum,
-        limit: z.number().min(1).max(100).default(20),
-        offset: z.number().min(0).default(0),
-      })
-    )
+  // User version history endpoints
+  getTemplateVersionHistory: protectedProcedure
+    .input(templateVersionHistorySchema)
     .query(async ({ ctx, input }) => {
-      return db
+      const [template] = await db
         .select()
         .from(promptTemplates)
         .where(
           and(
-            eq(promptTemplates.type, input.type),
-            or(
-              isNull(promptTemplates.createdBy),
-              eq(promptTemplates.createdBy, ctx.user.id)
-            )
+            eq(promptTemplates.id, input.templateId),
+            eq(promptTemplates.createdBy, ctx.user.id)
           )
-        )
-        .orderBy(desc(promptTemplates.version))
+        );
+      if (!template) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Template not found or not owned by you",
+        });
+      }
+
+      const history = await db
+        .select()
+        .from(promptTemplateVersions)
+        .where(eq(promptTemplateVersions.templateId, input.templateId))
+        .orderBy(desc(promptTemplateVersions.version))
         .limit(input.limit)
         .offset(input.offset);
+
+      return { current: template, history };
+    }),
+
+  getTemplateVersion: protectedProcedure
+    .input(getTemplateVersionSchema)
+    .query(async ({ ctx, input }) => {
+      // Verify ownership
+      const [template] = await db
+        .select({ id: promptTemplates.id })
+        .from(promptTemplates)
+        .where(
+          and(
+            eq(promptTemplates.id, input.templateId),
+            eq(promptTemplates.createdBy, ctx.user.id)
+          )
+        );
+      if (!template) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Template not found or not owned by you",
+        });
+      }
+
+      const [version] = await db
+        .select()
+        .from(promptTemplateVersions)
+        .where(
+          and(
+            eq(promptTemplateVersions.templateId, input.templateId),
+            eq(promptTemplateVersions.version, input.version)
+          )
+        );
+      if (!version) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `Version ${input.version} not found for this template`,
+        });
+      }
+      return version;
+    }),
+
+  revertTemplate: protectedProcedure
+    .input(revertTemplateSchema)
+    .mutation(async ({ ctx, input }) => {
+      return db.transaction(async (tx) => {
+        const [current] = await tx
+          .select()
+          .from(promptTemplates)
+          .where(
+            and(
+              eq(promptTemplates.id, input.templateId),
+              eq(promptTemplates.createdBy, ctx.user.id)
+            )
+          );
+        if (!current) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Template not found or not owned by you",
+          });
+        }
+
+        const [targetVersion] = await tx
+          .select()
+          .from(promptTemplateVersions)
+          .where(
+            and(
+              eq(promptTemplateVersions.templateId, input.templateId),
+              eq(promptTemplateVersions.version, input.targetVersion)
+            )
+          );
+        if (!targetVersion) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Version ${input.targetVersion} not found`,
+          });
+        }
+
+        // Snapshot current state before reverting
+        await tx.insert(promptTemplateVersions).values({
+          templateId: current.id,
+          version: current.version,
+          type: current.type,
+          name: current.name,
+          description: current.description,
+          content: current.content,
+          variables: current.variables,
+          outputSchemaHint: current.outputSchemaHint,
+          editedBy: ctx.user.id,
+          changeNote: `Reverted to version ${input.targetVersion}`,
+        });
+
+        // Copy target version fields back to main table
+        const [updated] = await tx
+          .update(promptTemplates)
+          .set({
+            name: targetVersion.name,
+            description: targetVersion.description,
+            content: targetVersion.content,
+            variables: targetVersion.variables,
+            outputSchemaHint: targetVersion.outputSchemaHint,
+            version: current.version + 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(promptTemplates.id, input.templateId))
+          .returning();
+        return updated;
+      });
     }),
 
   listPersonas: protectedProcedure
@@ -636,6 +1040,7 @@ export const promptRouter = router({
           description: input.description,
           isDefault: input.isDefault ?? false,
           uiConfig: input.uiConfig,
+          version: 1,
           createdBy: ctx.user.id,
         })
         .returning();
@@ -645,26 +1050,47 @@ export const promptRouter = router({
   updatePersona: protectedProcedure
     .input(updatePersonaSchema)
     .mutation(async ({ input, ctx }) => {
-      const { id, ...data } = input;
-      const [existing] = await db
-        .select()
-        .from(personas)
-        .where(
-          and(eq(personas.id, id), eq(personas.createdBy, ctx.user.id))
-        );
-      if (!existing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Persona not found or not owned by you",
-        });
-      }
+      const { id, changeNote, ...data } = input;
 
-      const [updated] = await db
-        .update(personas)
-        .set({ ...data, updatedAt: new Date() })
-        .where(eq(personas.id, id))
-        .returning();
-      return updated;
+      return db.transaction(async (tx) => {
+        const [existing] = await tx
+          .select()
+          .from(personas)
+          .where(
+            and(eq(personas.id, id), eq(personas.createdBy, ctx.user.id))
+          );
+        if (!existing) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Persona not found or not owned by you",
+          });
+        }
+
+        // Snapshot pre-edit state into history
+        await tx.insert(personaVersions).values({
+          personaId: existing.id,
+          version: existing.version,
+          category: existing.category,
+          name: existing.name,
+          label: existing.label,
+          description: existing.description,
+          promptFragment: existing.promptFragment,
+          uiConfig: existing.uiConfig,
+          editedBy: ctx.user.id,
+          changeNote: changeNote ?? null,
+        });
+
+        const [updated] = await tx
+          .update(personas)
+          .set({
+            ...data,
+            version: existing.version + 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(personas.id, id))
+          .returning();
+        return updated;
+      });
     }),
 
   deletePersona: protectedProcedure
@@ -685,6 +1111,143 @@ export const promptRouter = router({
 
       await db.delete(personas).where(eq(personas.id, input.id));
       return { success: true };
+    }),
+
+  // User persona version history endpoints
+  getPersonaVersionHistory: protectedProcedure
+    .input(personaVersionHistorySchema)
+    .query(async ({ ctx, input }) => {
+      const [persona] = await db
+        .select()
+        .from(personas)
+        .where(
+          and(
+            eq(personas.id, input.personaId),
+            eq(personas.createdBy, ctx.user.id)
+          )
+        );
+      if (!persona) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Persona not found or not owned by you",
+        });
+      }
+
+      const history = await db
+        .select()
+        .from(personaVersions)
+        .where(eq(personaVersions.personaId, input.personaId))
+        .orderBy(desc(personaVersions.version))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      return { current: persona, history };
+    }),
+
+  getPersonaVersion: protectedProcedure
+    .input(getPersonaVersionSchema)
+    .query(async ({ ctx, input }) => {
+      // Verify ownership
+      const [persona] = await db
+        .select({ id: personas.id })
+        .from(personas)
+        .where(
+          and(
+            eq(personas.id, input.personaId),
+            eq(personas.createdBy, ctx.user.id)
+          )
+        );
+      if (!persona) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Persona not found or not owned by you",
+        });
+      }
+
+      const [version] = await db
+        .select()
+        .from(personaVersions)
+        .where(
+          and(
+            eq(personaVersions.personaId, input.personaId),
+            eq(personaVersions.version, input.version)
+          )
+        );
+      if (!version) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `Version ${input.version} not found for this persona`,
+        });
+      }
+      return version;
+    }),
+
+  revertPersona: protectedProcedure
+    .input(revertPersonaSchema)
+    .mutation(async ({ ctx, input }) => {
+      return db.transaction(async (tx) => {
+        const [current] = await tx
+          .select()
+          .from(personas)
+          .where(
+            and(
+              eq(personas.id, input.personaId),
+              eq(personas.createdBy, ctx.user.id)
+            )
+          );
+        if (!current) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Persona not found or not owned by you",
+          });
+        }
+
+        const [targetVersion] = await tx
+          .select()
+          .from(personaVersions)
+          .where(
+            and(
+              eq(personaVersions.personaId, input.personaId),
+              eq(personaVersions.version, input.targetVersion)
+            )
+          );
+        if (!targetVersion) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Version ${input.targetVersion} not found`,
+          });
+        }
+
+        // Snapshot current state before reverting
+        await tx.insert(personaVersions).values({
+          personaId: current.id,
+          version: current.version,
+          category: current.category,
+          name: current.name,
+          label: current.label,
+          description: current.description,
+          promptFragment: current.promptFragment,
+          uiConfig: current.uiConfig,
+          editedBy: ctx.user.id,
+          changeNote: `Reverted to version ${input.targetVersion}`,
+        });
+
+        // Copy target version fields back to main table
+        const [updated] = await tx
+          .update(personas)
+          .set({
+            name: targetVersion.name,
+            label: targetVersion.label,
+            description: targetVersion.description,
+            promptFragment: targetVersion.promptFragment,
+            uiConfig: targetVersion.uiConfig,
+            version: current.version + 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(personas.id, input.personaId))
+          .returning();
+        return updated;
+      });
     }),
 
   getProjectConfig: protectedProcedure

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Star, Trash2 } from "lucide-react";
+import { Plus, Star, Trash2, History } from "lucide-react";
 import {
   PROMPT_TYPES,
   PROMPT_TYPE_LABELS,
@@ -42,10 +42,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PromptEditor } from "@/components/prompts/prompt-editor";
+import { VersionHistorySheet } from "@/components/admin/version-history-sheet";
 
 export default function PromptsPage() {
   const [selectedType, setSelectedType] = useState<PromptType>(PROMPT_TYPES[0]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [historyTemplateId, setHistoryTemplateId] = useState<string | null>(
+    null
+  );
 
   const [formName, setFormName] = useState("");
   const [formType, setFormType] = useState<PromptType>(PROMPT_TYPES[0]);
@@ -56,6 +60,12 @@ export default function PromptsPage() {
   const { data: templates, isLoading } = trpc.prompt.listTemplates.useQuery({
     type: selectedType,
   });
+
+  const { data: historyData } =
+    trpc.prompt.getTemplateVersionHistory.useQuery(
+      { templateId: historyTemplateId! },
+      { enabled: !!historyTemplateId }
+    );
 
   const createMutation = trpc.prompt.createTemplate.useMutation({
     onSuccess: () => {
@@ -83,6 +93,17 @@ export default function PromptsPage() {
     onSuccess: () => {
       toast.success("Active prompt updated");
       utils.prompt.listTemplates.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  const revertMutation = trpc.prompt.revertTemplate.useMutation({
+    onSuccess: () => {
+      toast.success("Template reverted successfully");
+      utils.prompt.listTemplates.invalidate();
+      utils.prompt.getTemplateVersionHistory.invalidate();
     },
     onError: (err) => {
       toast.error(err.message);
@@ -238,6 +259,7 @@ export default function PromptsPage() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {templates.map((tmpl) => {
                     const isSystem = tmpl.createdBy === null;
+                    const isOwned = !isSystem;
                     const truncatedContent =
                       tmpl.content.length > 120
                         ? tmpl.content.slice(0, 120) + "..."
@@ -297,18 +319,30 @@ export default function PromptsPage() {
                               Set Active
                             </Button>
                           )}
-                          {!isSystem && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                deleteMutation.mutate({ id: tmpl.id })
-                              }
-                              disabled={deleteMutation.isPending}
-                            >
-                              <Trash2 className="mr-1 h-3 w-3" />
-                              Delete
-                            </Button>
+                          {isOwned && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setHistoryTemplateId(tmpl.id)
+                                }
+                              >
+                                <History className="mr-1 h-3 w-3" />
+                                History
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  deleteMutation.mutate({ id: tmpl.id })
+                                }
+                                disabled={deleteMutation.isPending}
+                              >
+                                <Trash2 className="mr-1 h-3 w-3" />
+                                Delete
+                              </Button>
+                            </>
                           )}
                         </CardFooter>
                       </Card>
@@ -319,6 +353,33 @@ export default function PromptsPage() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {historyData && (
+        <VersionHistorySheet
+          open={!!historyTemplateId}
+          onOpenChange={(open) => {
+            if (!open) setHistoryTemplateId(null);
+          }}
+          title={historyData.current.name}
+          currentVersion={historyData.current.version}
+          currentContent={historyData.current.content}
+          currentName={historyData.current.name}
+          history={historyData.history.map((h) => ({
+            ...h,
+            content: h.content,
+            createdAt: h.createdAt,
+          }))}
+          onRevert={(targetVersion) => {
+            if (historyTemplateId) {
+              revertMutation.mutate({
+                templateId: historyTemplateId,
+                targetVersion,
+              });
+            }
+          }}
+          isReverting={revertMutation.isPending}
+        />
+      )}
     </div>
   );
 }

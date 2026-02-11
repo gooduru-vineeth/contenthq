@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import type { IngestionAdapter, ExtractionResult } from "../types";
+import { validatePublicUrl } from "../utils";
 
 export const rssAdapter: IngestionAdapter = {
   name: "rss",
@@ -13,7 +14,11 @@ export const rssAdapter: IngestionAdapter = {
   },
 
   async extract(input: string): Promise<ExtractionResult> {
-    const response = await fetch(input);
+    validatePublicUrl(input);
+    const response = await fetch(input, { signal: AbortSignal.timeout(30000) });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch RSS feed: ${response.status} ${response.statusText}`);
+    }
     const xml = await response.text();
     const $ = cheerio.load(xml, { xmlMode: true });
 

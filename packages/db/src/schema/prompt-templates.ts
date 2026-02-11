@@ -22,7 +22,9 @@ export const promptTemplates = pgTable(
     content: text("content").notNull(),
     version: integer("version").notNull().default(1),
     isActive: boolean("is_active").notNull().default(true),
-    createdBy: text("created_by").references(() => user.id),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     variables: jsonb("variables").$type<string[]>().default([]),
     outputSchemaHint: jsonb("output_schema_hint"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

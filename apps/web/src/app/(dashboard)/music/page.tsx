@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function MusicPage() {
-  const { data: tracks, isLoading, refetch } = trpc.music.list.useQuery();
-  const createMutation = trpc.music.create.useMutation({ onSuccess: () => { refetch(); setShowForm(false); } });
-  const deleteMutation = trpc.music.delete.useMutation({ onSuccess: () => refetch() });
+  const utils = trpc.useUtils();
+  const { data: tracks, isLoading } = trpc.music.list.useQuery();
+  const createMutation = trpc.music.create.useMutation({ onSuccess: () => { utils.music.list.invalidate(); setShowForm(false); } });
+  const deleteMutation = trpc.music.delete.useMutation({ onSuccess: () => utils.music.list.invalidate() });
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");

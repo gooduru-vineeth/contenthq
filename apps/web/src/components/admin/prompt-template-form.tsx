@@ -24,9 +24,10 @@ import {
 } from "@/components/ui/select";
 
 interface PromptTemplateFormProps {
-  onSubmit: (data: CreatePromptTemplateInput) => void;
+  onSubmit: (data: CreatePromptTemplateInput & { changeNote?: string }) => void;
   defaultValues?: Partial<CreatePromptTemplateInput>;
   isLoading?: boolean;
+  isEditing?: boolean;
 }
 
 function extractVariables(content: string): string[] {
@@ -40,6 +41,7 @@ export function PromptTemplateForm({
   onSubmit,
   defaultValues,
   isLoading,
+  isEditing,
 }: PromptTemplateFormProps) {
   const {
     register,
@@ -47,7 +49,7 @@ export function PromptTemplateForm({
     watch,
     setValue,
     formState: { errors },
-  } = useForm<CreatePromptTemplateInput>({
+  } = useForm<CreatePromptTemplateInput & { changeNote?: string }>({
     resolver: zodResolver(createPromptTemplateSchema),
     defaultValues: {
       type: defaultValues?.type ?? "story_writing",
@@ -145,6 +147,17 @@ export function PromptTemplateForm({
               </Badge>
             ))}
           </div>
+        </div>
+      )}
+
+      {isEditing && (
+        <div className="space-y-2">
+          <Label htmlFor="changeNote">Change Note (optional)</Label>
+          <Input
+            id="changeNote"
+            placeholder="Describe what you changed"
+            {...register("changeNote")}
+          />
         </div>
       )}
 

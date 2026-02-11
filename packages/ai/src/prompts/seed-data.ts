@@ -1,4 +1,4 @@
-import type { PromptType, PersonaCategory } from "@contenthq/shared";
+import type { PromptType, PersonaCategory, AgentType, FlowData } from "@contenthq/shared";
 
 export interface SeedPromptTemplate {
   type: PromptType;
@@ -14,6 +14,21 @@ export interface SeedPersona {
   label: string;
   description: string;
   promptFragment: string;
+}
+
+export interface SeedAgent {
+  name: string;
+  slug: string;
+  description: string;
+  agentType: AgentType;
+  modelConfig?: { temperature?: number; maxTokens?: number };
+  outputConfig?: {
+    outputType: "text" | "object" | "array";
+    schemaName?: string;
+  };
+  expectedVariables: string[];
+  /** The prompt type this agent is associated with (for linking to seed templates) */
+  promptType?: PromptType;
 }
 
 export const DEFAULT_PROMPT_TEMPLATES: SeedPromptTemplate[] = [
@@ -310,3 +325,99 @@ export const DEFAULT_PERSONAS: SeedPersona[] = [
       "Structure content as an explainer that breaks down complex topics into understandable segments. Start with the big picture, then dive into details. Use analogies, examples, and visual metaphors.",
   },
 ];
+
+export const DEFAULT_AGENTS: SeedAgent[] = [
+  {
+    name: "Story Writer",
+    slug: "story-writer",
+    description:
+      "Generates structured video stories from source content with scenes, narration, and visual descriptions.",
+    agentType: "llm_structured",
+    modelConfig: { temperature: 0.7, maxTokens: 4000 },
+    outputConfig: { outputType: "object", schemaName: "story_output" },
+    expectedVariables: ["content", "tone", "targetDuration", "sceneCount"],
+    promptType: "story_writing",
+  },
+  {
+    name: "Scene Generator",
+    slug: "scene-generator",
+    description:
+      "Breaks down stories into detailed scenes for video production with visual descriptions and image prompts.",
+    agentType: "llm_structured",
+    modelConfig: { temperature: 0.7, maxTokens: 3000 },
+    outputConfig: { outputType: "object", schemaName: "scene_output" },
+    expectedVariables: ["title", "hook", "synopsis"],
+    promptType: "scene_generation",
+  },
+  {
+    name: "Image Prompt Refiner",
+    slug: "image-prompt-refiner",
+    description:
+      "Converts scene descriptions into optimized image generation prompts with art style and composition details.",
+    agentType: "llm_text",
+    modelConfig: { temperature: 0.7, maxTokens: 500 },
+    outputConfig: { outputType: "text" },
+    expectedVariables: ["visualDescription"],
+    promptType: "image_refinement",
+  },
+  {
+    name: "Image Generator",
+    slug: "image-generator",
+    description:
+      "Generates AI images from optimized prompts for video scenes.",
+    agentType: "image_generation",
+    outputConfig: { outputType: "object" },
+    expectedVariables: ["prompt"],
+  },
+  {
+    name: "Visual Verifier",
+    slug: "visual-verifier",
+    description:
+      "Evaluates AI-generated images against scene descriptions with scoring criteria.",
+    agentType: "vision_verification",
+    outputConfig: { outputType: "object", schemaName: "verification_output" },
+    expectedVariables: ["imageUrl", "sceneDescription"],
+    promptType: "visual_verification",
+  },
+];
+
+/**
+ * Default flow that mirrors the existing hardcoded pipeline as a node graph.
+ * Input -> Ingestion -> Story Writer -> Scene Generator -> ParallelFanOut ->
+ * [Image Gen -> Visual Verify] -> ParallelFanIn -> TTS -> Audio Mix -> Video Assembly -> Output
+ */
+export const DEFAULT_FLOW: { name: string; slug: string; description: string; flowData: FlowData } = {
+  name: "Default Content Pipeline",
+  slug: "default-content-pipeline",
+  description:
+    "Standard content pipeline: Ingestion -> Story Writing -> Scene Generation -> Visual Generation -> Verification -> TTS -> Audio Mixing -> Video Assembly",
+  flowData: {
+    nodes: [
+      { id: "input", type: "input", position: { x: 0, y: 300 }, data: { label: "Content Input", nodeType: "input" } },
+      { id: "ingestion", type: "builtin", position: { x: 250, y: 300 }, data: { label: "Ingestion", nodeType: "builtin", builtinAction: "ingestion" } },
+      { id: "story-writer", type: "agent", position: { x: 500, y: 300 }, data: { label: "Story Writer", nodeType: "agent", agentId: "story-writer" } },
+      { id: "scene-gen", type: "agent", position: { x: 750, y: 300 }, data: { label: "Scene Generator", nodeType: "agent", agentId: "scene-generator" } },
+      { id: "fan-out", type: "parallelFanOut", position: { x: 1000, y: 300 }, data: { label: "Fan Out Scenes", nodeType: "parallelFanOut", iterateField: "scenes" } },
+      { id: "image-gen", type: "agent", position: { x: 1250, y: 200 }, data: { label: "Image Generator", nodeType: "agent", agentId: "image-generator" } },
+      { id: "visual-verify", type: "agent", position: { x: 1500, y: 200 }, data: { label: "Visual Verifier", nodeType: "agent", agentId: "visual-verifier" } },
+      { id: "fan-in", type: "parallelFanIn", position: { x: 1750, y: 300 }, data: { label: "Fan In Results", nodeType: "parallelFanIn" } },
+      { id: "tts", type: "builtin", position: { x: 2000, y: 300 }, data: { label: "TTS Generation", nodeType: "builtin", builtinAction: "tts_generation" } },
+      { id: "audio-mix", type: "builtin", position: { x: 2250, y: 300 }, data: { label: "Audio Mixing", nodeType: "builtin", builtinAction: "audio_mixing" } },
+      { id: "video-assembly", type: "builtin", position: { x: 2500, y: 300 }, data: { label: "Video Assembly", nodeType: "builtin", builtinAction: "video_assembly" } },
+      { id: "output", type: "output", position: { x: 2750, y: 300 }, data: { label: "Final Video", nodeType: "output" } },
+    ],
+    edges: [
+      { id: "e-input-ingestion", source: "input", target: "ingestion" },
+      { id: "e-ingestion-story", source: "ingestion", target: "story-writer" },
+      { id: "e-story-scene", source: "story-writer", target: "scene-gen" },
+      { id: "e-scene-fanout", source: "scene-gen", target: "fan-out" },
+      { id: "e-fanout-image", source: "fan-out", target: "image-gen" },
+      { id: "e-image-verify", source: "image-gen", target: "visual-verify" },
+      { id: "e-verify-fanin", source: "visual-verify", target: "fan-in" },
+      { id: "e-fanin-tts", source: "fan-in", target: "tts" },
+      { id: "e-tts-audiomix", source: "tts", target: "audio-mix" },
+      { id: "e-audiomix-assembly", source: "audio-mix", target: "video-assembly" },
+      { id: "e-assembly-output", source: "video-assembly", target: "output" },
+    ],
+  },
+};

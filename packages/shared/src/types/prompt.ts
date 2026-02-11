@@ -40,6 +40,7 @@ export interface Persona {
   description: string | null;
   promptFragment: string;
   createdBy: string | null;
+  version: number;
   isDefault: boolean;
   uiConfig: {
     gradient?: string;
@@ -48,6 +49,40 @@ export interface Persona {
   } | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface PromptTemplateVersion {
+  id: string;
+  templateId: string;
+  version: number;
+  type: PromptType;
+  name: string;
+  description: string | null;
+  content: string;
+  variables: string[];
+  outputSchemaHint: unknown;
+  editedBy: string | null;
+  changeNote: string | null;
+  createdAt: Date;
+}
+
+export interface PersonaVersion {
+  id: string;
+  personaId: string;
+  version: number;
+  category: PersonaCategory;
+  name: string;
+  label: string;
+  description: string | null;
+  promptFragment: string;
+  uiConfig: {
+    gradient?: string;
+    icon?: string;
+    color?: string;
+  } | null;
+  editedBy: string | null;
+  changeNote: string | null;
+  createdAt: Date;
 }
 
 export interface ProjectPromptConfig {
