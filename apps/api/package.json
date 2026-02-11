@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "dotenv -e ../../.env -- tsx watch src/index.ts",
     "build": "tsc --noEmit",
-    "start": "tsx src/index.ts",
+    "start": "dotenv -e ../../.env -- tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -19,7 +19,6 @@
     "@hono/node-server": "^1.13.0",
     "@trpc/server": "^11.10.0",
     "better-auth": "^1.2.0",
-    "drizzle-orm": "^0.39.0",
     "hono": "^4.7.0",
     "superjson": "^2.2.6",
     "zod": "^3.24.0"

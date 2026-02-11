@@ -1,6 +1,5 @@
 import { publicProcedure, router } from "../trpc";
-import { db } from "@contenthq/db/client";
-import { sql } from "drizzle-orm";
+import { db, sql } from "@contenthq/db/client";
 
 export const healthRouter = router({
   check: publicProcedure.query(async () => {

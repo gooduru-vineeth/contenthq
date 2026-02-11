@@ -1,6 +1,5 @@
 import { Hono } from "hono";
-import { db } from "@contenthq/db/client";
-import { sql } from "drizzle-orm";
+import { db, sql } from "@contenthq/db/client";
 
 const healthRoutes = new Hono();
 

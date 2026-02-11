@@ -16,10 +16,11 @@
   },
   "dependencies": {
     "drizzle-orm": "^0.39.0",
-    "postgres": "^3.4.0"
+    "pg": "^8.18.0"
   },
   "devDependencies": {
     "@contenthq/typescript-config": "workspace:*",
+    "@types/pg": "^8.16.0",
     "drizzle-kit": "^0.30.0",
     "typescript": "^5.7.0"
   }
