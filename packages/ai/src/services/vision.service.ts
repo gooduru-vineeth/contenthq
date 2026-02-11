@@ -18,6 +18,7 @@ export async function verifyImage(
   imageUrl: string,
   sceneDescription: string,
   threshold = 60,
+  customPrompt?: string,
 ): Promise<VerificationResult> {
   const provider = getOpenAIProvider();
   const model = provider(OPENAI_MODELS.GPT4O);
@@ -28,7 +29,7 @@ export async function verifyImage(
     messages: [
       {
         role: "system",
-        content: `You are a visual quality assessor for AI-generated video content. Score the image against the scene description on four criteria:
+        content: customPrompt ?? `You are a visual quality assessor for AI-generated video content. Score the image against the scene description on four criteria:
 - Relevance (0-30): How well does the image match the description?
 - Quality (0-25): Is the image clear, well-composed, and visually appealing?
 - Consistency (0-25): Is the image internally consistent (no artifacts, distortions)?

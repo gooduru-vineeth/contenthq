@@ -14,4 +14,14 @@ export const auth = betterAuth({
     enabled: true,
   },
   trustedOrigins: [env.CORS_ORIGIN],
+  user: {
+    additionalFields: {
+      role: {
+        type: "string",
+        required: false,
+        defaultValue: "user",
+        input: false,
+      },
+    },
+  },
 });

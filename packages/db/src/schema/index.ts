@@ -21,3 +21,6 @@ export * from "./credit-balances";
 export * from "./credit-transactions";
 export * from "./subscription-plans";
 export * from "./subscriptions";
+export * from "./prompt-templates";
+export * from "./personas";
+export * from "./project-prompt-configs";

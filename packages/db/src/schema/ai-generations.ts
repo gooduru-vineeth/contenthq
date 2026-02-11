@@ -10,6 +10,7 @@ import { user } from "./users";
 import { projects } from "./projects";
 import { aiProviders } from "./ai-providers";
 import { aiModels } from "./ai-models";
+import { promptTemplates } from "./prompt-templates";
 
 export const aiGenerations = pgTable("ai_generations", {
   id: text("id")
@@ -27,5 +28,9 @@ export const aiGenerations = pgTable("ai_generations", {
   tokens: integer("tokens"),
   costUsd: numeric("cost_usd"),
   latencyMs: integer("latency_ms"),
+  promptTemplateId: text("prompt_template_id").references(
+    () => promptTemplates.id
+  ),
+  composedPrompt: text("composed_prompt"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

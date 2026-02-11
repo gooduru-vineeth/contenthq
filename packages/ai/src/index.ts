@@ -17,3 +17,7 @@ export type {
   ImageGenerationOptions,
   ImageGenerationResult,
 } from "./types";
+export { composePrompt, extractVariables } from "./prompts/composer";
+export { resolvePromptForStage } from "./prompts/resolver";
+export { DEFAULT_PROMPT_TEMPLATES, DEFAULT_PERSONAS } from "./prompts/seed-data";
+export type { SeedPromptTemplate, SeedPersona } from "./prompts/seed-data";

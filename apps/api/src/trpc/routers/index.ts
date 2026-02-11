@@ -10,6 +10,9 @@ import { mediaRouter } from "./media";
 import { voiceRouter } from "./voice";
 import { musicRouter } from "./music";
 import { billingRouter } from "./billing";
+import { promptRouter } from "./prompt";
+import { adminProviderRouter } from "./admin-providers";
+import { adminModelRouter } from "./admin-models";
 
 export const appRouter = router({
   health: healthRouter,
@@ -23,6 +26,9 @@ export const appRouter = router({
   voice: voiceRouter,
   music: musicRouter,
   billing: billingRouter,
+  prompt: promptRouter,
+  adminProvider: adminProviderRouter,
+  adminModel: adminModelRouter,
 });
 
 export type AppRouter = typeof appRouter;

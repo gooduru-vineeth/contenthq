@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES, addVisualGenerationJob } from "@contenthq/queue";
 import type { VisualVerificationJobData } from "@contenthq/queue";
-import { verifyImage } from "@contenthq/ai";
+import { verifyImage, resolvePromptForStage } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
 import { scenes, sceneVisuals, projects } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -16,8 +16,23 @@ export function createVisualVerificationWorker(): Worker {
       try {
         await job.updateProgress(10);
 
+        // Resolve verification prompt from DB
+        let customPrompt: string | undefined;
+        try {
+          const resolved = await resolvePromptForStage(
+            db,
+            projectId,
+            userId,
+            "visual_verification",
+            { sceneDescription: visualDescription }
+          );
+          customPrompt = resolved.composedPrompt;
+        } catch {
+          // If no template exists yet, verifyImage falls back to its built-in prompt
+        }
+
         // Verify the generated image against the scene description
-        const result = await verifyImage(imageUrl, visualDescription);
+        const result = await verifyImage(imageUrl, visualDescription, 60, customPrompt);
 
         await job.updateProgress(60);
 

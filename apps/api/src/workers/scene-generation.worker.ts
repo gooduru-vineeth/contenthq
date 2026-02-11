@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES, addVisualGenerationJob } from "@contenthq/queue";
 import type { SceneGenerationJobData } from "@contenthq/queue";
-import { generateTextContent, getImagePromptRefinementPrompt } from "@contenthq/ai";
+import { generateTextContent, resolvePromptForStage } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
 import { scenes, projects } from "@contenthq/db/schema";
 import { eq } from "drizzle-orm";
@@ -40,8 +40,14 @@ export function createSceneGenerationWorker(): Worker {
             continue;
           }
 
-          const prompt = getImagePromptRefinementPrompt(scene.visualDescription);
-          const result = await generateTextContent(prompt, {
+          const { composedPrompt } = await resolvePromptForStage(
+            db,
+            projectId,
+            userId,
+            "image_refinement",
+            { visualDescription: scene.visualDescription }
+          );
+          const result = await generateTextContent(composedPrompt, {
             temperature: 0.7,
             maxTokens: 500,
           });

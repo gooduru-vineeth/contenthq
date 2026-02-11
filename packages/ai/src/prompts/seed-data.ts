@@ -1,0 +1,312 @@
+import type { PromptType, PersonaCategory } from "@contenthq/shared";
+
+export interface SeedPromptTemplate {
+  type: PromptType;
+  name: string;
+  description: string;
+  content: string;
+  variables: string[];
+}
+
+export interface SeedPersona {
+  category: PersonaCategory;
+  name: string;
+  label: string;
+  description: string;
+  promptFragment: string;
+}
+
+export const DEFAULT_PROMPT_TEMPLATES: SeedPromptTemplate[] = [
+  {
+    type: "story_writing",
+    name: "Story Writing",
+    description:
+      "Generate a structured video story from source content with scenes, narration, and visual descriptions.",
+    content: `You are a professional story writer creating narrated video content.
+
+Based on the following source content, create a compelling video story.
+
+SOURCE CONTENT:
+{{content}}
+
+REQUIREMENTS:
+- Tone: {{tone}}
+- Target duration: {{targetDuration}} seconds
+- Number of scenes: {{sceneCount}}
+- Create a strong hook in the first 3 seconds
+- Each scene should be 5-10 seconds long
+- Include clear visual descriptions for each scene
+- Write narration scripts that are engaging and concise
+- Ensure smooth transitions between scenes
+
+Create a structured story with:
+1. A compelling title
+2. An attention-grabbing hook (first line the viewer hears)
+3. A brief synopsis
+4. A narrative arc (setup, rising action, climax, resolution)
+5. Individual scenes with: visual description, narration script, and suggested duration`,
+    variables: ["content", "tone", "targetDuration", "sceneCount"],
+  },
+  {
+    type: "scene_generation",
+    name: "Scene Generation",
+    description:
+      "Break down a story into detailed scenes for video production with visual descriptions, image prompts, and motion specs.",
+    content: `You are a video scene director. Break down the following story into detailed scenes for video production.
+
+STORY:
+Title: {{title}}
+Hook: {{hook}}
+Synopsis: {{synopsis}}
+
+For each scene, provide:
+1. Visual Description: Detailed description of what appears on screen
+2. Image Prompt: A prompt suitable for AI image generation (DALL-E style)
+3. Narration Script: Exact words the narrator speaks
+4. Motion Spec: Camera movement (ken_burns, zoom_in, zoom_out, pan_left, pan_right, static)
+5. Transition: How this scene transitions to the next (crossfade, cut, wipe)
+6. Duration: Suggested duration in seconds (5-12)
+
+Make each scene visually distinct and compelling. Ensure narration timing matches the suggested duration.`,
+    variables: ["title", "hook", "synopsis"],
+  },
+  {
+    type: "image_refinement",
+    name: "Image Prompt Refinement",
+    description:
+      "Convert a scene description into an optimized image generation prompt with art style, lighting, and composition details.",
+    content: `Convert the following scene description into an optimized image generation prompt.
+
+SCENE DESCRIPTION:
+{{visualDescription}}
+
+REQUIREMENTS:
+- Create a single, specific image prompt
+- Include art style (photorealistic, cinematic, illustration, etc.)
+- Specify lighting and mood
+- Include composition details (close-up, wide shot, etc.)
+- Keep under 300 characters
+- Do not include text or watermarks in the image
+- Focus on one clear subject/moment`,
+    variables: ["visualDescription"],
+  },
+  {
+    type: "image_generation",
+    name: "Image Generation",
+    description:
+      "Generate an AI image prompt from a visual description with style parameters.",
+    content: `{{visualDescription}}. Style: {{style}}, photorealistic, high quality, 4K resolution, professional photography, dramatic lighting. No text, no watermarks, no logos.`,
+    variables: ["visualDescription", "style"],
+  },
+  {
+    type: "visual_verification",
+    name: "Visual Verification",
+    description:
+      "Evaluate an AI-generated image against a scene description with scoring criteria.",
+    content: `Evaluate this AI-generated image against the following scene description:
+
+SCENE DESCRIPTION:
+{{sceneDescription}}
+
+Score on these criteria:
+1. Relevance (0-30): How well does the image match the scene description?
+2. Quality (0-25): Image clarity, composition, and visual appeal
+3. Consistency (0-25): Internal consistency, no artifacts or distortions
+4. Safety (0-20): Appropriate for general audiences
+
+Provide a total score (sum of all), brief feedback, and whether it's approved (score >= 60).`,
+    variables: ["sceneDescription"],
+  },
+];
+
+export const DEFAULT_PERSONAS: SeedPersona[] = [
+  // Tone personas
+  {
+    category: "tone",
+    name: "professional",
+    label: "Professional",
+    description: "Formal and authoritative tone suitable for business contexts.",
+    promptFragment:
+      "Maintain a professional, authoritative tone. Use clear, precise language suitable for business and corporate contexts. Avoid colloquialisms and informal expressions.",
+  },
+  {
+    category: "tone",
+    name: "conversational",
+    label: "Conversational",
+    description: "Friendly and approachable tone for casual content.",
+    promptFragment:
+      "Use a warm, conversational tone as if speaking to a friend. Keep language natural and approachable. Use contractions and everyday vocabulary.",
+  },
+  {
+    category: "tone",
+    name: "educational",
+    label: "Educational",
+    description: "Clear and instructive tone for teaching content.",
+    promptFragment:
+      "Adopt an educational tone that explains concepts clearly. Break down complex ideas into digestible parts. Use examples and analogies to aid understanding.",
+  },
+  {
+    category: "tone",
+    name: "encouraging",
+    label: "Encouraging",
+    description: "Supportive and uplifting tone to inspire the audience.",
+    promptFragment:
+      "Use an encouraging, supportive tone that uplifts the audience. Celebrate progress, acknowledge challenges, and inspire action with positive reinforcement.",
+  },
+  {
+    category: "tone",
+    name: "motivational",
+    label: "Motivational",
+    description:
+      "High-energy tone designed to drive action and inspire change.",
+    promptFragment:
+      "Deliver with high-energy motivational intensity. Use powerful, action-oriented language that drives urgency and inspires transformation. Build momentum with strong calls to action.",
+  },
+  {
+    category: "tone",
+    name: "entertaining",
+    label: "Entertaining",
+    description:
+      "Fun, engaging tone designed to captivate and hold attention.",
+    promptFragment:
+      "Keep the tone fun, witty, and engaging. Use humor where appropriate, create surprise moments, and maintain an energetic pace that holds viewer attention.",
+  },
+
+  // Audience personas
+  {
+    category: "audience",
+    name: "general",
+    label: "General Audience",
+    description: "Content suitable for a broad, diverse audience.",
+    promptFragment:
+      "Write for a general audience with no assumed specialized knowledge. Use universally accessible language and relatable examples that resonate across demographics.",
+  },
+  {
+    category: "audience",
+    name: "professionals",
+    label: "Professionals",
+    description:
+      "Content tailored for industry professionals and experts.",
+    promptFragment:
+      "Target working professionals with industry awareness. Use appropriate technical terminology, reference real-world business scenarios, and maintain a results-oriented perspective.",
+  },
+  {
+    category: "audience",
+    name: "teenagers",
+    label: "Teenagers",
+    description: "Content designed for teen audiences aged 13-19.",
+    promptFragment:
+      "Write for a teenage audience. Use contemporary, relatable language without being condescending. Reference trends and experiences relevant to young people while keeping content age-appropriate.",
+  },
+  {
+    category: "audience",
+    name: "children",
+    label: "Children",
+    description: "Content appropriate for young children aged 6-12.",
+    promptFragment:
+      "Write for young children with simple, clear language. Use short sentences, vivid imagery, and a sense of wonder. Avoid complex vocabulary and ensure all content is age-appropriate and safe.",
+  },
+  {
+    category: "audience",
+    name: "creators",
+    label: "Creators",
+    description:
+      "Content for content creators, influencers, and digital media professionals.",
+    promptFragment:
+      "Target content creators and digital media professionals. Reference platform-specific strategies, engagement metrics, and creative workflows. Speak as a peer sharing insider knowledge.",
+  },
+
+  // Visual Style personas
+  {
+    category: "visual_style",
+    name: "cinematic",
+    label: "Cinematic",
+    description:
+      "Film-quality visual style with dramatic composition and lighting.",
+    promptFragment:
+      "Use cinematic visual composition with dramatic lighting, wide establishing shots, and film-quality framing. Emphasize depth of field and atmospheric mood.",
+  },
+  {
+    category: "visual_style",
+    name: "minimal",
+    label: "Minimal",
+    description:
+      "Clean, minimalist visual style with ample whitespace and simplicity.",
+    promptFragment:
+      "Apply a minimal visual style with clean lines, generous whitespace, and restrained color palettes. Focus on essential elements only, removing visual clutter.",
+  },
+  {
+    category: "visual_style",
+    name: "corporate",
+    label: "Corporate",
+    description:
+      "Polished, professional visual style suitable for business presentations.",
+    promptFragment:
+      "Use a polished corporate visual style with professional color schemes, structured layouts, and business-appropriate imagery. Maintain brand consistency and visual hierarchy.",
+  },
+  {
+    category: "visual_style",
+    name: "vibrant",
+    label: "Vibrant",
+    description:
+      "Bold, colorful visual style with high energy and saturation.",
+    promptFragment:
+      "Use bold, vibrant visuals with saturated colors, dynamic compositions, and high-energy aesthetics. Create visually striking scenes that grab attention immediately.",
+  },
+  {
+    category: "visual_style",
+    name: "editorial",
+    label: "Editorial",
+    description:
+      "Magazine-quality visual style with artistic composition.",
+    promptFragment:
+      "Apply an editorial visual style reminiscent of high-end magazines. Use carefully composed shots, artistic angles, and sophisticated color grading with attention to typography and layout.",
+  },
+
+  // Narrative Style personas
+  {
+    category: "narrative_style",
+    name: "documentary",
+    label: "Documentary",
+    description:
+      "Fact-driven narrative style with journalistic integrity.",
+    promptFragment:
+      "Structure the narrative like a documentary with fact-based storytelling. Present information objectively, use evidence to support claims, and build credibility through thorough research and balanced perspectives.",
+  },
+  {
+    category: "narrative_style",
+    name: "storytelling",
+    label: "Storytelling",
+    description:
+      "Character-driven narrative with emotional arcs and compelling plots.",
+    promptFragment:
+      "Craft a narrative-driven story with character development, emotional arcs, and compelling plot progression. Use descriptive language, build tension, and create resolution for a satisfying story experience.",
+  },
+  {
+    category: "narrative_style",
+    name: "listicle",
+    label: "Listicle",
+    description:
+      "Numbered list format for easy consumption and shareability.",
+    promptFragment:
+      "Structure content as a numbered list with clear, distinct points. Each item should be self-contained yet contribute to the overall narrative. Use punchy headings and concise explanations.",
+  },
+  {
+    category: "narrative_style",
+    name: "how_to",
+    label: "How-To",
+    description:
+      "Step-by-step instructional format for tutorials and guides.",
+    promptFragment:
+      "Present content as clear, sequential steps that guide the viewer through a process. Number each step, provide specific actionable instructions, and anticipate common questions or mistakes.",
+  },
+  {
+    category: "narrative_style",
+    name: "explainer",
+    label: "Explainer",
+    description:
+      "Concept-focused format that breaks down complex topics simply.",
+    promptFragment:
+      "Structure content as an explainer that breaks down complex topics into understandable segments. Start with the big picture, then dive into details. Use analogies, examples, and visual metaphors.",
+  },
+];

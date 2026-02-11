@@ -10,6 +10,7 @@
     "typecheck": "turbo run typecheck",
     "check": "turbo run lint typecheck test",
     "prepare": "husky",
+    "db:seed": "dotenv -- tsx packages/db/src/seed.ts",
     "db:generate": "dotenv -- pnpm --filter @contenthq/db generate",
     "db:migrate": "dotenv -- pnpm --filter @contenthq/db migrate",
     "db:push": "dotenv -- pnpm --filter @contenthq/db push",
@@ -30,6 +31,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
+    "tsx": "^4.19.0",
     "turbo": "^2.3.0",
     "typescript-eslint": "^8.55.0",
     "vitest": "^4.0.18"
