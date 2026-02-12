@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
@@ -86,6 +86,11 @@ export function ModelForm({ model, defaultProviderId }: ModelFormProps) {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  const watchedProviderId = useWatch({ control: form.control, name: "providerId" });
+  const watchedIsDefault = useWatch({ control: form.control, name: "isDefault" });
+  const watchedCosts = useWatch({ control: form.control, name: "costs" });
+  const watchedCapabilities = useWatch({ control: form.control, name: "capabilities" });
+
   return (
     <Card>
       <CardHeader>
@@ -99,7 +104,7 @@ export function ModelForm({ model, defaultProviderId }: ModelFormProps) {
               <Skeleton className="h-10 w-full" />
             ) : (
               <Select
-                value={form.watch("providerId")}
+                value={watchedProviderId}
                 onValueChange={(val) => form.setValue("providerId", val)}
               >
                 <SelectTrigger>
@@ -160,7 +165,7 @@ export function ModelForm({ model, defaultProviderId }: ModelFormProps) {
             <div className="flex items-center gap-3 pt-6">
               <Switch
                 id="isDefault"
-                checked={form.watch("isDefault")}
+                checked={watchedIsDefault}
                 onCheckedChange={(checked) =>
                   form.setValue("isDefault", checked)
                 }
@@ -172,7 +177,7 @@ export function ModelForm({ model, defaultProviderId }: ModelFormProps) {
           <div className="space-y-2">
             <Label>Costs (JSON)</Label>
             <JsonEditor
-              value={form.watch("costs") ?? null}
+              value={watchedCosts ?? null}
               onChange={(val) => form.setValue("costs", val)}
               placeholder='{\n  "input_per_1k": 0.01,\n  "output_per_1k": 0.03\n}'
             />
@@ -181,7 +186,7 @@ export function ModelForm({ model, defaultProviderId }: ModelFormProps) {
           <div className="space-y-2">
             <Label>Capabilities (JSON)</Label>
             <JsonEditor
-              value={form.watch("capabilities") ?? null}
+              value={watchedCapabilities ?? null}
               onChange={(val) => form.setValue("capabilities", val)}
               placeholder='{\n  "vision": true,\n  "function_calling": true\n}'
             />

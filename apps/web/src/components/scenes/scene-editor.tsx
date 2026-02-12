@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Save, Loader2, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -89,7 +89,10 @@ export function SceneEditor({ scene, projectId }: SceneEditorProps) {
     });
   }
 
-  const activeVisual = scene.visuals?.find((v) => v.imageUrl) ?? null;
+  const activeVisual = useMemo(
+    () => scene.visuals?.find((v) => v.imageUrl) ?? null,
+    [scene.visuals]
+  );
 
   return (
     <Card>

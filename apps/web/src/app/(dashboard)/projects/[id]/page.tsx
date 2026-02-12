@@ -2,6 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -310,11 +311,15 @@ export default function ProjectDetailPage({
                     className="group relative overflow-hidden rounded-md border"
                   >
                     {visual?.imageUrl ? (
-                      <img
-                        src={visual.imageUrl}
-                        alt={scene.visualDescription ?? `Scene ${scene.index + 1}`}
-                        className="aspect-square w-full object-cover"
-                      />
+                      <div className="relative aspect-square w-full">
+                        <Image
+                          src={visual.imageUrl}
+                          alt={scene.visualDescription ?? `Scene ${scene.index + 1}`}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                        />
+                      </div>
                     ) : (
                       <div className="flex aspect-square w-full items-center justify-center bg-muted">
                         <ImageIcon className="h-6 w-6 text-muted-foreground" />

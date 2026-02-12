@@ -20,6 +20,10 @@ describe("env validation", () => {
     process.env.CORS_ORIGIN = "http://localhost:3000";
     process.env.PORT = "3001";
     process.env.REDIS_URL = "redis://localhost:6379";
+    process.env.CLOUDFLARE_ACCOUNT_ID = "test-account-id";
+    process.env.CLOUDFLARE_ACCESS_KEY_ID = "test-access-key";
+    process.env.CLOUDFLARE_SECRET_ACCESS_KEY = "test-secret-key";
+    process.env.R2_BUCKET_NAME = "test-bucket";
 
     const { env } = await import("../../lib/env");
 
@@ -33,6 +37,10 @@ describe("env validation", () => {
     process.env.DATABASE_URL = "postgresql://localhost:5432/contenthq";
     process.env.BETTER_AUTH_SECRET = "a-secret-that-is-long-enough-32chars";
     process.env.REDIS_URL = "redis://localhost:6379";
+    process.env.CLOUDFLARE_ACCOUNT_ID = "test-account-id";
+    process.env.CLOUDFLARE_ACCESS_KEY_ID = "test-access-key";
+    process.env.CLOUDFLARE_SECRET_ACCESS_KEY = "test-secret-key";
+    process.env.R2_BUCKET_NAME = "test-bucket";
 
     const { env } = await import("../../lib/env");
 

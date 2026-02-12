@@ -13,6 +13,10 @@ describe("app setup", () => {
       CORS_ORIGIN: "http://localhost:3000",
       PORT: "3001",
       REDIS_URL: "redis://localhost:6379",
+      CLOUDFLARE_ACCOUNT_ID: "test-account-id",
+      CLOUDFLARE_ACCESS_KEY_ID: "test-access-key",
+      CLOUDFLARE_SECRET_ACCESS_KEY: "test-secret-key",
+      R2_BUCKET_NAME: "test-bucket",
     };
   });
 

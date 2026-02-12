@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   PROMPT_TYPES,
@@ -46,7 +46,7 @@ export function PromptTemplateForm({
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     formState: { errors },
   } = useForm<CreatePromptTemplateInput & { changeNote?: string }>({
@@ -60,7 +60,7 @@ export function PromptTemplateForm({
     },
   });
 
-  const contentValue = watch("content");
+  const contentValue = useWatch({ control, name: "content" });
   const detectedVariables = useMemo(
     () => extractVariables(contentValue ?? ""),
     [contentValue]

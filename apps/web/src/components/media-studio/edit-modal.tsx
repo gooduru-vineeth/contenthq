@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -53,12 +53,16 @@ export const EditModal: FC<EditModalProps> = ({
     );
 
   // Filter for editable models
-  const editableModels =
-    models?.filter((m) => m.capabilities.supportsEditing && m.available) || [];
+  const editableModels = useMemo(
+    () => models?.filter((m) => m.capabilities.supportsEditing && m.available) || [],
+    [models]
+  );
 
   // Use the selected model or default to first available
-  const effectiveSelectedModel =
-    selectedModel || (editableModels.length > 0 ? editableModels[0]?.id || "" : "");
+  const effectiveSelectedModel = useMemo(
+    () => selectedModel || (editableModels.length > 0 ? editableModels[0]?.id || "" : ""),
+    [selectedModel, editableModels]
+  );
 
   const editMutation = trpc.mediaGeneration.edit.useMutation({
     onSuccess: () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
@@ -94,6 +94,10 @@ export function ProviderForm({ provider }: ProviderFormProps) {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  const watchedType = useWatch({ control: form.control, name: "type" });
+  const watchedIsEnabled = useWatch({ control: form.control, name: "isEnabled" });
+  const watchedConfig = useWatch({ control: form.control, name: "config" });
+
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value;
     form.setValue("name", name);
@@ -145,7 +149,7 @@ export function ProviderForm({ provider }: ProviderFormProps) {
             <div className="space-y-2">
               <Label>Type</Label>
               <Select
-                value={form.watch("type")}
+                value={watchedType}
                 onValueChange={(val) =>
                   form.setValue(
                     "type",
@@ -188,7 +192,7 @@ export function ProviderForm({ provider }: ProviderFormProps) {
             <div className="flex items-center gap-3 pt-6">
               <Switch
                 id="isEnabled"
-                checked={form.watch("isEnabled")}
+                checked={watchedIsEnabled}
                 onCheckedChange={(checked) =>
                   form.setValue("isEnabled", checked)
                 }
@@ -200,7 +204,7 @@ export function ProviderForm({ provider }: ProviderFormProps) {
           <div className="space-y-2">
             <Label>Config (JSON)</Label>
             <JsonEditor
-              value={form.watch("config") ?? null}
+              value={watchedConfig ?? null}
               onChange={(val) => form.setValue("config", val)}
             />
           </div>
