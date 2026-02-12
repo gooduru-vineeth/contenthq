@@ -2,7 +2,14 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { db } from "@contenthq/db/client";
-import { scenes, sceneVisuals, projects, stories } from "@contenthq/db/schema";
+import {
+  scenes,
+  sceneVisuals,
+  sceneVideos,
+  sceneAudioMixes,
+  projects,
+  stories,
+} from "@contenthq/db/schema";
 import { eq, and, asc, inArray } from "drizzle-orm";
 import { updateSceneSchema, reorderScenesSchema } from "@contenthq/shared";
 import { addVisualGenerationJob } from "@contenthq/queue";
@@ -107,6 +114,61 @@ export const sceneRouter = router({
       );
       await Promise.all(updates);
       return { success: true };
+    }),
+
+  listByProjectEnriched: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const sceneList = await db
+        .select()
+        .from(scenes)
+        .where(eq(scenes.projectId, input.projectId))
+        .orderBy(asc(scenes.index));
+
+      const sceneIds = sceneList.map((s) => s.id);
+      if (sceneIds.length === 0) return [];
+
+      const [allVisuals, allVideos, allAudioMixes] = await Promise.all([
+        db.select().from(sceneVisuals).where(inArray(sceneVisuals.sceneId, sceneIds)),
+        db.select().from(sceneVideos).where(inArray(sceneVideos.sceneId, sceneIds)),
+        db.select().from(sceneAudioMixes).where(inArray(sceneAudioMixes.sceneId, sceneIds)),
+      ]);
+
+      const visualsBySceneId = new Map<string, typeof allVisuals>();
+      for (const visual of allVisuals) {
+        const existing = visualsBySceneId.get(visual.sceneId) ?? [];
+        existing.push(visual);
+        visualsBySceneId.set(visual.sceneId, existing);
+      }
+
+      const videosBySceneId = new Map<string, typeof allVideos>();
+      for (const video of allVideos) {
+        const existing = videosBySceneId.get(video.sceneId) ?? [];
+        existing.push(video);
+        videosBySceneId.set(video.sceneId, existing);
+      }
+
+      const audioMixesBySceneId = new Map<string, typeof allAudioMixes>();
+      for (const mix of allAudioMixes) {
+        const existing = audioMixesBySceneId.get(mix.sceneId) ?? [];
+        existing.push(mix);
+        audioMixesBySceneId.set(mix.sceneId, existing);
+      }
+
+      return sceneList.map((scene) => ({
+        ...scene,
+        visuals: visualsBySceneId.get(scene.id) ?? [],
+        videos: videosBySceneId.get(scene.id) ?? [],
+        audioMixes: audioMixesBySceneId.get(scene.id) ?? [],
+      }));
     }),
 
   regenerateVisual: protectedProcedure

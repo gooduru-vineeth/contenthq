@@ -1,8 +1,7 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -12,9 +11,7 @@ import {
   Loader2,
   Calendar,
   Clock,
-  FileText,
-  Image as ImageIcon,
-  Layers,
+  ScrollText,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -23,14 +20,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { PipelineProgress } from "@/components/projects/pipeline-progress";
 import { PipelineLog } from "@/components/projects/pipeline-log";
+import { StageDetailPanel } from "@/components/projects/stage-detail-panel";
 import {
   PROJECT_STATUS_TO_STAGE,
+  type PipelineStage,
 } from "@contenthq/shared";
 
 const statusBadgeVariant: Record<string, "secondary" | "default" | "destructive" | "outline"> = {
@@ -69,26 +74,47 @@ export default function ProjectDetailPage({
   const { data: project, isLoading: projectLoading } =
     trpc.project.getById.useQuery(
       { id },
-      { refetchInterval: (query) => isActive(query.state.data?.status ?? "draft") ? 3000 : false },
+      { refetchInterval: (query) => isActive(query.state.data?.status ?? "draft") ? 5000 : false },
     );
 
   const isProjectActive = project ? isActive(project.status) : false;
 
-  const { data: story } = trpc.story.getByProject.useQuery(
-    { projectId: id },
-  );
   const { data: jobs } = trpc.job.getLogsByProject.useQuery(
-    { projectId: id },
-    { refetchInterval: isProjectActive ? 3000 : false },
-  );
-  const { data: scenes } = trpc.scene.listByProject.useQuery(
     { projectId: id },
     { refetchInterval: isProjectActive ? 5000 : false },
   );
 
+  const currentStage = project
+    ? PROJECT_STATUS_TO_STAGE[project.status] ?? null
+    : null;
+
+  // User-overridden stage selection (null = follow pipeline automatically)
+  const [userSelectedStage, setUserSelectedStage] = useState<PipelineStage | null>(null);
+  const prevCurrentStageRef = useRef(currentStage);
+
+  // When pipeline advances to a new stage, clear user selection so it auto-follows
+  if (currentStage !== prevCurrentStageRef.current) {
+    prevCurrentStageRef.current = currentStage;
+    if (userSelectedStage !== null) {
+      setUserSelectedStage(null);
+    }
+  }
+
+  // Derive the displayed stage: user pick > current pipeline stage > sensible default
+  const selectedStage: PipelineStage | null =
+    userSelectedStage ??
+    (project?.status === "completed"
+      ? ("VIDEO_ASSEMBLY" as PipelineStage)
+      : currentStage ?? ("INGESTION" as PipelineStage));
+
+  function handleStageSelect(stage: PipelineStage) {
+    setUserSelectedStage(stage);
+  }
+
   const startPipelineMutation = trpc.pipeline.start.useMutation({
     onSuccess: () => {
       utils.project.getById.invalidate({ id });
+      setUserSelectedStage(null);
     },
   });
   const deleteMutation = trpc.project.delete.useMutation({
@@ -119,7 +145,6 @@ export default function ProjectDetailPage({
     );
   }
 
-  const currentStage = PROJECT_STATUS_TO_STAGE[project.status] ?? null;
   const canStart = project.status === "draft";
   const canRetry = project.status === "failed";
 
@@ -210,7 +235,7 @@ export default function ProjectDetailPage({
         <CardHeader>
           <CardTitle className="text-base">Pipeline Progress</CardTitle>
           <CardDescription>
-            {project.progressPercent}% complete
+            {project.progressPercent}% complete — click a stage to view details
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -218,131 +243,45 @@ export default function ProjectDetailPage({
             currentStage={currentStage}
             projectStatus={project.status}
             progressPercent={project.progressPercent ?? undefined}
+            selectedStage={selectedStage}
+            onStageSelect={handleStageSelect}
           />
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" asChild>
-          <Link href={`/projects/${id}/story`}>
-            <FileText className="h-4 w-4" /> Edit Story
-          </Link>
-        </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link href={`/projects/${id}/scenes`}>
-            <ImageIcon className="h-4 w-4" /> View Scenes
-          </Link>
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Story Preview */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4" />
-              Story
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {story ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium">{story.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {story.hook}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Synopsis
-                  </p>
-                  <p className="mt-1 text-sm">{story.synopsis}</p>
-                </div>
-                {story.scenes && story.scenes.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {story.scenes.length} scene
-                      {story.scenes.length !== 1 ? "s" : ""}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No story generated yet. Start the pipeline to generate a story.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Pipeline Log */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Pipeline Log</CardTitle>
-            <CardDescription>Stage execution details</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <PipelineLog jobs={(jobs ?? []) as Parameters<typeof PipelineLog>[0]["jobs"]} />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Scenes Preview */}
-      {scenes && scenes.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Layers className="h-4 w-4" />
-              Scenes ({scenes.length})
-            </CardTitle>
-            <CardDescription>
-              Scene thumbnails and status
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {scenes.map((scene) => {
-                const visual = scene.visuals?.[0];
-                return (
-                  <div
-                    key={scene.id}
-                    className="group relative overflow-hidden rounded-md border"
-                  >
-                    {visual?.imageUrl ? (
-                      <div className="relative aspect-square w-full">
-                        <Image
-                          src={visual.imageUrl}
-                          alt={scene.visualDescription ?? `Scene ${scene.index + 1}`}
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex aspect-square w-full items-center justify-center bg-muted">
-                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                      <p className="text-xs font-medium text-white">
-                        Scene {scene.index + 1}
-                      </p>
-                      <Badge
-                        variant="secondary"
-                        className="mt-0.5 text-[9px] bg-black/50 text-white border-0"
-                      >
-                        {scene.status}
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Stage Detail Panel */}
+      {selectedStage && (
+        <StageDetailPanel
+          selectedStage={selectedStage}
+          projectId={id}
+          projectStatus={project.status}
+          isActive={isProjectActive}
+          jobs={(jobs ?? []) as Parameters<typeof StageDetailPanel>[0]["jobs"]}
+          finalVideoUrl={project.finalVideoUrl}
+          thumbnailUrl={project.thumbnailUrl}
+          totalCreditsUsed={project.totalCreditsUsed ?? 0}
+        />
       )}
+
+      {/* Pipeline Log — collapsible accordion */}
+      <Accordion type="single" collapsible>
+        <AccordionItem value="pipeline-log" className="border rounded-lg px-4">
+          <AccordionTrigger className="hover:no-underline">
+            <div className="flex items-center gap-2">
+              <ScrollText className="h-4 w-4" />
+              <span className="text-sm font-medium">Pipeline Log</span>
+              {jobs && jobs.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] ml-1">
+                  {jobs.length}
+                </Badge>
+              )}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <PipelineLog jobs={(jobs ?? []) as Parameters<typeof PipelineLog>[0]["jobs"]} />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }
