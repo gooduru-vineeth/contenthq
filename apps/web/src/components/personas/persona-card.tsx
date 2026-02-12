@@ -77,7 +77,7 @@ export function PersonaCard({
             </Button>
           )}
           {onDelete && (
-            <Button variant="ghost" size="sm" onClick={onDelete}>
+            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={onDelete}>
               <Trash2 className="mr-1 h-3 w-3" />
               Delete
             </Button>

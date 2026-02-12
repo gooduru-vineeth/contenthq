@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { heroStats } from "../lib/constants";
 import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
+import { FloatingCard } from "./FloatingCard";
 
 const pills = [
   { label: "YouTube Ingestion", icon: Download },
@@ -150,7 +151,7 @@ export function HeroSection() {
         {/* CTAs */}
         <motion.div
           variants={itemVariants}
-          className="mb-16 flex flex-col items-center justify-center gap-4 sm:flex-row"
+          className="mb-12 flex flex-col items-center justify-center gap-4 sm:flex-row"
         >
           <Button
             size="lg"
@@ -162,12 +163,22 @@ export function HeroSection() {
               Start Free — 50 Credits
             </Link>
           </Button>
-          <Button size="lg" variant="outline" asChild>
+          <Button
+            size="lg"
+            variant="outline"
+            className="border-foreground/20 text-foreground hover:bg-accent"
+            asChild
+          >
             <Link href="#pipeline">
               <Play className="mr-2 h-4 w-4" />
               Watch Demo
             </Link>
           </Button>
+        </motion.div>
+
+        {/* Three.js Floating Card */}
+        <motion.div variants={itemVariants} className="mb-12">
+          <FloatingCard />
         </motion.div>
 
         {/* Stats */}

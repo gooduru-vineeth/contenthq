@@ -161,7 +161,7 @@ export function SpeechGenerationBatchDialog() {
                       className="h-6 w-6"
                       onClick={() => removeConfig(config.id)}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>
                   )}
                 </div>
