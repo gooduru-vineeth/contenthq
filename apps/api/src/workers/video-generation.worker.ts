@@ -56,7 +56,7 @@ export function createVideoGenerationWorker(): Worker {
 
         // Upload to R2
         const videoKey = getSceneVideoPath(userId, projectId, sceneId, `video.${videoResult.format}`);
-        const uploadResult = await storage.uploadFile(videoKey, videoResult.videoBuffer, getVideoContentType(videoResult.format));
+        const uploadResult = await storage.uploadFileWithRetry(videoKey, videoResult.videoBuffer, getVideoContentType(videoResult.format));
         const videoUrl = uploadResult.url;
 
         console.warn(`[VideoGeneration] Uploaded video for scene ${sceneId}: key=${videoKey}`);

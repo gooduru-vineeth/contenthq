@@ -66,7 +66,7 @@ export function createVisualGenerationWorker(): Worker {
         const contentType = imageResponse.headers.get("content-type") ?? "image/png";
         const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
         const storageKey = getSceneVisualPath(userId, projectId, sceneId, `visual.${ext}`);
-        const r2Upload = await storage.uploadFile(storageKey, imageBuffer, contentType);
+        const r2Upload = await storage.uploadFileWithRetry(storageKey, imageBuffer, contentType);
         const r2ImageUrl = r2Upload.url;
 
         // Fetch the scene to get visualDescription for verification

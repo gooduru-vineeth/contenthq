@@ -18,6 +18,7 @@ export const sceneAudioMixes = pgTable(
       .notNull()
       .references(() => scenes.id, { onDelete: "cascade" }),
     mixedAudioUrl: text("mixed_audio_url"),
+    storageKey: text("storage_key"),
     voiceoverVolume: integer("voiceover_volume").default(100),
     musicVolume: integer("music_volume").default(30),
     musicDuckingEnabled: boolean("music_ducking_enabled").default(true),

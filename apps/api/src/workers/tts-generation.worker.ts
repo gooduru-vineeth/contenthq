@@ -45,7 +45,7 @@ export function createTTSGenerationWorker(): Worker {
 
         // Upload voiceover to R2
         const voiceoverKey = getSceneAudioPath(userId, projectId, sceneId, `voiceover.${result.format}`);
-        const uploadResult = await storage.uploadFile(voiceoverKey, result.audioBuffer, getAudioContentType(result.format));
+        const uploadResult = await storage.uploadFileWithRetry(voiceoverKey, result.audioBuffer, getAudioContentType(result.format));
         const voiceoverUrl = uploadResult.url;
 
         // Update scene video record (wrapped in transaction to handle race conditions)

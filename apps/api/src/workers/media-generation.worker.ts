@@ -116,7 +116,7 @@ export function createMediaGenerationWorker(): Worker {
           const ext = mimeType === "image/png" ? "png" : "jpg";
           storageKey = `generated-media/${userId}/${generatedMediaId}.${ext}`;
 
-          const uploadResult = await storage.uploadFile(
+          const uploadResult = await storage.uploadFileWithRetry(
             storageKey,
             buffer,
             mimeType
@@ -145,7 +145,7 @@ export function createMediaGenerationWorker(): Worker {
           }
           const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
 
-          const uploadResult = await storage.uploadFile(
+          const uploadResult = await storage.uploadFileWithRetry(
             storageKey,
             videoBuffer,
             mimeType

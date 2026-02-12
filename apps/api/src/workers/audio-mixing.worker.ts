@@ -82,7 +82,7 @@ export function createAudioMixingWorker(): Worker {
 
         // Upload mixed audio to R2
         const mixedKey = getSceneAudioPath(userId, projectId, sceneId, `mixed-audio.${mixResult.format}`);
-        const uploadResult = await storage.uploadFile(mixedKey, mixResult.audioBuffer, getAudioContentType(mixResult.format));
+        const uploadResult = await storage.uploadFileWithRetry(mixedKey, mixResult.audioBuffer, getAudioContentType(mixResult.format));
         const mixedAudioUrl = uploadResult.url;
 
         console.warn(`[AudioMix] Uploaded mixed audio for scene ${sceneId}: key=${mixedKey}`);
@@ -98,6 +98,7 @@ export function createAudioMixingWorker(): Worker {
             .update(sceneAudioMixes)
             .set({
               mixedAudioUrl,
+              storageKey: uploadResult.key,
               voiceoverVolume: 100,
               musicVolume: musicTrackId ? 30 : 0,
               musicDuckingEnabled: true,
@@ -108,6 +109,7 @@ export function createAudioMixingWorker(): Worker {
           await db.insert(sceneAudioMixes).values({
             sceneId,
             mixedAudioUrl,
+            storageKey: uploadResult.key,
             voiceoverVolume: 100,
             musicVolume: musicTrackId ? 30 : 0,
             musicDuckingEnabled: true,

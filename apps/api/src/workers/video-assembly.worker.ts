@@ -97,7 +97,7 @@ export function createVideoAssemblyWorker(): Worker {
 
         // Upload final video to R2
         const outputKey = getOutputPath(userId, projectId, `final-video.${result.format}`);
-        const uploadResult = await storage.uploadFile(outputKey, result.videoBuffer, getVideoContentType(result.format));
+        const uploadResult = await storage.uploadFileWithRetry(outputKey, result.videoBuffer, getVideoContentType(result.format));
         const finalVideoUrl = uploadResult.url;
 
         console.warn(`[VideoAssembly] Uploaded final video for project ${projectId}: key=${outputKey}`);
