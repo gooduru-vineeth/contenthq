@@ -10,6 +10,7 @@ export function createVideoAssemblyWorker(): Worker {
     QUEUE_NAMES.VIDEO_ASSEMBLY,
     async (job) => {
       const { projectId, sceneIds } = job.data;
+      const startedAt = new Date();
       console.warn(`[VideoAssembly] Processing job ${job.id} for project ${projectId}`);
 
       try {
@@ -27,7 +28,7 @@ export function createVideoAssemblyWorker(): Worker {
 
         await db
           .update(projects)
-          .set({ status: "assembling", progressPercent: 85, updatedAt: new Date() })
+          .set({ status: "assembling", progressPercent: 87, updatedAt: new Date() })
           .where(eq(projects.id, projectId));
 
         await job.updateProgress(10);
@@ -61,6 +62,7 @@ export function createVideoAssemblyWorker(): Worker {
           .where(eq(projects.id, projectId));
 
         await job.updateProgress(100);
+        const completedAt = new Date();
         console.warn(`[VideoAssembly] Completed for project ${projectId} with ${sceneList.length} scenes`);
 
         // Mark generationJob as completed
@@ -69,7 +71,18 @@ export function createVideoAssemblyWorker(): Worker {
           .set({
             status: "completed",
             progressPercent: 100,
-            result: { sceneCount: sceneList.length, outputKey },
+            result: {
+              sceneCount: sceneList.length,
+              outputKey,
+              log: {
+                stage: "VIDEO_ASSEMBLY",
+                status: "completed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                details: `Assembled ${sceneList.length} scenes into final video`,
+              },
+            },
             updatedAt: new Date(),
           })
           .where(
@@ -82,12 +95,27 @@ export function createVideoAssemblyWorker(): Worker {
 
         return { success: true, sceneCount: sceneList.length };
       } catch (error) {
+        const completedAt = new Date();
+        const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[VideoAssembly] Failed for project ${projectId}:`, error);
 
         // Mark generationJob as failed
         await db
           .update(generationJobs)
-          .set({ status: "failed", updatedAt: new Date() })
+          .set({
+            status: "failed",
+            result: {
+              log: {
+                stage: "VIDEO_ASSEMBLY",
+                status: "failed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                error: errorMessage,
+              },
+            },
+            updatedAt: new Date(),
+          })
           .where(
             and(
               eq(generationJobs.projectId, projectId),

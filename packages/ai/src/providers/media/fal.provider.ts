@@ -1,3 +1,5 @@
+import { experimental_generateImage as generateImage } from "ai";
+import { fal } from "@ai-sdk/fal";
 import type {
   AspectRatio,
   MediaModelConfig,
@@ -5,16 +7,245 @@ import type {
 } from "@contenthq/shared";
 import type {
   MediaGenerationProvider,
+  ImageProviderOptions,
   VideoProviderOptions,
   ProviderMediaResult,
 } from "./types";
 
 // ============================================
-// FAL.AI VIDEO PROVIDER
-// Uses fal.ai REST API for video generation
+// FAL.AI MEDIA PROVIDER
+// Supports image generation (AI SDK) and video generation (REST API)
 // ============================================
 
-const FAL_MODELS: MediaModelConfig[] = [
+const FAL_IMAGE_MODELS: MediaModelConfig[] = [
+  {
+    id: "fal-ai/flux-2-pro",
+    name: "FLUX.2 Pro",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/flux-2-max",
+    name: "FLUX.2 Max",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/flux-pro/v1.1-ultra",
+    name: "FLUX Pro 1.1 Ultra",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/flux-pro/v1.1",
+    name: "FLUX Pro 1.1",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/flux-pro/kontext",
+    name: "FLUX Kontext Pro",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/flux-pro/kontext/max",
+    name: "FLUX Kontext Max",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/flux/dev",
+    name: "FLUX Dev",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/flux/schnell",
+    name: "FLUX Schnell",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/ideogram/v3",
+    name: "Ideogram V3",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: true,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/recraft/v3/text-to-image",
+    name: "Recraft V3",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: true,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+    name: "Seedream v4.5",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/luma-photon",
+    name: "Luma Photon",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+  {
+    id: "fal-ai/qwen-image",
+    name: "Qwen Image",
+    provider: "fal",
+    mediaType: "image",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: true,
+    supportsEditing: false,
+    maxCount: 4,
+  },
+];
+
+const FAL_VIDEO_MODELS: MediaModelConfig[] = [
+  {
+    id: "fal-ai/veo3.1",
+    name: "Veo 3.1",
+    provider: "fal",
+    mediaType: "video",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: false,
+    supportsEditing: false,
+    supportsImageToVideo: true,
+    maxCount: 1,
+    maxDuration: 8,
+  },
+  {
+    id: "fal-ai/veo3.1/fast",
+    name: "Veo 3.1 Fast",
+    provider: "fal",
+    mediaType: "video",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: false,
+    supportsEditing: false,
+    maxCount: 1,
+    maxDuration: 8,
+  },
+  {
+    id: "fal-ai/kling-video/o3/standard/text-to-video",
+    name: "Kling O3 Standard",
+    provider: "fal",
+    mediaType: "video",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: false,
+    supportsEditing: false,
+    supportsImageToVideo: true,
+    maxCount: 1,
+    maxDuration: 10,
+  },
+  {
+    id: "fal-ai/kling-video/o3/pro/text-to-video",
+    name: "Kling O3 Pro",
+    provider: "fal",
+    mediaType: "video",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: false,
+    supportsEditing: false,
+    supportsImageToVideo: true,
+    maxCount: 1,
+    maxDuration: 10,
+  },
+  {
+    id: "fal-ai/sora-2/text-to-video",
+    name: "Sora 2",
+    provider: "fal",
+    mediaType: "video",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: false,
+    supportsEditing: false,
+    supportsImageToVideo: true,
+    maxCount: 1,
+    maxDuration: 10,
+  },
   {
     id: "fal-ai/luma-dream-machine/ray-2",
     name: "Luma Ray 2",
@@ -30,8 +261,8 @@ const FAL_MODELS: MediaModelConfig[] = [
     maxDuration: 10,
   },
   {
-    id: "fal-ai/hunyuan-video",
-    name: "Hunyuan Video",
+    id: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+    name: "Seedance 1.5 Pro",
     provider: "fal",
     mediaType: "video",
     supportsAspectRatio: true,
@@ -39,6 +270,49 @@ const FAL_MODELS: MediaModelConfig[] = [
     supportsStyle: false,
     supportsMultiple: false,
     supportsEditing: false,
+    supportsImageToVideo: true,
+    maxCount: 1,
+    maxDuration: 10,
+  },
+  {
+    id: "fal-ai/vidu/q3/text-to-video",
+    name: "Vidu Q3",
+    provider: "fal",
+    mediaType: "video",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: false,
+    supportsEditing: false,
+    supportsImageToVideo: true,
+    maxCount: 1,
+    maxDuration: 8,
+  },
+  {
+    id: "fal-ai/minimax/hailuo-02/standard/image-to-video",
+    name: "MiniMax Hailuo-02",
+    provider: "fal",
+    mediaType: "video",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: false,
+    supportsEditing: false,
+    supportsImageToVideo: true,
+    maxCount: 1,
+    maxDuration: 6,
+  },
+  {
+    id: "fal-ai/wan/v2.2-a14b/image-to-video",
+    name: "Wan 2.2",
+    provider: "fal",
+    mediaType: "video",
+    supportsAspectRatio: true,
+    supportedSizes: [],
+    supportsStyle: false,
+    supportsMultiple: false,
+    supportsEditing: false,
+    supportsImageToVideo: true,
     maxCount: 1,
     maxDuration: 5,
   },
@@ -119,7 +393,19 @@ async function pollForResult(
   throw new Error("fal.ai video generation timed out");
 }
 
-class FalVideoProvider implements MediaGenerationProvider {
+const ASPECT_RATIO_DIMENSIONS: Record<
+  AspectRatio,
+  { width: number; height: number }
+> = {
+  "1:1": { width: 1024, height: 1024 },
+  "16:9": { width: 1344, height: 768 },
+  "9:16": { width: 768, height: 1344 },
+  "4:3": { width: 1152, height: 896 },
+  "3:4": { width: 896, height: 1152 },
+  "21:9": { width: 1536, height: 640 },
+};
+
+class FalMediaProvider implements MediaGenerationProvider {
   readonly name = "fal.ai";
   readonly provider = "fal";
 
@@ -136,15 +422,43 @@ class FalVideoProvider implements MediaGenerationProvider {
   }
 
   getModels(type?: MediaGenerationType): MediaModelConfig[] {
-    if (type && type !== "video") return [];
-    return FAL_MODELS;
+    if (!type) return [...FAL_IMAGE_MODELS, ...FAL_VIDEO_MODELS];
+    if (type === "image") return FAL_IMAGE_MODELS;
+    if (type === "video") return FAL_VIDEO_MODELS;
+    return [];
   }
 
   getDimensions(
     _model: string,
-    _aspectRatio: AspectRatio
+    aspectRatio: AspectRatio
   ): { width: number; height: number } {
-    return { width: 1280, height: 720 };
+    return ASPECT_RATIO_DIMENSIONS[aspectRatio] ?? { width: 1024, height: 1024 };
+  }
+
+  async generateImage(
+    options: ImageProviderOptions
+  ): Promise<ProviderMediaResult> {
+    const { prompt, model, aspectRatio, count } = options;
+    const startTime = Date.now();
+
+    const result = await generateImage({
+      model: fal.image(model),
+      prompt,
+      n: count,
+      aspectRatio,
+    });
+
+    const generationTimeMs = Date.now() - startTime;
+
+    const images = result.images.map((img) => ({
+      base64: img.base64,
+      mediaType: img.mediaType || "image/png",
+    }));
+
+    return {
+      images,
+      generationTimeMs,
+    };
   }
 
   async generateVideo(
@@ -186,4 +500,4 @@ class FalVideoProvider implements MediaGenerationProvider {
   }
 }
 
-export const falVideoProvider = new FalVideoProvider();
+export const falMediaProvider = new FalMediaProvider();

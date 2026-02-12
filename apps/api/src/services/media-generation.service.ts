@@ -30,6 +30,16 @@ const rateLimitMap = new Map<
 
 function checkRateLimit(userId: string, requestCount = 1): void {
   const now = Date.now();
+
+  // Clean up expired entries periodically
+  if (rateLimitMap.size > 100) {
+    for (const [key, val] of rateLimitMap) {
+      if (now >= val.resetAt) {
+        rateLimitMap.delete(key);
+      }
+    }
+  }
+
   const entry = rateLimitMap.get(userId);
 
   if (!entry || now >= entry.resetAt) {

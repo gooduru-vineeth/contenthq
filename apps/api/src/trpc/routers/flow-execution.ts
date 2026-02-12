@@ -22,9 +22,9 @@ export const flowExecutionRouter = router({
         offset: z.number().min(0).default(0),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const conditions: any[] = [];
+      const conditions: any[] = [eq(flowExecutions.userId, ctx.user.id)];
 
       if (input.flowId) {
         conditions.push(eq(flowExecutions.flowId, input.flowId));
@@ -52,11 +52,13 @@ export const flowExecutionRouter = router({
 
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const [execution] = await db
         .select()
         .from(flowExecutions)
-        .where(eq(flowExecutions.id, input.id));
+        .where(
+          and(eq(flowExecutions.id, input.id), eq(flowExecutions.userId, ctx.user.id))
+        );
 
       if (!execution) {
         throw new TRPCError({
@@ -83,11 +85,13 @@ export const flowExecutionRouter = router({
 
   cancel: protectedProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const [execution] = await db
         .select()
         .from(flowExecutions)
-        .where(eq(flowExecutions.id, input.id));
+        .where(
+          and(eq(flowExecutions.id, input.id), eq(flowExecutions.userId, ctx.user.id))
+        );
 
       if (!execution) {
         throw new TRPCError({

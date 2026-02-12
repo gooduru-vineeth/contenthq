@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, startTransition } from "react";
+import { useState } from "react";
 import { Save, RotateCcw, Loader2, BookOpen } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -21,28 +21,25 @@ interface StoryEditorProps {
   projectId: string;
 }
 
-export function StoryEditor({ projectId }: StoryEditorProps) {
-  const { data: story, isLoading } = trpc.story.getByProject.useQuery({
-    projectId,
-  });
+interface StoryData {
+  id: string;
+  title: string;
+  hook: string | null;
+  synopsis: string | null;
+  narrativeArc: unknown;
+  scenes?: {
+    id: string;
+    narrationScript: string | null;
+    duration: number | null;
+  }[];
+}
+
+function StoryForm({ story, projectId }: { story: StoryData; projectId: string }) {
   const utils = trpc.useUtils();
 
-  const [title, setTitle] = useState(story?.title ?? "");
-  const [hook, setHook] = useState(story?.hook ?? "");
-  const [synopsis, setSynopsis] = useState(story?.synopsis ?? "");
-
-  useEffect(() => {
-    if (story) {
-      const t = story.title;
-      const h = story.hook ?? "";
-      const s = story.synopsis ?? "";
-      startTransition(() => {
-        setTitle(t);
-        setHook(h);
-        setSynopsis(s);
-      });
-    }
-  }, [story]);
+  const [title, setTitle] = useState(story.title);
+  const [hook, setHook] = useState(story.hook ?? "");
+  const [synopsis, setSynopsis] = useState(story.synopsis ?? "");
 
   const updateMutation = trpc.story.update.useMutation({
     onSuccess: () => {
@@ -65,7 +62,6 @@ export function StoryEditor({ projectId }: StoryEditorProps) {
   });
 
   function handleSave() {
-    if (!story) return;
     updateMutation.mutate({
       id: story.id,
       title,
@@ -76,43 +72,6 @@ export function StoryEditor({ projectId }: StoryEditorProps) {
 
   function handleRegenerate() {
     regenerateMutation.mutate({ projectId });
-  }
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!story) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <BookOpen className="h-10 w-10 text-muted-foreground" />
-          <p className="mt-4 text-sm text-muted-foreground">
-            No story generated yet. Start the pipeline to generate a story.
-          </p>
-          <Button className="mt-4" onClick={handleRegenerate} disabled={regenerateMutation.isPending}>
-            {regenerateMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RotateCcw className="mr-2 h-4 w-4" />
-            )}
-            Generate Story
-          </Button>
-        </CardContent>
-      </Card>
-    );
   }
 
   const narrativeArc = story.narrativeArc as Record<string, string> | null;
@@ -249,4 +208,62 @@ export function StoryEditor({ projectId }: StoryEditorProps) {
       )}
     </div>
   );
+}
+
+export function StoryEditor({ projectId }: StoryEditorProps) {
+  const { data: story, isLoading } = trpc.story.getByProject.useQuery({
+    projectId,
+  });
+
+  const regenerateMutation = trpc.story.regenerate.useMutation({
+    onSuccess: () => {
+      toast.success("Story regeneration started");
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!story) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <BookOpen className="h-10 w-10 text-muted-foreground" />
+          <p className="mt-4 text-sm text-muted-foreground">
+            No story generated yet. Start the pipeline to generate a story.
+          </p>
+          <Button
+            className="mt-4"
+            onClick={() => regenerateMutation.mutate({ projectId })}
+            disabled={regenerateMutation.isPending}
+          >
+            {regenerateMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RotateCcw className="mr-2 h-4 w-4" />
+            )}
+            Generate Story
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return <StoryForm key={story.id} story={story} projectId={projectId} />;
 }

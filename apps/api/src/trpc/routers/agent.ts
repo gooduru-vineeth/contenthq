@@ -131,11 +131,11 @@ export const agentRouter = router({
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const [existing] = await db
         .select()
         .from(agents)
-        .where(eq(agents.id, input.id));
+        .where(and(eq(agents.id, input.id), eq(agents.createdBy, ctx.user.id)));
 
       if (!existing) {
         throw new TRPCError({

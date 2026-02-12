@@ -169,7 +169,7 @@ class OpenAIImageProvider implements MediaGenerationProvider {
     const images = result.images.map((img) => {
       return {
         base64: img.base64,
-        mediaType: img.mimeType || "image/png",
+        mediaType: img.mediaType || "image/png",
       };
     });
 

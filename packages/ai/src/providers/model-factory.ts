@@ -53,28 +53,27 @@ export function getModelInstance(provider: string, modelId: string): LanguageMod
   switch (provider) {
     case "openai": {
       const p = getOpenAIProvider();
-      return p(modelId);
+      return p(modelId) as LanguageModel;
     }
     case "anthropic": {
       const p = getAnthropicProvider();
-      return p(modelId);
+      return p(modelId) as LanguageModel;
     }
     case "google": {
       const p = getGoogleProvider();
-      return p(modelId);
+      return p(modelId) as LanguageModel;
     }
     case "xai": {
       const p = getXAIProvider();
-      // SDK v3+ returns LanguageModelV3; cast through unknown for V1 compat
-      return p(modelId) as unknown as LanguageModel;
+      return p(modelId) as LanguageModel;
     }
     case "vertex-google": {
       const p = getVertexGoogleProvider();
-      return p(modelId) as unknown as LanguageModel;
+      return p(modelId) as LanguageModel;
     }
     case "vertex-anthropic": {
       const p = getVertexAnthropicProvider();
-      return p(modelId) as unknown as LanguageModel;
+      return p(modelId) as LanguageModel;
     }
     default:
       throw new Error(`Unknown provider: ${provider}`);

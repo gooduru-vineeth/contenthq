@@ -12,6 +12,7 @@ export function createIngestionWorker(): Worker {
     QUEUE_NAMES.INGESTION,
     async (job) => {
       const { projectId, userId, sourceUrl } = job.data;
+      const startedAt = new Date();
       console.warn(`[Ingestion] Processing job ${job.id} for project ${projectId}`);
 
       try {
@@ -30,7 +31,7 @@ export function createIngestionWorker(): Worker {
         // Update project status
         await db
           .update(projects)
-          .set({ status: "ingesting", updatedAt: new Date() })
+          .set({ status: "ingesting", progressPercent: 0, updatedAt: new Date() })
           .where(eq(projects.id, projectId));
 
         await job.updateProgress(10);
@@ -51,6 +52,7 @@ export function createIngestionWorker(): Worker {
         });
 
         await job.updateProgress(100);
+        const completedAt = new Date();
         console.warn(`[Ingestion] Completed for project ${projectId}: "${result.title}"`);
 
         // Mark generationJob as completed
@@ -59,7 +61,17 @@ export function createIngestionWorker(): Worker {
           .set({
             status: "completed",
             progressPercent: 100,
-            result: { title: result.title },
+            result: {
+              title: result.title,
+              log: {
+                stage: "INGESTION",
+                status: "completed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                details: `Ingested "${result.title}"`,
+              },
+            },
             updatedAt: new Date(),
           })
           .where(
@@ -75,12 +87,27 @@ export function createIngestionWorker(): Worker {
 
         return { success: true, title: result.title };
       } catch (error) {
+        const completedAt = new Date();
+        const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[Ingestion] Failed for project ${projectId}:`, error);
 
         // Mark generationJob as failed
         await db
           .update(generationJobs)
-          .set({ status: "failed", updatedAt: new Date() })
+          .set({
+            status: "failed",
+            result: {
+              log: {
+                stage: "INGESTION",
+                status: "failed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                error: errorMessage,
+              },
+            },
+            updatedAt: new Date(),
+          })
           .where(
             and(
               eq(generationJobs.projectId, projectId),

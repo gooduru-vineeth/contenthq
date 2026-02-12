@@ -3,7 +3,7 @@ import { router, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { db } from "@contenthq/db/client";
 import { scenes, sceneVisuals, projects, stories } from "@contenthq/db/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, inArray } from "drizzle-orm";
 import { updateSceneSchema, reorderScenesSchema } from "@contenthq/shared";
 import { addVisualGenerationJob } from "@contenthq/queue";
 
@@ -44,17 +44,25 @@ export const sceneRouter = router({
         .where(eq(scenes.projectId, input.projectId))
         .orderBy(asc(scenes.index));
 
-      const scenesWithVisuals = await Promise.all(
-        sceneList.map(async (scene) => {
-          const visuals = await db
+      const sceneIds = sceneList.map((s) => s.id);
+      const allVisuals = sceneIds.length > 0
+        ? await db
             .select()
             .from(sceneVisuals)
-            .where(eq(sceneVisuals.sceneId, scene.id));
-          return { ...scene, visuals };
-        })
-      );
+            .where(inArray(sceneVisuals.sceneId, sceneIds))
+        : [];
 
-      return scenesWithVisuals;
+      const visualsBySceneId = new Map<string, typeof allVisuals>();
+      for (const visual of allVisuals) {
+        const existing = visualsBySceneId.get(visual.sceneId) ?? [];
+        existing.push(visual);
+        visualsBySceneId.set(visual.sceneId, existing);
+      }
+
+      return sceneList.map((scene) => ({
+        ...scene,
+        visuals: visualsBySceneId.get(scene.id) ?? [],
+      }));
     }),
 
   update: protectedProcedure
@@ -95,7 +103,7 @@ export const sceneRouter = router({
         db
           .update(scenes)
           .set({ index, updatedAt: new Date() })
-          .where(eq(scenes.id, sceneId))
+          .where(and(eq(scenes.id, sceneId), eq(scenes.storyId, input.storyId)))
       );
       await Promise.all(updates);
       return { success: true };

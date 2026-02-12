@@ -13,6 +13,7 @@ import {
   Clock,
   FileText,
   Image as ImageIcon,
+  Layers,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -26,24 +27,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PipelineProgress } from "@/components/projects/pipeline-progress";
+import { PipelineLog } from "@/components/projects/pipeline-log";
 import {
-  PIPELINE_STAGE_ORDER,
-  type PipelineStage,
+  PROJECT_STATUS_TO_STAGE,
 } from "@contenthq/shared";
-
-const statusToStage: Record<string, PipelineStage | null> = {
-  draft: null,
-  ingesting: "INGESTION",
-  writing: "STORY_WRITING",
-  generating_scenes: "SCENE_GENERATION",
-  generating_video: "VIDEO_GENERATION",
-  verifying: "VISUAL_VERIFICATION",
-  mixing_audio: "AUDIO_MIXING",
-  assembling: "VIDEO_ASSEMBLY",
-  completed: PIPELINE_STAGE_ORDER[PIPELINE_STAGE_ORDER.length - 1],
-  failed: null,
-  cancelled: null,
-};
 
 const statusBadgeVariant: Record<string, "secondary" | "default" | "destructive" | "outline"> = {
   draft: "secondary",
@@ -83,16 +70,19 @@ export default function ProjectDetailPage({
       { id },
       { refetchInterval: (query) => isActive(query.state.data?.status ?? "draft") ? 3000 : false },
     );
+
+  const isProjectActive = project ? isActive(project.status) : false;
+
   const { data: story } = trpc.story.getByProject.useQuery(
     { projectId: id },
-    { enabled: !!project },
   );
-  const { data: jobs } = trpc.job.getByProject.useQuery(
+  const { data: jobs } = trpc.job.getLogsByProject.useQuery(
     { projectId: id },
-    {
-      enabled: !!project,
-      refetchInterval: project && isActive(project.status) ? 3000 : false,
-    },
+    { refetchInterval: isProjectActive ? 3000 : false },
+  );
+  const { data: scenes } = trpc.scene.listByProject.useQuery(
+    { projectId: id },
+    { refetchInterval: isProjectActive ? 5000 : false },
   );
 
   const startPipelineMutation = trpc.pipeline.start.useMutation({
@@ -128,7 +118,7 @@ export default function ProjectDetailPage({
     );
   }
 
-  const currentStage = statusToStage[project.status] ?? null;
+  const currentStage = PROJECT_STATUS_TO_STAGE[project.status] ?? null;
   const canStart = project.status === "draft";
   const canRetry = project.status === "failed";
 
@@ -226,6 +216,7 @@ export default function ProjectDetailPage({
           <PipelineProgress
             currentStage={currentStage}
             projectStatus={project.status}
+            progressPercent={project.progressPercent ?? undefined}
           />
         </CardContent>
       </Card>
@@ -285,55 +276,68 @@ export default function ProjectDetailPage({
           </CardContent>
         </Card>
 
-        {/* Jobs List */}
+        {/* Pipeline Log */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Jobs</CardTitle>
-            <CardDescription>Background processing jobs</CardDescription>
+            <CardTitle className="text-base">Pipeline Log</CardTitle>
+            <CardDescription>Stage execution details</CardDescription>
           </CardHeader>
           <CardContent>
-            {jobs && jobs.length > 0 ? (
-              <div className="space-y-2">
-                {jobs.map((job) => (
-                  <div
-                    key={job.id}
-                    className="flex items-center justify-between rounded-md border px-3 py-2"
-                  >
-                    <div>
-                      <p className="text-sm font-medium capitalize">
-                        {job.jobType.replace(/_/g, " ").toLowerCase()}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFullDate(job.createdAt)}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={
-                        job.status === "completed"
-                          ? "default"
-                          : job.status === "failed"
-                            ? "destructive"
-                            : "secondary"
-                      }
-                      className={
-                        job.status === "completed"
-                          ? "bg-green-500 hover:bg-green-500/80"
-                          : ""
-                      }
-                    >
-                      {job.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No jobs yet.
-              </p>
-            )}
+            <PipelineLog jobs={(jobs ?? []) as Parameters<typeof PipelineLog>[0]["jobs"]} />
           </CardContent>
         </Card>
       </div>
+
+      {/* Scenes Preview */}
+      {scenes && scenes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Layers className="h-4 w-4" />
+              Scenes ({scenes.length})
+            </CardTitle>
+            <CardDescription>
+              Scene thumbnails and status
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {scenes.map((scene) => {
+                const visual = scene.visuals?.[0];
+                return (
+                  <div
+                    key={scene.id}
+                    className="group relative overflow-hidden rounded-md border"
+                  >
+                    {visual?.imageUrl ? (
+                      <img
+                        src={visual.imageUrl}
+                        alt={scene.visualDescription ?? `Scene ${scene.index + 1}`}
+                        className="aspect-square w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex aspect-square w-full items-center justify-center bg-muted">
+                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                      <p className="text-xs font-medium text-white">
+                        Scene {scene.index + 1}
+                      </p>
+                      <Badge
+                        variant="secondary"
+                        className="mt-0.5 text-[9px] bg-black/50 text-white border-0"
+                      >
+                        {scene.status}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

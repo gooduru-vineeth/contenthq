@@ -44,14 +44,14 @@ export async function generateTextContent(
     prompt,
     system: options?.systemPrompt,
     temperature: options?.temperature,
-    maxTokens: options?.maxTokens,
+    maxOutputTokens: options?.maxTokens,
   });
 
   return {
     content: result.text,
     tokens: {
-      input: result.usage?.promptTokens ?? 0,
-      output: result.usage?.completionTokens ?? 0,
+      input: result.usage?.inputTokens ?? 0,
+      output: result.usage?.outputTokens ?? 0,
     },
     provider,
     model: modelId,
@@ -71,14 +71,14 @@ export async function generateStructuredContent<T>(
     schema,
     system: options?.systemPrompt,
     temperature: options?.temperature,
-    maxTokens: options?.maxTokens,
+    maxOutputTokens: options?.maxTokens,
   });
 
   return {
     data: result.object,
     tokens: {
-      input: result.usage?.promptTokens ?? 0,
-      output: result.usage?.completionTokens ?? 0,
+      input: result.usage?.inputTokens ?? 0,
+      output: result.usage?.outputTokens ?? 0,
     },
     provider,
     model: modelId,
@@ -96,15 +96,15 @@ export async function streamTextContent(
     prompt,
     system: options?.systemPrompt,
     temperature: options?.temperature,
-    maxTokens: options?.maxTokens,
+    maxOutputTokens: options?.maxTokens,
   });
 
   return {
     textStream: result.textStream,
-    fullText: result.text,
-    tokens: result.usage.then((u) => ({
-      input: u.promptTokens,
-      output: u.completionTokens,
+    fullText: Promise.resolve(result.text),
+    tokens: Promise.resolve(result.usage).then((u) => ({
+      input: u.inputTokens ?? 0,
+      output: u.outputTokens ?? 0,
     })),
     provider,
     model: modelId,
@@ -124,7 +124,7 @@ export async function streamStructuredContent<T>(
     schema,
     system: options?.systemPrompt,
     temperature: options?.temperature,
-    maxTokens: options?.maxTokens,
+    maxOutputTokens: options?.maxTokens,
   });
 
   return {

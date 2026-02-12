@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@contenthq/db/client";
 import { generationJobs } from "@contenthq/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 
 export const jobRouter = router({
   getByProject: protectedProcedure
@@ -18,6 +18,21 @@ export const jobRouter = router({
           )
         )
         .orderBy(desc(generationJobs.createdAt));
+    }),
+
+  getLogsByProject: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return db
+        .select()
+        .from(generationJobs)
+        .where(
+          and(
+            eq(generationJobs.projectId, input.projectId),
+            eq(generationJobs.userId, ctx.user.id)
+          )
+        )
+        .orderBy(asc(generationJobs.createdAt));
     }),
 
   getById: protectedProcedure

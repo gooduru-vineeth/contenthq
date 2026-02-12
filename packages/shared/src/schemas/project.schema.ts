@@ -10,6 +10,7 @@ export const createProjectSchema = z.object({
   language: z.string().default("en"),
   voiceProfileId: z.string().nullable().optional(),
   musicTrackId: z.string().nullable().optional(),
+  enableVideoGeneration: z.boolean().default(false),
 });
 
 export const updateProjectSchema = createProjectSchema.partial().extend({
