@@ -43,7 +43,7 @@ export default function FlowEditorPage() {
       <div className="flex flex-col items-center justify-center h-screen space-y-4">
         <p className="text-muted-foreground">Flow not found</p>
         <Button asChild>
-          <Link href="/flows">Back to Flows</Link>
+          <Link href="/admin/flows">Back to Flows</Link>
         </Button>
       </div>
     );
@@ -54,7 +54,7 @@ export default function FlowEditorPage() {
       <div className="border-b bg-background px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/flows">
+            <Link href="/admin/flows">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -66,7 +66,7 @@ export default function FlowEditorPage() {
           </div>
         </div>
         <Button variant="outline" size="sm" asChild>
-          <Link href={`/flows/${flowId}/executions`}>
+          <Link href={`/admin/flows/${flowId}/executions`}>
             <History className="h-4 w-4 mr-2" />
             Execution History
           </Link>

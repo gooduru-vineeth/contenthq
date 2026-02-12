@@ -75,18 +75,27 @@ export default function ProjectDetailPage({
 
   const utils = trpc.useUtils();
 
+  const isActive = (status: string) =>
+    !["draft", "completed", "failed", "cancelled"].includes(status);
+
   const { data: project, isLoading: projectLoading } =
-    trpc.project.getById.useQuery({ id });
+    trpc.project.getById.useQuery(
+      { id },
+      { refetchInterval: (query) => isActive(query.state.data?.status ?? "draft") ? 3000 : false },
+    );
   const { data: story } = trpc.story.getByProject.useQuery(
     { projectId: id },
     { enabled: !!project },
   );
   const { data: jobs } = trpc.job.getByProject.useQuery(
     { projectId: id },
-    { enabled: !!project },
+    {
+      enabled: !!project,
+      refetchInterval: project && isActive(project.status) ? 3000 : false,
+    },
   );
 
-  const ingestionMutation = trpc.ingestion.create.useMutation({
+  const startPipelineMutation = trpc.pipeline.start.useMutation({
     onSuccess: () => {
       utils.project.getById.invalidate({ id });
     },
@@ -124,11 +133,7 @@ export default function ProjectDetailPage({
   const canRetry = project.status === "failed";
 
   function handleStartPipeline() {
-    ingestionMutation.mutate({
-      projectId: id,
-      sourceUrl: project!.inputContent ?? "",
-      sourceType: project!.inputType ?? "url",
-    });
+    startPipelineMutation.mutate({ projectId: id });
   }
 
   function handleDelete() {
@@ -174,9 +179,9 @@ export default function ProjectDetailPage({
           {canStart && (
             <Button
               onClick={handleStartPipeline}
-              disabled={ingestionMutation.isPending}
+              disabled={startPipelineMutation.isPending}
             >
-              {ingestionMutation.isPending ? (
+              {startPipelineMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Play className="h-4 w-4" />
@@ -188,7 +193,7 @@ export default function ProjectDetailPage({
             <Button
               variant="outline"
               onClick={handleStartPipeline}
-              disabled={ingestionMutation.isPending}
+              disabled={startPipelineMutation.isPending}
             >
               <RotateCcw className="h-4 w-4" />
               Retry

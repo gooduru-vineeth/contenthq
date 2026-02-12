@@ -1,5 +1,5 @@
 import { db } from "@contenthq/db/client";
-import { projects, scenes, stories, projectFlowConfigs, flows } from "@contenthq/db/schema";
+import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs } from "@contenthq/db/schema";
 import { eq, asc } from "drizzle-orm";
 import {
   addIngestionJob,
@@ -100,10 +100,24 @@ export class PipelineOrchestrator {
 
     if (!project) return;
 
+    // Fetch actual ingested content IDs (Fix 6)
+    const content = await db
+      .select({ id: ingestedContent.id })
+      .from(ingestedContent)
+      .where(eq(ingestedContent.projectId, projectId));
+
+    // Create generationJob record for the next stage
+    await db.insert(generationJobs).values({
+      userId,
+      projectId,
+      jobType: "STORY_WRITING",
+      status: "queued",
+    });
+
     await addStoryWritingJob({
       projectId,
       userId,
-      ingestedContentIds: [],
+      ingestedContentIds: content.map((c) => c.id),
       tone: project.tone ?? "professional",
       targetDuration: project.targetDuration ?? 60,
     });
@@ -115,6 +129,13 @@ export class PipelineOrchestrator {
     storyId: string
   ): Promise<void> {
     console.warn(`[Pipeline] Advancing after story writing for ${projectId}`);
+
+    await db.insert(generationJobs).values({
+      userId,
+      projectId,
+      jobType: "SCENE_GENERATION",
+      status: "queued",
+    });
 
     await addSceneGenerationJob({ projectId, storyId, userId });
   }
@@ -136,6 +157,13 @@ export class PipelineOrchestrator {
     // Queue visual generation for all scenes in parallel
     for (const scene of sceneList) {
       if (scene.imagePrompt) {
+        await db.insert(generationJobs).values({
+          userId,
+          projectId,
+          jobType: "VISUAL_GENERATION",
+          status: "queued",
+        });
+
         await addVisualGenerationJob({
           projectId,
           sceneId: scene.id,
@@ -185,6 +213,13 @@ export class PipelineOrchestrator {
     // Queue TTS generation for all scenes
     for (const scene of sceneList) {
       if (scene.narrationScript) {
+        await db.insert(generationJobs).values({
+          userId,
+          projectId,
+          jobType: "TTS_GENERATION",
+          status: "queued",
+        });
+
         await addTTSGenerationJob({
           projectId,
           sceneId: scene.id,
@@ -223,6 +258,13 @@ export class PipelineOrchestrator {
 
     // Queue audio mixing for all scenes
     for (const scene of sceneList) {
+      await db.insert(generationJobs).values({
+        userId,
+        projectId,
+        jobType: "AUDIO_MIXING",
+        status: "queued",
+      });
+
       await addAudioMixingJob({
         projectId,
         sceneId: scene.id,
@@ -252,6 +294,13 @@ export class PipelineOrchestrator {
     if (!allMixed) return; // Not all scenes done yet, wait
 
     // Queue final video assembly
+    await db.insert(generationJobs).values({
+      userId,
+      projectId,
+      jobType: "VIDEO_ASSEMBLY",
+      status: "queued",
+    });
+
     await addVideoAssemblyJob({
       projectId,
       userId,

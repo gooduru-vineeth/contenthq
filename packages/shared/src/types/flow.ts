@@ -29,6 +29,8 @@ export const BUILTIN_ACTIONS = [
   "audio_mixing",
   "video_assembly",
   "video_generation",
+  "speech_generation",
+  "media_generation",
 ] as const;
 export type BuiltinAction = (typeof BUILTIN_ACTIONS)[number];
 

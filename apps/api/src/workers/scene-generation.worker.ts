@@ -3,8 +3,9 @@ import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { SceneGenerationJobData } from "@contenthq/queue";
 import { generateTextContent, resolvePromptForStage, executeAgent } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
-import { scenes, projects } from "@contenthq/db/schema";
-import { eq } from "drizzle-orm";
+import { scenes, projects, generationJobs } from "@contenthq/db/schema";
+import { eq, and } from "drizzle-orm";
+import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 
 export function createSceneGenerationWorker(): Worker {
   return new Worker<SceneGenerationJobData>(
@@ -14,6 +15,18 @@ export function createSceneGenerationWorker(): Worker {
       console.warn(`[SceneGeneration] Processing job ${job.id} for project ${projectId}`);
 
       try {
+        // Mark generationJob as processing
+        await db
+          .update(generationJobs)
+          .set({ status: "processing", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "SCENE_GENERATION"),
+              eq(generationJobs.status, "queued")
+            )
+          );
+
         // Update project status
         await db
           .update(projects)
@@ -96,9 +109,42 @@ export function createSceneGenerationWorker(): Worker {
           `[SceneGeneration] Completed for project ${projectId}: ${processed} scenes processed`
         );
 
+        // Mark generationJob as completed
+        await db
+          .update(generationJobs)
+          .set({
+            status: "completed",
+            progressPercent: 100,
+            result: { storyId, scenesProcessed: processed },
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "SCENE_GENERATION"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
+        // Advance pipeline to next stage
+        await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "SCENE_GENERATION");
+
         return { success: true, storyId, scenesProcessed: processed };
       } catch (error) {
         console.error(`[SceneGeneration] Failed for project ${projectId}:`, error);
+
+        // Mark generationJob as failed
+        await db
+          .update(generationJobs)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "SCENE_GENERATION"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
         await db
           .update(projects)
           .set({ status: "failed", updatedAt: new Date() })

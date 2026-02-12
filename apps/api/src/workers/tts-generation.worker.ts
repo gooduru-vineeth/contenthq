@@ -2,17 +2,30 @@ import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { TTSGenerationJobData } from "@contenthq/queue";
 import { db } from "@contenthq/db/client";
-import { sceneVideos } from "@contenthq/db/schema";
-import { eq } from "drizzle-orm";
+import { sceneVideos, scenes, generationJobs } from "@contenthq/db/schema";
+import { eq, and } from "drizzle-orm";
+import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 
 export function createTTSGenerationWorker(): Worker {
   return new Worker<TTSGenerationJobData>(
     QUEUE_NAMES.TTS_GENERATION,
     async (job) => {
-      const { projectId, sceneId, narrationScript, voiceId, provider } = job.data;
+      const { projectId, sceneId, userId, narrationScript, voiceId, provider } = job.data;
       console.warn(`[TTS] Processing job ${job.id} for scene ${sceneId}`);
 
       try {
+        // Mark generationJob as processing
+        await db
+          .update(generationJobs)
+          .set({ status: "processing", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "TTS_GENERATION"),
+              eq(generationJobs.status, "queued")
+            )
+          );
+
         await job.updateProgress(10);
 
         // Dynamic import to avoid requiring TTS package at startup
@@ -57,11 +70,51 @@ export function createTTSGenerationWorker(): Worker {
           }
         });
 
+        // Update scene status to video_generated (Fix 5)
+        await db
+          .update(scenes)
+          .set({ status: "video_generated", updatedAt: new Date() })
+          .where(eq(scenes.id, sceneId));
+
         await job.updateProgress(100);
         console.warn(`[TTS] Completed for scene ${sceneId}, duration: ${result.duration}s`);
+
+        // Mark generationJob as completed
+        await db
+          .update(generationJobs)
+          .set({
+            status: "completed",
+            progressPercent: 100,
+            result: { duration: result.duration },
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "TTS_GENERATION"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
+        // Advance pipeline to next stage
+        await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "TTS_GENERATION");
+
         return { success: true, duration: result.duration };
       } catch (error) {
         console.error(`[TTS] Failed for scene ${sceneId}:`, error);
+
+        // Mark generationJob as failed
+        await db
+          .update(generationJobs)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "TTS_GENERATION"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
         throw error;
       }
     },

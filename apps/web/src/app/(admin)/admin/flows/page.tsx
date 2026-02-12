@@ -46,7 +46,7 @@ export default function FlowsPage() {
       setSlug("");
       setDescription("");
       refetch();
-      router.push(`/flows/${flow.id}`);
+      router.push(`/admin/flows/${flow.id}`);
     },
     onError: (error) => {
       toast.error(error.message || "Failed to create flow");
@@ -194,7 +194,7 @@ export default function FlowsPage() {
                   <TableCell>
                     <div>
                       <Link
-                        href={`/flows/${flow.id}`}
+                        href={`/admin/flows/${flow.id}`}
                         className="font-medium hover:underline"
                       >
                         {flow.name}
@@ -215,7 +215,7 @@ export default function FlowsPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/flows/${flow.id}`}>Edit</Link>
+                      <Link href={`/admin/flows/${flow.id}`}>Edit</Link>
                     </Button>
                   </TableCell>
                 </TableRow>

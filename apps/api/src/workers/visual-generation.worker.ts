@@ -3,8 +3,8 @@ import { getRedisConnection, QUEUE_NAMES, addVisualVerificationJob } from "@cont
 import type { VisualGenerationJobData } from "@contenthq/queue";
 import { generateImage, executeAgent } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
-import { scenes, sceneVisuals, projects } from "@contenthq/db/schema";
-import { eq } from "drizzle-orm";
+import { scenes, sceneVisuals, projects, generationJobs } from "@contenthq/db/schema";
+import { eq, and } from "drizzle-orm";
 
 export function createVisualGenerationWorker(): Worker {
   return new Worker<VisualGenerationJobData>(
@@ -14,6 +14,18 @@ export function createVisualGenerationWorker(): Worker {
       console.warn(`[VisualGeneration] Processing job ${job.id} for scene ${sceneId}`);
 
       try {
+        // Mark generationJob as processing
+        await db
+          .update(generationJobs)
+          .set({ status: "processing", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "VISUAL_GENERATION"),
+              eq(generationJobs.status, "queued")
+            )
+          );
+
         await job.updateProgress(10);
 
         let imageUrl: string;
@@ -62,6 +74,14 @@ export function createVisualGenerationWorker(): Worker {
 
         await job.updateProgress(80);
 
+        // Create generationJob record for verification stage
+        await db.insert(generationJobs).values({
+          userId,
+          projectId,
+          jobType: "VISUAL_VERIFICATION",
+          status: "queued",
+        });
+
         // Queue visual verification
         await addVisualVerificationJob({
           projectId,
@@ -74,9 +94,39 @@ export function createVisualGenerationWorker(): Worker {
         await job.updateProgress(100);
         console.warn(`[VisualGeneration] Completed for scene ${sceneId}`);
 
+        // Mark generationJob as completed
+        await db
+          .update(generationJobs)
+          .set({
+            status: "completed",
+            progressPercent: 100,
+            result: { imageUrl },
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "VISUAL_GENERATION"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
         return { success: true, imageUrl };
       } catch (error) {
         console.error(`[VisualGeneration] Failed for scene ${sceneId}:`, error);
+
+        // Mark generationJob as failed
+        await db
+          .update(generationJobs)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "VISUAL_GENERATION"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
         await db
           .update(projects)
           .set({ status: "failed", updatedAt: new Date() })

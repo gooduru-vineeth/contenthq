@@ -3,17 +3,30 @@ import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { IngestionJobData } from "@contenthq/queue";
 import { ingestionService } from "@contenthq/ingestion";
 import { db } from "@contenthq/db/client";
-import { ingestedContent, projects } from "@contenthq/db/schema";
-import { eq } from "drizzle-orm";
+import { ingestedContent, projects, generationJobs } from "@contenthq/db/schema";
+import { eq, and } from "drizzle-orm";
+import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 
 export function createIngestionWorker(): Worker {
   return new Worker<IngestionJobData>(
     QUEUE_NAMES.INGESTION,
     async (job) => {
-      const { projectId, sourceUrl } = job.data;
+      const { projectId, userId, sourceUrl } = job.data;
       console.warn(`[Ingestion] Processing job ${job.id} for project ${projectId}`);
 
       try {
+        // Mark generationJob as processing
+        await db
+          .update(generationJobs)
+          .set({ status: "processing", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "INGESTION"),
+              eq(generationJobs.status, "queued")
+            )
+          );
+
         // Update project status
         await db
           .update(projects)
@@ -40,9 +53,42 @@ export function createIngestionWorker(): Worker {
         await job.updateProgress(100);
         console.warn(`[Ingestion] Completed for project ${projectId}: "${result.title}"`);
 
+        // Mark generationJob as completed
+        await db
+          .update(generationJobs)
+          .set({
+            status: "completed",
+            progressPercent: 100,
+            result: { title: result.title },
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "INGESTION"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
+        // Advance pipeline to next stage
+        await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "INGESTION");
+
         return { success: true, title: result.title };
       } catch (error) {
         console.error(`[Ingestion] Failed for project ${projectId}:`, error);
+
+        // Mark generationJob as failed
+        await db
+          .update(generationJobs)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "INGESTION"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
         await db
           .update(projects)
           .set({ status: "failed", updatedAt: new Date() })

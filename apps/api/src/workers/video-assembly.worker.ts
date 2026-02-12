@@ -2,8 +2,8 @@ import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { VideoAssemblyJobData } from "@contenthq/queue";
 import { db } from "@contenthq/db/client";
-import { projects, scenes } from "@contenthq/db/schema";
-import { eq, inArray, asc } from "drizzle-orm";
+import { projects, scenes, generationJobs } from "@contenthq/db/schema";
+import { eq, and, inArray, asc } from "drizzle-orm";
 
 export function createVideoAssemblyWorker(): Worker {
   return new Worker<VideoAssemblyJobData>(
@@ -13,6 +13,18 @@ export function createVideoAssemblyWorker(): Worker {
       console.warn(`[VideoAssembly] Processing job ${job.id} for project ${projectId}`);
 
       try {
+        // Mark generationJob as processing
+        await db
+          .update(generationJobs)
+          .set({ status: "processing", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "VIDEO_ASSEMBLY"),
+              eq(generationJobs.status, "queued")
+            )
+          );
+
         await db
           .update(projects)
           .set({ status: "assembling", progressPercent: 85, updatedAt: new Date() })
@@ -50,9 +62,40 @@ export function createVideoAssemblyWorker(): Worker {
 
         await job.updateProgress(100);
         console.warn(`[VideoAssembly] Completed for project ${projectId} with ${sceneList.length} scenes`);
+
+        // Mark generationJob as completed
+        await db
+          .update(generationJobs)
+          .set({
+            status: "completed",
+            progressPercent: 100,
+            result: { sceneCount: sceneList.length, outputKey },
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "VIDEO_ASSEMBLY"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
         return { success: true, sceneCount: sceneList.length };
       } catch (error) {
         console.error(`[VideoAssembly] Failed for project ${projectId}:`, error);
+
+        // Mark generationJob as failed
+        await db
+          .update(generationJobs)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "VIDEO_ASSEMBLY"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
         await db
           .update(projects)
           .set({ status: "failed", updatedAt: new Date() })

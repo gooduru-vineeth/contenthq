@@ -59,6 +59,13 @@ export const promptTypeEnum = pgEnum("prompt_type", [
   "visual_verification",
 ]);
 
+export const mediaGenerationStatusEnum = pgEnum("media_generation_status", [
+  "pending",
+  "generating",
+  "completed",
+  "failed",
+]);
+
 export const personaCategoryEnum = pgEnum("persona_category", [
   "tone",
   "audience",

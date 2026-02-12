@@ -6,6 +6,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@contenthq/ai": "workspace:*",
     "@contenthq/shared": "workspace:*",
     "cheerio": "^1.0.0",
     "jsdom": "^26.0.0"

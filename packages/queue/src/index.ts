@@ -10,6 +10,8 @@ export {
   addTTSGenerationJob,
   addAudioMixingJob,
   addVideoAssemblyJob,
+  addSpeechGenerationJob,
+  addMediaGenerationJob,
   getQueueStats,
 } from "./helpers";
 export { createQueueEvents, closeAllQueueEvents } from "./events";
@@ -28,5 +30,7 @@ export type {
   TTSGenerationJobData,
   AudioMixingJobData,
   VideoAssemblyJobData,
+  SpeechGenerationJobData,
+  MediaGenerationJobData,
   JobData,
 } from "./types";

@@ -4,6 +4,7 @@ export {
   youtubeAdapter,
   rssAdapter,
   urlAdapter,
+  topicAdapter,
 } from "./adapters/index";
 export type {
   ContentSource,

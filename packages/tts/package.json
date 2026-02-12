@@ -7,7 +7,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@contenthq/shared": "workspace:*"
+    "@contenthq/shared": "workspace:*",
+    "@google-cloud/text-to-speech": "^5.0.0",
+    "@google/generative-ai": "^0.24.0"
   },
   "devDependencies": {
     "@contenthq/typescript-config": "workspace:*",

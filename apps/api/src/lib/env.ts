@@ -16,6 +16,8 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   GOOGLE_AI_API_KEY: z.string().optional(),
   ELEVENLABS_API_KEY: z.string().optional(),
+  FAL_API_KEY: z.string().optional(),
+  REPLICATE_API_TOKEN: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

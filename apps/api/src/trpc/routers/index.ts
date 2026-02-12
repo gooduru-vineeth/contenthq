@@ -16,6 +16,8 @@ import { adminModelRouter } from "./admin-models";
 import { agentRouter } from "./agent";
 import { flowRouter } from "./flow";
 import { flowExecutionRouter } from "./flow-execution";
+import { speechGenerationRouter } from "./speech-generation";
+import { mediaGenerationRouter } from "./media-generation";
 
 export const appRouter = router({
   health: healthRouter,
@@ -35,6 +37,8 @@ export const appRouter = router({
   agent: agentRouter,
   flow: flowRouter,
   flowExecution: flowExecutionRouter,
+  speechGeneration: speechGenerationRouter,
+  mediaGeneration: mediaGenerationRouter,
 });
 
 export type AppRouter = typeof appRouter;

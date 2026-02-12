@@ -1,11 +1,11 @@
 "use client";
 
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
-import { Cog, FileText, Mic, Music, Video } from "lucide-react";
+import { AudioLines, Cog, FileText, Mic, Music, Video, Wand2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type BuiltinAction = "ingestion" | "tts_generation" | "audio_mixing" | "video_assembly" | "video_generation";
+type BuiltinAction = "ingestion" | "tts_generation" | "audio_mixing" | "video_assembly" | "video_generation" | "speech_generation" | "media_generation";
 
 type BuiltinNodeData = {
   label: string;
@@ -22,6 +22,8 @@ const BUILTIN_ACTION_ICONS: Record<BuiltinAction, React.ElementType> = {
   audio_mixing: Music,
   video_assembly: Video,
   video_generation: Video,
+  speech_generation: AudioLines,
+  media_generation: Wand2,
 };
 
 const BUILTIN_ACTION_LABELS: Record<BuiltinAction, string> = {
@@ -30,6 +32,8 @@ const BUILTIN_ACTION_LABELS: Record<BuiltinAction, string> = {
   audio_mixing: "Audio Mixing",
   video_assembly: "Video Assembly",
   video_generation: "Video Generation",
+  speech_generation: "Speech Generation",
+  media_generation: "Media Generation",
 };
 
 export function BuiltinNode({ data, selected }: NodeProps<BuiltinNode>) {

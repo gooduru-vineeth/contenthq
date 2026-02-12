@@ -101,7 +101,7 @@ export default function FlowExecutionsPage() {
     <div className="container py-8 space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href={`/flows/${flowId}`}>
+          <Link href={`/admin/flows/${flowId}`}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
