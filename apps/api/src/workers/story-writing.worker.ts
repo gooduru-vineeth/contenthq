@@ -34,10 +34,11 @@ export function createStoryWritingWorker(): Worker {
     async (job) => {
       const { projectId, userId, tone, targetDuration, agentId } = job.data;
       const startedAt = new Date();
-      console.warn(`[StoryWriting] Processing job ${job.id} for project ${projectId}`);
+      console.warn(`[StoryWriting] Processing job ${job.id} for project ${projectId}, tone=${tone}, targetDuration=${targetDuration}s, agentId=${agentId ?? "none"}`);
 
       try {
         // Mark generationJob as processing
+        console.warn(`[StoryWriting] Marking generationJob as processing for project ${projectId}`);
         await db
           .update(generationJobs)
           .set({ status: "processing", updatedAt: new Date() })
@@ -63,10 +64,13 @@ export function createStoryWritingWorker(): Worker {
           .from(ingestedContent)
           .where(eq(ingestedContent.projectId, projectId));
 
+        console.warn(`[StoryWriting] Fetched ${content.length} ingested content item(s) for project ${projectId}, total text length=${content.reduce((sum, c) => sum + (c.title?.length ?? 0) + (c.body?.length ?? 0), 0)} chars`);
+
         const contentText = content.map((c) => `${c.title}\n${c.body}`).join("\n\n");
         await job.updateProgress(20);
 
         const sceneCount = Math.max(3, Math.ceil(targetDuration / 8));
+        console.warn(`[StoryWriting] Calculated sceneCount=${sceneCount} for targetDuration=${targetDuration}s`);
 
         let storyData: z.infer<typeof storyOutputSchema>;
         let templateId: string | undefined;
@@ -75,6 +79,7 @@ export function createStoryWritingWorker(): Worker {
 
         if (agentId) {
           // New path: use agent executor
+          console.warn(`[StoryWriting] Using agent executor (agentId=${agentId}) for project ${projectId}`);
           const result = await executeAgent({
             agentId,
             variables: {
@@ -91,6 +96,7 @@ export function createStoryWritingWorker(): Worker {
           usedModel = result.model;
         } else {
           // Existing path: resolvePromptForStage + generateStructuredContent
+          console.warn(`[StoryWriting] Using prompt template path for project ${projectId}`);
           const resolved = await resolvePromptForStage(
             db,
             projectId,
@@ -116,7 +122,10 @@ export function createStoryWritingWorker(): Worker {
 
         await job.updateProgress(70);
 
+        console.warn(`[StoryWriting] AI generation complete for project ${projectId}: title="${storyData.title}", ${storyData.scenes.length} scenes, model=${usedModel ?? "unknown"}`);
+
         // Store story and scenes in a transaction
+        console.warn(`[StoryWriting] Storing story and ${storyData.scenes.length} scene(s) in database for project ${projectId}`);
         const story = await db.transaction(async (tx) => {
           const [s] = await tx
             .insert(stories)
@@ -168,8 +177,9 @@ export function createStoryWritingWorker(): Worker {
           .where(eq(projects.id, projectId));
 
         const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
         console.warn(
-          `[StoryWriting] Completed: "${storyData.title}" with ${storyData.scenes.length} scenes`
+          `[StoryWriting] Completed for project ${projectId}: "${storyData.title}" with ${storyData.scenes.length} scenes, storyId=${story.id} (${durationMs}ms)`
         );
 
         // Mark generationJob as completed
@@ -201,13 +211,15 @@ export function createStoryWritingWorker(): Worker {
           );
 
         // Advance pipeline to next stage
+        console.warn(`[StoryWriting] Advancing pipeline after story writing for project ${projectId}`);
         await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "STORY_WRITING");
 
         return { success: true, storyId: story.id, sceneCount: storyData.scenes.length };
       } catch (error) {
         const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[StoryWriting] Failed for project ${projectId}:`, error);
+        console.error(`[StoryWriting] Failed for project ${projectId} after ${durationMs}ms:`, errorMessage);
 
         // Mark generationJob as failed
         await db

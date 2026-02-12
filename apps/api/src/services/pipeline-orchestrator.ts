@@ -1,5 +1,5 @@
 import { db } from "@contenthq/db/client";
-import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals } from "@contenthq/db/schema";
+import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals, sceneVideos } from "@contenthq/db/schema";
 import { eq, asc } from "drizzle-orm";
 import {
   addIngestionJob,
@@ -70,15 +70,18 @@ export class PipelineOrchestrator {
       .where(eq(projects.id, projectId));
 
     if (!project) {
+      console.error(`[Pipeline] Project ${projectId} not found, cannot start pipeline`);
       throw new Error("Project not found");
     }
 
-    console.warn(`[Pipeline] Starting pipeline for project ${projectId}`);
+    console.warn(`[Pipeline] Starting pipeline for project ${projectId}, userId=${userId}, inputType=${project.inputType ?? "url"}, sourceUrl=${project.inputContent?.substring(0, 100) ?? "none"}`);
 
     await db
       .update(projects)
       .set({ status: "ingesting", progressPercent: 0, updatedAt: new Date() })
       .where(eq(projects.id, projectId));
+
+    console.warn(`[Pipeline] Project ${projectId} status set to "ingesting", queuing INGESTION job`);
 
     await addIngestionJob({
       projectId,
@@ -86,6 +89,8 @@ export class PipelineOrchestrator {
       sourceUrl: project.inputContent ?? "",
       sourceType: project.inputType ?? "url",
     });
+
+    console.warn(`[Pipeline] INGESTION job queued for project ${projectId}`);
   }
 
   async advanceAfterIngestion(
@@ -99,13 +104,18 @@ export class PipelineOrchestrator {
       .from(projects)
       .where(eq(projects.id, projectId));
 
-    if (!project) return;
+    if (!project) {
+      console.error(`[Pipeline] Project ${projectId} not found during advanceAfterIngestion, aborting`);
+      return;
+    }
 
     // Fetch actual ingested content IDs (Fix 6)
     const content = await db
       .select({ id: ingestedContent.id })
       .from(ingestedContent)
       .where(eq(ingestedContent.projectId, projectId));
+
+    console.warn(`[Pipeline] Found ${content.length} ingested content item(s) for project ${projectId}, queuing STORY_WRITING (tone=${project.tone ?? "professional"}, targetDuration=${project.targetDuration ?? 60}s)`);
 
     // Create generationJob record for the next stage
     await db.insert(generationJobs).values({
@@ -122,6 +132,8 @@ export class PipelineOrchestrator {
       tone: project.tone ?? "professional",
       targetDuration: project.targetDuration ?? 60,
     });
+
+    console.warn(`[Pipeline] STORY_WRITING job queued for project ${projectId}`);
   }
 
   async advanceAfterStoryWriting(
@@ -129,7 +141,7 @@ export class PipelineOrchestrator {
     userId: string,
     storyId: string
   ): Promise<void> {
-    console.warn(`[Pipeline] Advancing after story writing for ${projectId}`);
+    console.warn(`[Pipeline] Advancing after story writing for ${projectId}, storyId=${storyId}`);
 
     await db.insert(generationJobs).values({
       userId,
@@ -139,6 +151,7 @@ export class PipelineOrchestrator {
     });
 
     await addSceneGenerationJob({ projectId, storyId, userId });
+    console.warn(`[Pipeline] SCENE_GENERATION job queued for project ${projectId}, storyId=${storyId}`);
   }
 
   async advanceAfterSceneGeneration(
@@ -154,6 +167,10 @@ export class PipelineOrchestrator {
       .from(scenes)
       .where(eq(scenes.projectId, projectId))
       .orderBy(asc(scenes.index));
+
+    const scenesWithPrompts = sceneList.filter((s) => s.imagePrompt);
+    const scenesWithoutPrompts = sceneList.length - scenesWithPrompts.length;
+    console.warn(`[Pipeline] Found ${sceneList.length} scene(s) for project ${projectId}: ${scenesWithPrompts.length} with image prompts, ${scenesWithoutPrompts} without`);
 
     // Queue visual generation for all scenes in parallel
     for (const scene of sceneList) {
@@ -171,6 +188,8 @@ export class PipelineOrchestrator {
           userId,
           imagePrompt: scene.imagePrompt,
         });
+
+        console.warn(`[Pipeline] VISUAL_GENERATION job queued for scene ${scene.id} (index=${scene.index})`);
       }
     }
 
@@ -182,6 +201,8 @@ export class PipelineOrchestrator {
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
+
+    console.warn(`[Pipeline] Project ${projectId} status set to "generating_visuals" (33%), ${scenesWithPrompts.length} VISUAL_GENERATION job(s) queued`);
   }
 
   async advanceAfterVisualsApproved(
@@ -197,7 +218,10 @@ export class PipelineOrchestrator {
       .from(projects)
       .where(eq(projects.id, projectId));
 
-    if (!project) return;
+    if (!project) {
+      console.error(`[Pipeline] Project ${projectId} not found during advanceAfterVisualsApproved, aborting`);
+      return;
+    }
 
     const sceneList = await db
       .select()
@@ -206,14 +230,25 @@ export class PipelineOrchestrator {
       .orderBy(asc(scenes.index));
 
     // Check all scenes have reached visual_verified or visual_failed status
+    const verifiedCount = sceneList.filter((s) => s.status === "visual_verified").length;
+    const failedCount = sceneList.filter((s) => s.status === "failed").length;
+    const pendingCount = sceneList.length - verifiedCount - failedCount;
     const allVerified = sceneList.every(
       (s) => s.status === "visual_verified" || s.status === "failed"
     );
-    if (!allVerified) return; // Not all scenes done yet, wait
+
+    console.warn(`[Pipeline] Visual verification status for project ${projectId}: ${verifiedCount} verified, ${failedCount} failed, ${pendingCount} pending out of ${sceneList.length} total`);
+
+    if (!allVerified) {
+      console.warn(`[Pipeline] Not all scenes verified for project ${projectId}, waiting (${pendingCount} still pending)`);
+      return; // Not all scenes done yet, wait
+    }
 
     const activeScenes = sceneList.filter(s => s.status !== "failed");
+    console.warn(`[Pipeline] All scenes verified for project ${projectId}: ${activeScenes.length} active, ${failedCount} failed`);
 
     if (project.enableVideoGeneration) {
+      console.warn(`[Pipeline] Video generation enabled for project ${projectId}, queuing VIDEO_GENERATION for ${activeScenes.length} scene(s)`);
       // Queue VIDEO_GENERATION jobs for each non-failed scene
       for (const scene of activeScenes) {
         // Fetch the verified image URL from sceneVisuals
@@ -238,6 +273,8 @@ export class PipelineOrchestrator {
           imageUrl,
           motionSpec: (scene.motionSpec as Record<string, unknown>) ?? {},
         });
+
+        console.warn(`[Pipeline] VIDEO_GENERATION job queued for scene ${scene.id} (index=${scene.index}), imageUrl=${imageUrl ? "present" : "missing"}`);
       }
 
       await db
@@ -248,8 +285,11 @@ export class PipelineOrchestrator {
           updatedAt: new Date(),
         })
         .where(eq(projects.id, projectId));
+
+      console.warn(`[Pipeline] Project ${projectId} status set to "generating_video" (55%)`);
     } else {
       // Skip video generation — go straight to TTS
+      console.warn(`[Pipeline] Video generation disabled for project ${projectId}, skipping to TTS for ${activeScenes.length} scene(s)`);
       await this.queueTTSForScenes(projectId, userId, activeScenes, project.voiceProfileId);
     }
   }
@@ -267,7 +307,10 @@ export class PipelineOrchestrator {
       .from(projects)
       .where(eq(projects.id, projectId));
 
-    if (!project) return;
+    if (!project) {
+      console.error(`[Pipeline] Project ${projectId} not found during advanceAfterVideoGeneration, aborting`);
+      return;
+    }
 
     const sceneList = await db
       .select()
@@ -276,12 +319,22 @@ export class PipelineOrchestrator {
       .orderBy(asc(scenes.index));
 
     // Check all scenes have reached video_generated or failed status
+    const generatedCount = sceneList.filter((s) => s.status === "video_generated").length;
+    const failedCount = sceneList.filter((s) => s.status === "failed").length;
+    const pendingCount = sceneList.length - generatedCount - failedCount;
     const allDone = sceneList.every(
       (s) => s.status === "video_generated" || s.status === "failed"
     );
-    if (!allDone) return; // Not all scenes done yet, wait
+
+    console.warn(`[Pipeline] Video generation status for project ${projectId}: ${generatedCount} generated, ${failedCount} failed, ${pendingCount} pending out of ${sceneList.length} total`);
+
+    if (!allDone) {
+      console.warn(`[Pipeline] Not all videos generated for project ${projectId}, waiting (${pendingCount} still pending)`);
+      return; // Not all scenes done yet, wait
+    }
 
     const activeScenes = sceneList.filter(s => s.status !== "failed");
+    console.warn(`[Pipeline] All videos generated for project ${projectId}: ${activeScenes.length} active, ${failedCount} failed. Proceeding to TTS.`);
     await this.queueTTSForScenes(projectId, userId, activeScenes, project.voiceProfileId);
   }
 
@@ -291,6 +344,10 @@ export class PipelineOrchestrator {
     activeScenes: { id: string; narrationScript: string | null }[],
     voiceProfileId: string | null
   ): Promise<void> {
+    const scenesWithNarration = activeScenes.filter((s) => s.narrationScript);
+    const scenesWithoutNarration = activeScenes.length - scenesWithNarration.length;
+    console.warn(`[Pipeline] Queuing TTS for project ${projectId}: ${scenesWithNarration.length} scene(s) with narration, ${scenesWithoutNarration} without, voiceId=${voiceProfileId ?? "alloy"}, provider=openai`);
+
     for (const scene of activeScenes) {
       if (scene.narrationScript) {
         await db.insert(generationJobs).values({
@@ -308,6 +365,8 @@ export class PipelineOrchestrator {
           voiceId: voiceProfileId ?? "alloy",
           provider: "openai",
         });
+
+        console.warn(`[Pipeline] TTS_GENERATION job queued for scene ${scene.id} (scriptLength=${scene.narrationScript.length} chars)`);
       }
     }
 
@@ -319,6 +378,8 @@ export class PipelineOrchestrator {
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
+
+    console.warn(`[Pipeline] Project ${projectId} status set to "generating_tts" (66%)`);
   }
 
   async advanceAfterTTS(projectId: string, userId: string): Promise<void> {
@@ -331,14 +392,31 @@ export class PipelineOrchestrator {
       .orderBy(asc(scenes.index));
 
     // Check all scenes have reached video_generated status (TTS complete)
+    const doneCount = sceneList.filter((s) => s.status === "video_generated").length;
+    const failedCount = sceneList.filter((s) => s.status === "failed").length;
+    const pendingCount = sceneList.length - doneCount - failedCount;
     const allTTSDone = sceneList.every(
       (s) => s.status === "video_generated" || s.status === "failed"
     );
-    if (!allTTSDone) return; // Not all scenes done yet, wait
+
+    console.warn(`[Pipeline] TTS status for project ${projectId}: ${doneCount} done, ${failedCount} failed, ${pendingCount} pending out of ${sceneList.length} total`);
+
+    if (!allTTSDone) {
+      console.warn(`[Pipeline] Not all TTS jobs done for project ${projectId}, waiting (${pendingCount} still pending)`);
+      return; // Not all scenes done yet, wait
+    }
 
     // Queue audio mixing for non-failed scenes only
     const activeScenesForMixing = sceneList.filter(s => s.status !== "failed");
+    console.warn(`[Pipeline] All TTS done for project ${projectId}: ${activeScenesForMixing.length} active, ${failedCount} failed. Queuing AUDIO_MIXING.`);
+
     for (const scene of activeScenesForMixing) {
+      // Look up actual voiceover URL from sceneVideos (stored by TTS worker)
+      const [sceneVideo] = await db
+        .select()
+        .from(sceneVideos)
+        .where(eq(sceneVideos.sceneId, scene.id));
+
       await db.insert(generationJobs).values({
         userId,
         projectId,
@@ -350,9 +428,11 @@ export class PipelineOrchestrator {
         projectId,
         sceneId: scene.id,
         userId,
-        voiceoverUrl: `projects/${projectId}/scenes/${scene.id}/voiceover.mp3`,
+        voiceoverUrl: sceneVideo?.voiceoverUrl ?? "",
         musicTrackId: null,
       });
+
+      console.warn(`[Pipeline] AUDIO_MIXING job queued for scene ${scene.id} (index=${scene.index}), voiceoverUrl=${sceneVideo?.voiceoverUrl ? "present" : "missing"}`);
     }
 
     await db
@@ -363,6 +443,8 @@ export class PipelineOrchestrator {
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
+
+    console.warn(`[Pipeline] Project ${projectId} status set to "mixing_audio" (77%)`);
   }
 
   async advanceAfterAudioMixing(
@@ -378,13 +460,24 @@ export class PipelineOrchestrator {
       .orderBy(asc(scenes.index));
 
     // Check all scenes have reached audio_mixed status
+    const mixedCount = sceneList.filter((s) => s.status === "audio_mixed").length;
+    const failedCount = sceneList.filter((s) => s.status === "failed").length;
+    const pendingCount = sceneList.length - mixedCount - failedCount;
     const allMixed = sceneList.every(
       (s) => s.status === "audio_mixed" || s.status === "failed"
     );
-    if (!allMixed) return; // Not all scenes done yet, wait
+
+    console.warn(`[Pipeline] Audio mixing status for project ${projectId}: ${mixedCount} mixed, ${failedCount} failed, ${pendingCount} pending out of ${sceneList.length} total`);
+
+    if (!allMixed) {
+      console.warn(`[Pipeline] Not all audio mixed for project ${projectId}, waiting (${pendingCount} still pending)`);
+      return; // Not all scenes done yet, wait
+    }
 
     // Queue final video assembly with non-failed scenes only
     const activeScenesForAssembly = sceneList.filter(s => s.status !== "failed");
+    console.warn(`[Pipeline] All audio mixed for project ${projectId}: ${activeScenesForAssembly.length} active, ${failedCount} failed. Queuing VIDEO_ASSEMBLY.`);
+
     await db.insert(generationJobs).values({
       userId,
       projectId,
@@ -406,6 +499,8 @@ export class PipelineOrchestrator {
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
+
+    console.warn(`[Pipeline] VIDEO_ASSEMBLY job queued for project ${projectId} with ${activeScenesForAssembly.length} scene(s), status set to "assembling" (88%)`);
   }
 
   async checkAndAdvancePipeline(
@@ -413,6 +508,8 @@ export class PipelineOrchestrator {
     userId: string,
     completedStage: string
   ): Promise<void> {
+    console.warn(`[Pipeline] checkAndAdvancePipeline called: stage=${completedStage}, projectId=${projectId}, userId=${userId}`);
+
     switch (completedStage) {
       case "INGESTION":
         await this.advanceAfterIngestion(projectId, userId);
@@ -425,6 +522,8 @@ export class PipelineOrchestrator {
             .where(eq(stories.projectId, projectId));
           if (story) {
             await this.advanceAfterStoryWriting(projectId, userId, story.id);
+          } else {
+            console.error(`[Pipeline] No story found for project ${projectId} after STORY_WRITING stage completed`);
           }
         }
         break;
@@ -433,6 +532,7 @@ export class PipelineOrchestrator {
         break;
       case "VISUAL_GENERATION":
         // Visual generation chains directly to verification inline (no-op here)
+        console.warn(`[Pipeline] VISUAL_GENERATION completed for project ${projectId}, verification is handled inline by the worker`);
         break;
       case "VISUAL_VERIFICATION":
         await this.advanceAfterVisualsApproved(projectId, userId);
@@ -447,7 +547,7 @@ export class PipelineOrchestrator {
         await this.advanceAfterAudioMixing(projectId, userId);
         break;
       default:
-        console.warn(
+        console.error(
           `[Pipeline] Unknown stage: ${completedStage} for ${projectId}`
         );
     }

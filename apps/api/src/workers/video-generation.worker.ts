@@ -5,14 +5,17 @@ import { db } from "@contenthq/db/client";
 import { scenes, sceneVideos, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
+import { videoService } from "@contenthq/video";
+import type { MotionSpec } from "@contenthq/video";
+import { storage, getSceneVideoPath, getVideoContentType } from "@contenthq/storage";
 
 export function createVideoGenerationWorker(): Worker {
   return new Worker<VideoGenerationJobData>(
     QUEUE_NAMES.VIDEO_GENERATION,
     async (job) => {
-      const { projectId, sceneId, userId, imageUrl: _imageUrl, motionSpec: _motionSpec } = job.data;
+      const { projectId, sceneId, userId, imageUrl, motionSpec } = job.data;
       const startedAt = new Date();
-      console.warn(`[VideoGeneration] Processing job ${job.id} for scene ${sceneId}`);
+      console.warn(`[VideoGeneration] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, imageUrl=${imageUrl ? "present" : "missing"}, hasMotionSpec=${!!motionSpec}`);
 
       try {
         // Mark generationJob as processing
@@ -35,16 +38,35 @@ export function createVideoGenerationWorker(): Worker {
 
         await job.updateProgress(10);
 
-        // TODO: In production, call an AI video generation API (e.g. Runway, Pika)
-        // using the verified imageUrl and motionSpec. For now, store a placeholder.
-        const videoUrl = `projects/${projectId}/scenes/${sceneId}/video.mp4`;
+        // Get scene for duration info
+        const [scene] = await db.select().from(scenes).where(eq(scenes.id, sceneId));
+        const duration = scene?.duration ?? 5;
+
+        // Generate video from image using FFmpeg
+        console.warn(`[VideoGeneration] Generating scene video for ${sceneId}: duration=${duration}s, imageUrl=${imageUrl?.substring(0, 80)}`);
+        const videoResult = await videoService.generateSceneVideo({
+          imageUrl,
+          duration,
+          motionSpec: motionSpec as unknown as MotionSpec | undefined,
+          width: 1920,
+          height: 1080,
+        });
 
         await job.updateProgress(60);
+
+        // Upload to R2
+        const videoKey = getSceneVideoPath(userId, projectId, sceneId, `video.${videoResult.format}`);
+        const uploadResult = await storage.uploadFile(videoKey, videoResult.videoBuffer, getVideoContentType(videoResult.format));
+        const videoUrl = uploadResult.url;
+
+        console.warn(`[VideoGeneration] Uploaded video for scene ${sceneId}: key=${videoKey}`);
 
         // Store video URL in sceneVideos table
         await db.insert(sceneVideos).values({
           sceneId,
           videoUrl,
+          storageKey: videoKey,
+          duration,
         });
 
         // Update scene status to video_generated
@@ -56,7 +78,8 @@ export function createVideoGenerationWorker(): Worker {
         await job.updateProgress(80);
 
         const completedAt = new Date();
-        console.warn(`[VideoGeneration] Completed for scene ${sceneId}`);
+        const durationMs = completedAt.getTime() - startedAt.getTime();
+        console.warn(`[VideoGeneration] Completed for scene ${sceneId}, videoUrl=${videoUrl.substring(0, 80)} (${durationMs}ms)`);
 
         // Mark generationJob as completed
         await db
@@ -88,13 +111,15 @@ export function createVideoGenerationWorker(): Worker {
         await job.updateProgress(100);
 
         // Advance pipeline
+        console.warn(`[VideoGeneration] Advancing pipeline after video generation for scene ${sceneId}`);
         await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "VIDEO_GENERATION");
 
         return { success: true, videoUrl };
       } catch (error) {
         const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[VideoGeneration] Failed for scene ${sceneId}:`, error);
+        console.error(`[VideoGeneration] Failed for scene ${sceneId} after ${durationMs}ms:`, errorMessage);
 
         // Mark generationJob as failed
         await db

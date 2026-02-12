@@ -13,10 +13,11 @@ export function createIngestionWorker(): Worker {
     async (job) => {
       const { projectId, userId, sourceUrl } = job.data;
       const startedAt = new Date();
-      console.warn(`[Ingestion] Processing job ${job.id} for project ${projectId}`);
+      console.warn(`[Ingestion] Processing job ${job.id} for project ${projectId}, userId=${userId}, sourceUrl=${sourceUrl?.substring(0, 100)}`);
 
       try {
         // Mark generationJob as processing
+        console.warn(`[Ingestion] Marking generationJob as processing for project ${projectId}`);
         await db
           .update(generationJobs)
           .set({ status: "processing", updatedAt: new Date() })
@@ -37,10 +38,13 @@ export function createIngestionWorker(): Worker {
         await job.updateProgress(10);
 
         // Extract content
+        console.warn(`[Ingestion] Starting content extraction from ${sourceUrl?.substring(0, 100)} for project ${projectId}`);
         const result = await ingestionService.ingest(sourceUrl);
+        console.warn(`[Ingestion] Content extracted for project ${projectId}: platform=${result.sourcePlatform}, title="${result.title?.substring(0, 80)}", bodyLength=${result.body?.length ?? 0} chars`);
         await job.updateProgress(70);
 
         // Store in database
+        console.warn(`[Ingestion] Storing ingested content in database for project ${projectId}`);
         await db.insert(ingestedContent).values({
           projectId,
           sourceUrl: result.sourceUrl,
@@ -53,7 +57,8 @@ export function createIngestionWorker(): Worker {
 
         await job.updateProgress(100);
         const completedAt = new Date();
-        console.warn(`[Ingestion] Completed for project ${projectId}: "${result.title}"`);
+        const durationMs = completedAt.getTime() - startedAt.getTime();
+        console.warn(`[Ingestion] Completed for project ${projectId}: "${result.title}" (${durationMs}ms)`);
 
         // Mark generationJob as completed
         await db
@@ -83,13 +88,15 @@ export function createIngestionWorker(): Worker {
           );
 
         // Advance pipeline to next stage
+        console.warn(`[Ingestion] Advancing pipeline after ingestion for project ${projectId}`);
         await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "INGESTION");
 
         return { success: true, title: result.title };
       } catch (error) {
         const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[Ingestion] Failed for project ${projectId}:`, error);
+        console.error(`[Ingestion] Failed for project ${projectId} after ${durationMs}ms:`, errorMessage);
 
         // Mark generationJob as failed
         await db

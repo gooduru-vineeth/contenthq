@@ -14,7 +14,7 @@ export function createVisualVerificationWorker(): Worker {
     async (job) => {
       const { projectId, sceneId, userId, imageUrl, visualDescription, agentId } = job.data;
       const startedAt = new Date();
-      console.warn(`[VisualVerification] Processing job ${job.id} for scene ${sceneId}`);
+      console.warn(`[VisualVerification] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, imageUrl=${imageUrl?.substring(0, 80)}, agentId=${agentId ?? "none"}`);
 
       try {
         // Mark generationJob as processing
@@ -35,6 +35,7 @@ export function createVisualVerificationWorker(): Worker {
 
         if (agentId) {
           // New path: use agent executor
+          console.warn(`[VisualVerification] Using agent executor (agentId=${agentId}) for scene ${sceneId}`);
           const agentResult = await executeAgent({
             agentId,
             variables: {
@@ -65,6 +66,7 @@ export function createVisualVerificationWorker(): Worker {
           result = await verifyImage(imageUrl, visualDescription, 60, customPrompt);
         }
 
+        console.warn(`[VisualVerification] Verification result for scene ${sceneId}: approved=${result.approved}, totalScore=${result.totalScore}, relevance=${result.relevance}, quality=${result.quality}, consistency=${result.consistency}, safety=${result.safety}`);
         await job.updateProgress(60);
 
         // Update the sceneVisual record with verification results
@@ -160,6 +162,7 @@ export function createVisualVerificationWorker(): Worker {
           }
 
           const retryCount = visual.retryCount ?? 0;
+          console.warn(`[VisualVerification] Scene ${sceneId} failed verification (score=${result.totalScore}), retryCount=${retryCount}/3`);
 
           if (retryCount < 3) {
             // Increment retry count and re-queue visual generation
@@ -186,6 +189,7 @@ export function createVisualVerificationWorker(): Worker {
             );
           } else {
             // Max retries exceeded
+            console.warn(`[VisualVerification] Max retries exceeded for scene ${sceneId}, marking as failed`);
             await db
               .update(scenes)
               .set({ status: "failed", updatedAt: new Date() })
@@ -230,8 +234,9 @@ export function createVisualVerificationWorker(): Worker {
         return { success: true, approved: result.approved, score: result.totalScore };
       } catch (error) {
         const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[VisualVerification] Failed for scene ${sceneId}:`, error);
+        console.error(`[VisualVerification] Failed for scene ${sceneId} after ${durationMs}ms:`, errorMessage);
 
         // Mark generationJob as failed
         await db

@@ -2,9 +2,11 @@ import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { AudioMixingJobData } from "@contenthq/queue";
 import { db } from "@contenthq/db/client";
-import { sceneAudioMixes, scenes, projects, generationJobs } from "@contenthq/db/schema";
+import { sceneAudioMixes, scenes, sceneVideos, musicTracks, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
+import { videoService } from "@contenthq/video";
+import { storage, getSceneAudioPath, getAudioContentType } from "@contenthq/storage";
 
 export function createAudioMixingWorker(): Worker {
   return new Worker<AudioMixingJobData>(
@@ -12,7 +14,7 @@ export function createAudioMixingWorker(): Worker {
     async (job) => {
       const { projectId, sceneId, userId, musicTrackId } = job.data;
       const startedAt = new Date();
-      console.warn(`[AudioMix] Processing job ${job.id} for scene ${sceneId}`);
+      console.warn(`[AudioMix] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, musicTrackId=${musicTrackId ?? "none"}`);
 
       try {
         // Mark generationJob as processing
@@ -29,9 +31,61 @@ export function createAudioMixingWorker(): Worker {
 
         await job.updateProgress(10);
 
-        // In production, download voiceover and music from storage, mix with FFmpeg
-        // For now, create the audio mix record with defaults
-        const mixedAudioKey = `projects/${projectId}/scenes/${sceneId}/mixed-audio.mp3`;
+        // Download voiceover from R2 (stored by TTS worker)
+        const [sceneVideo] = await db
+          .select()
+          .from(sceneVideos)
+          .where(eq(sceneVideos.sceneId, sceneId));
+
+        if (!sceneVideo?.voiceoverUrl) {
+          throw new Error(`No voiceover found for scene ${sceneId}`);
+        }
+
+        console.warn(`[AudioMix] Downloading voiceover for scene ${sceneId}: url=${sceneVideo.voiceoverUrl.substring(0, 80)}`);
+        const voiceoverResponse = await fetch(sceneVideo.voiceoverUrl);
+        if (!voiceoverResponse.ok) {
+          throw new Error(`Failed to download voiceover: ${voiceoverResponse.statusText}`);
+        }
+        const voiceoverBuffer = Buffer.from(await voiceoverResponse.arrayBuffer());
+
+        await job.updateProgress(30);
+
+        // Optionally download music track
+        let musicBuffer: Buffer | undefined;
+        if (musicTrackId) {
+          const [track] = await db
+            .select()
+            .from(musicTracks)
+            .where(eq(musicTracks.id, musicTrackId));
+
+          if (track?.url) {
+            console.warn(`[AudioMix] Downloading music track for scene ${sceneId}: trackId=${musicTrackId}`);
+            const musicResponse = await fetch(track.url);
+            if (musicResponse.ok) {
+              musicBuffer = Buffer.from(await musicResponse.arrayBuffer());
+            }
+          }
+        }
+
+        await job.updateProgress(50);
+
+        // Mix audio with FFmpeg
+        console.warn(`[AudioMix] Mixing audio for scene ${sceneId}: voiceoverSize=${voiceoverBuffer.length}, hasMusicTrack=${!!musicBuffer}`);
+        const mixResult = await videoService.mixSceneAudio({
+          voiceoverBuffer,
+          musicBuffer,
+          voiceoverVolume: 100,
+          musicVolume: musicTrackId ? 30 : 0,
+        });
+
+        await job.updateProgress(70);
+
+        // Upload mixed audio to R2
+        const mixedKey = getSceneAudioPath(userId, projectId, sceneId, `mixed-audio.${mixResult.format}`);
+        const uploadResult = await storage.uploadFile(mixedKey, mixResult.audioBuffer, getAudioContentType(mixResult.format));
+        const mixedAudioUrl = uploadResult.url;
+
+        console.warn(`[AudioMix] Uploaded mixed audio for scene ${sceneId}: key=${mixedKey}`);
 
         // Check if a record already exists for idempotency
         const existing = await db
@@ -43,7 +97,7 @@ export function createAudioMixingWorker(): Worker {
           await db
             .update(sceneAudioMixes)
             .set({
-              mixedAudioUrl: mixedAudioKey,
+              mixedAudioUrl,
               voiceoverVolume: 100,
               musicVolume: musicTrackId ? 30 : 0,
               musicDuckingEnabled: true,
@@ -53,14 +107,14 @@ export function createAudioMixingWorker(): Worker {
         } else {
           await db.insert(sceneAudioMixes).values({
             sceneId,
-            mixedAudioUrl: mixedAudioKey,
+            mixedAudioUrl,
             voiceoverVolume: 100,
             musicVolume: musicTrackId ? 30 : 0,
             musicDuckingEnabled: true,
           });
         }
 
-        // Update scene status to audio_mixed (Fix 5)
+        // Update scene status to audio_mixed
         await db
           .update(scenes)
           .set({ status: "audio_mixed", updatedAt: new Date() })
@@ -75,7 +129,8 @@ export function createAudioMixingWorker(): Worker {
           .where(eq(projects.id, projectId));
 
         const completedAt = new Date();
-        console.warn(`[AudioMix] Completed for scene ${sceneId}`);
+        const durationMs = completedAt.getTime() - startedAt.getTime();
+        console.warn(`[AudioMix] Completed for scene ${sceneId}: mixedAudioUrl=${mixedAudioUrl.substring(0, 80)}, musicVolume=${musicTrackId ? 30 : 0} (${durationMs}ms)`);
 
         // Mark generationJob as completed
         await db
@@ -110,8 +165,9 @@ export function createAudioMixingWorker(): Worker {
         return { success: true };
       } catch (error) {
         const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[AudioMix] Failed for scene ${sceneId}:`, error);
+        console.error(`[AudioMix] Failed for scene ${sceneId} after ${durationMs}ms:`, errorMessage);
 
         // Mark generationJob as failed
         await db

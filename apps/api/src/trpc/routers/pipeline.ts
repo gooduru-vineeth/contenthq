@@ -10,6 +10,7 @@ export const pipelineRouter = router({
   start: protectedProcedure
     .input(startPipelineSchema)
     .mutation(async ({ ctx, input }) => {
+      console.warn(`[PipelineRouter] start called: projectId=${input.projectId}, userId=${ctx.user.id}`);
       const [project] = await db
         .select()
         .from(projects)
@@ -17,7 +18,10 @@ export const pipelineRouter = router({
           and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
         );
 
-      if (!project) throw new Error("Project not found");
+      if (!project) {
+        console.error(`[PipelineRouter] Project ${input.projectId} not found for userId=${ctx.user.id}`);
+        throw new Error("Project not found");
+      }
 
       await db
         .update(projects)
@@ -45,6 +49,7 @@ export const pipelineRouter = router({
         sourceType: project.inputType || "url",
       });
 
+      console.warn(`[PipelineRouter] Pipeline started for project ${input.projectId}, jobId=${job.id}, inputType=${project.inputType ?? "url"}`);
       return { jobId: job.id };
     }),
 
@@ -76,13 +81,17 @@ export const pipelineRouter = router({
   retryStage: protectedProcedure
     .input(retryStageSchema)
     .mutation(async ({ ctx, input }) => {
+      console.warn(`[PipelineRouter] retryStage called: projectId=${input.projectId}, stage=${input.stage}, userId=${ctx.user.id}`);
       const [project] = await db
         .select()
         .from(projects)
         .where(
           and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
         );
-      if (!project) throw new Error("Project not found");
+      if (!project) {
+        console.error(`[PipelineRouter] Project ${input.projectId} not found for retry, userId=${ctx.user.id}`);
+        throw new Error("Project not found");
+      }
 
       const [job] = await db
         .insert(generationJobs)
@@ -94,18 +103,21 @@ export const pipelineRouter = router({
         })
         .returning();
 
+      console.warn(`[PipelineRouter] Retry queued for project ${input.projectId}, stage=${input.stage}, jobId=${job.id}`);
       return { jobId: job.id };
     }),
 
   cancel: protectedProcedure
     .input(z.object({ projectId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      console.warn(`[PipelineRouter] cancel called: projectId=${input.projectId}, userId=${ctx.user.id}`);
       await db
         .update(projects)
         .set({ status: "cancelled", updatedAt: new Date() })
         .where(
           and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
         );
+      console.warn(`[PipelineRouter] Pipeline cancelled for project ${input.projectId}`);
       return { success: true };
     }),
 });

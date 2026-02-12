@@ -3,6 +3,7 @@ import { speechGenerations } from "@contenthq/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { addSpeechGenerationJob } from "@contenthq/queue";
 import type { SpeechGenerationJobData } from "@contenthq/queue";
+import { storage, getSpeechGenerationPath, getAudioContentType } from "@contenthq/storage";
 
 interface CreateInput {
   text: string;
@@ -173,9 +174,10 @@ class SpeechGenerationService {
         .set({ progress: 70, updatedAt: new Date() })
         .where(eq(speechGenerations.id, speechGenerationId));
 
-      // Store audio (placeholder - in production, upload to R2)
-      const audioKey = `speech-generations/${speechGenerationId}/audio.${result.format}`;
-      const audioUrl = audioKey; // In production: upload to R2 and get URL
+      // Upload audio to R2
+      const audioKey = getSpeechGenerationPath(generation.userId, speechGenerationId, `audio.${result.format}`);
+      const uploadResult = await storage.uploadFile(audioKey, result.audioBuffer, getAudioContentType(result.format));
+      const audioUrl = uploadResult.url;
 
       const durationMs = Math.round(result.duration * 1000);
       const fileSizeBytes = result.audioBuffer.length;

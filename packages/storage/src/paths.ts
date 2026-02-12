@@ -55,3 +55,11 @@ export function getIngestedContentPath(
 ): string {
   return `users/${sanitizePathSegment(userId)}/projects/${sanitizePathSegment(projectId)}/ingested/content-${sanitizePathSegment(contentId)}.json`;
 }
+
+export function getSpeechGenerationPath(
+  userId: string,
+  speechGenerationId: string,
+  filename: string
+): string {
+  return `users/${sanitizePathSegment(userId)}/speech-generations/${sanitizePathSegment(speechGenerationId)}/${sanitizeFilename(filename)}`;
+}

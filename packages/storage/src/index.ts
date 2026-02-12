@@ -7,5 +7,7 @@ export {
   getSceneAudioPath,
   getOutputPath,
   getIngestedContentPath,
+  getSpeechGenerationPath,
 } from "./paths";
+export { getAudioContentType, getVideoContentType } from "./content-types";
 export type { UploadResult, StorageConfig } from "./types";

@@ -5,6 +5,7 @@ import { db } from "@contenthq/db/client";
 import { sceneVideos, scenes, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
+import { storage, getSceneAudioPath, getAudioContentType } from "@contenthq/storage";
 
 export function createTTSGenerationWorker(): Worker {
   return new Worker<TTSGenerationJobData>(
@@ -12,7 +13,7 @@ export function createTTSGenerationWorker(): Worker {
     async (job) => {
       const { projectId, sceneId, userId, narrationScript, voiceId, provider } = job.data;
       const startedAt = new Date();
-      console.warn(`[TTS] Processing job ${job.id} for scene ${sceneId}`);
+      console.warn(`[TTS] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, provider=${provider}, voiceId=${voiceId}, scriptLength=${narrationScript?.length ?? 0} chars`);
 
       try {
         // Mark generationJob as processing
@@ -32,17 +33,20 @@ export function createTTSGenerationWorker(): Worker {
         // Dynamic import to avoid requiring TTS package at startup
         const { generateSpeech } = await import("@contenthq/tts");
 
+        console.warn(`[TTS] Calling generateSpeech for scene ${sceneId} (provider=${provider}, voiceId=${voiceId})`);
         const result = await generateSpeech({
           text: narrationScript,
           voiceId,
           provider: provider as "openai" | "elevenlabs" | "google",
         });
 
+        console.warn(`[TTS] Speech generated for scene ${sceneId}: duration=${result.duration}s, format=${result.format}`);
         await job.updateProgress(70);
 
-        // Store voiceover URL (in production, upload to R2 first)
-        // For now, we store a placeholder and the buffer could be uploaded by the storage service
-        const voiceoverKey = `projects/${projectId}/scenes/${sceneId}/voiceover.${result.format}`;
+        // Upload voiceover to R2
+        const voiceoverKey = getSceneAudioPath(userId, projectId, sceneId, `voiceover.${result.format}`);
+        const uploadResult = await storage.uploadFile(voiceoverKey, result.audioBuffer, getAudioContentType(result.format));
+        const voiceoverUrl = uploadResult.url;
 
         // Update scene video record (wrapped in transaction to handle race conditions)
         await db.transaction(async (tx) => {
@@ -55,7 +59,8 @@ export function createTTSGenerationWorker(): Worker {
             await tx
               .update(sceneVideos)
               .set({
-                voiceoverUrl: voiceoverKey,
+                voiceoverUrl,
+                storageKey: voiceoverKey,
                 ttsProvider: provider,
                 ttsVoiceId: voiceId,
                 updatedAt: new Date(),
@@ -64,7 +69,8 @@ export function createTTSGenerationWorker(): Worker {
           } else {
             await tx.insert(sceneVideos).values({
               sceneId,
-              voiceoverUrl: voiceoverKey,
+              voiceoverUrl,
+              storageKey: voiceoverKey,
               ttsProvider: provider,
               ttsVoiceId: voiceId,
             });
@@ -85,7 +91,8 @@ export function createTTSGenerationWorker(): Worker {
 
         await job.updateProgress(100);
         const completedAt = new Date();
-        console.warn(`[TTS] Completed for scene ${sceneId}, duration: ${result.duration}s`);
+        const durationMs = completedAt.getTime() - startedAt.getTime();
+        console.warn(`[TTS] Completed for scene ${sceneId}: audioDuration=${result.duration}s, voiceoverKey=${voiceoverKey} (${durationMs}ms)`);
 
         // Mark generationJob as completed
         await db
@@ -115,13 +122,15 @@ export function createTTSGenerationWorker(): Worker {
           );
 
         // Advance pipeline to next stage
+        console.warn(`[TTS] Advancing pipeline after TTS for scene ${sceneId}`);
         await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "TTS_GENERATION");
 
         return { success: true, duration: result.duration };
       } catch (error) {
         const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[TTS] Failed for scene ${sceneId}:`, error);
+        console.error(`[TTS] Failed for scene ${sceneId} after ${durationMs}ms:`, errorMessage);
 
         // Mark generationJob as failed
         await db

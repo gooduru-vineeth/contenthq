@@ -2,16 +2,18 @@ import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { VideoAssemblyJobData } from "@contenthq/queue";
 import { db } from "@contenthq/db/client";
-import { projects, scenes, generationJobs } from "@contenthq/db/schema";
+import { projects, scenes, sceneVideos, sceneAudioMixes, generationJobs } from "@contenthq/db/schema";
 import { eq, and, inArray, asc } from "drizzle-orm";
+import { videoService } from "@contenthq/video";
+import { storage, getOutputPath, getVideoContentType } from "@contenthq/storage";
 
 export function createVideoAssemblyWorker(): Worker {
   return new Worker<VideoAssemblyJobData>(
     QUEUE_NAMES.VIDEO_ASSEMBLY,
     async (job) => {
-      const { projectId, sceneIds } = job.data;
+      const { projectId, userId, sceneIds } = job.data;
       const startedAt = new Date();
-      console.warn(`[VideoAssembly] Processing job ${job.id} for project ${projectId}`);
+      console.warn(`[VideoAssembly] Processing job ${job.id} for project ${projectId}, sceneCount=${sceneIds?.length ?? 0}`);
 
       try {
         // Mark generationJob as processing
@@ -40,13 +42,65 @@ export function createVideoAssemblyWorker(): Worker {
           .where(inArray(scenes.id, sceneIds))
           .orderBy(asc(scenes.index));
 
-        await job.updateProgress(30);
+        console.warn(`[VideoAssembly] Fetched ${sceneList.length} scene(s) for assembly, project ${projectId}`);
+        await job.updateProgress(20);
 
-        // In production, this would:
-        // 1. Download all scene videos and audio from storage
-        // 2. Use FFmpeg to concatenate scenes with transitions
-        // 3. Upload final video to storage
-        const outputKey = `projects/${projectId}/output/final-video.mp4`;
+        // Download all scene videos and audio from R2
+        const assemblyScenes = [];
+        for (const scene of sceneList) {
+          const [video] = await db
+            .select()
+            .from(sceneVideos)
+            .where(eq(sceneVideos.sceneId, scene.id));
+
+          const [audio] = await db
+            .select()
+            .from(sceneAudioMixes)
+            .where(eq(sceneAudioMixes.sceneId, scene.id));
+
+          if (!video?.videoUrl || !audio?.mixedAudioUrl) {
+            console.warn(`[VideoAssembly] Skipping scene ${scene.id}: missing video or audio`);
+            continue;
+          }
+
+          console.warn(`[VideoAssembly] Downloading media for scene ${scene.id}`);
+          const videoResponse = await fetch(video.videoUrl);
+          const audioResponse = await fetch(audio.mixedAudioUrl);
+
+          if (!videoResponse.ok || !audioResponse.ok) {
+            console.warn(`[VideoAssembly] Failed to download media for scene ${scene.id}`);
+            continue;
+          }
+
+          assemblyScenes.push({
+            videoBuffer: Buffer.from(await videoResponse.arrayBuffer()),
+            audioBuffer: Buffer.from(await audioResponse.arrayBuffer()),
+            duration: scene.duration ?? video.duration ?? 5,
+          });
+        }
+
+        if (assemblyScenes.length === 0) {
+          throw new Error("No valid scenes to assemble");
+        }
+
+        await job.updateProgress(50);
+
+        // Assemble final video with FFmpeg
+        console.warn(`[VideoAssembly] Assembling ${assemblyScenes.length} scene(s) for project ${projectId}`);
+        const result = await videoService.assembleProject({
+          scenes: assemblyScenes,
+          width: 1920,
+          height: 1080,
+        });
+
+        await job.updateProgress(80);
+
+        // Upload final video to R2
+        const outputKey = getOutputPath(userId, projectId, `final-video.${result.format}`);
+        const uploadResult = await storage.uploadFile(outputKey, result.videoBuffer, getVideoContentType(result.format));
+        const finalVideoUrl = uploadResult.url;
+
+        console.warn(`[VideoAssembly] Uploaded final video for project ${projectId}: key=${outputKey}`);
 
         await job.updateProgress(90);
 
@@ -56,14 +110,15 @@ export function createVideoAssemblyWorker(): Worker {
           .set({
             status: "completed",
             progressPercent: 100,
-            finalVideoUrl: outputKey,
+            finalVideoUrl,
             updatedAt: new Date(),
           })
           .where(eq(projects.id, projectId));
 
         await job.updateProgress(100);
         const completedAt = new Date();
-        console.warn(`[VideoAssembly] Completed for project ${projectId} with ${sceneList.length} scenes`);
+        const durationMs = completedAt.getTime() - startedAt.getTime();
+        console.warn(`[VideoAssembly] Completed for project ${projectId}: ${assemblyScenes.length} scenes assembled, finalVideoUrl=${finalVideoUrl.substring(0, 80)} (${durationMs}ms)`);
 
         // Mark generationJob as completed
         await db
@@ -72,15 +127,15 @@ export function createVideoAssemblyWorker(): Worker {
             status: "completed",
             progressPercent: 100,
             result: {
-              sceneCount: sceneList.length,
-              outputKey,
+              sceneCount: assemblyScenes.length,
+              finalVideoUrl,
               log: {
                 stage: "VIDEO_ASSEMBLY",
                 status: "completed",
                 startedAt: startedAt.toISOString(),
                 completedAt: completedAt.toISOString(),
                 durationMs: completedAt.getTime() - startedAt.getTime(),
-                details: `Assembled ${sceneList.length} scenes into final video`,
+                details: `Assembled ${assemblyScenes.length} scenes into final video`,
               },
             },
             updatedAt: new Date(),
@@ -93,11 +148,12 @@ export function createVideoAssemblyWorker(): Worker {
             )
           );
 
-        return { success: true, sceneCount: sceneList.length };
+        return { success: true, sceneCount: assemblyScenes.length };
       } catch (error) {
         const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[VideoAssembly] Failed for project ${projectId}:`, error);
+        console.error(`[VideoAssembly] Failed for project ${projectId} after ${durationMs}ms:`, errorMessage);
 
         // Mark generationJob as failed
         await db

@@ -13,7 +13,7 @@ export function createSceneGenerationWorker(): Worker {
     async (job) => {
       const { projectId, storyId, userId, agentId } = job.data;
       const startedAt = new Date();
-      console.warn(`[SceneGeneration] Processing job ${job.id} for project ${projectId}`);
+      console.warn(`[SceneGeneration] Processing job ${job.id} for project ${projectId}, storyId=${storyId}, agentId=${agentId ?? "none"}`);
 
       try {
         // Mark generationJob as processing
@@ -42,6 +42,7 @@ export function createSceneGenerationWorker(): Worker {
           .from(scenes)
           .where(eq(scenes.projectId, projectId));
 
+        console.warn(`[SceneGeneration] Found ${projectScenes.length} scene(s) for project ${projectId}, ${projectScenes.filter((s) => s.visualDescription).length} have visual descriptions`);
         await job.updateProgress(20);
 
         const totalScenes = projectScenes.length;
@@ -52,9 +53,12 @@ export function createSceneGenerationWorker(): Worker {
 
         for (const scene of projectScenes) {
           if (!scene.visualDescription) {
+            console.warn(`[SceneGeneration] Skipping scene ${scene.id} (index=${scene.index}) — no visual description`);
             processed++;
             continue;
           }
+
+          console.warn(`[SceneGeneration] Generating image prompt for scene ${scene.id} (index=${scene.index}, ${processed + 1}/${totalScenes})`);
 
           let imagePrompt: string;
 
@@ -105,10 +109,13 @@ export function createSceneGenerationWorker(): Worker {
           }
         });
 
+        console.warn(`[SceneGeneration] Applied ${sceneUpdates.length} scene update(s) in transaction for project ${projectId}`);
+
         await job.updateProgress(100);
         const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
         console.warn(
-          `[SceneGeneration] Completed for project ${projectId}: ${processed} scenes processed`
+          `[SceneGeneration] Completed for project ${projectId}: ${processed} scenes processed, ${sceneUpdates.length} image prompts generated (${durationMs}ms)`
         );
 
         // Update project progress
@@ -151,8 +158,9 @@ export function createSceneGenerationWorker(): Worker {
         return { success: true, storyId, scenesProcessed: processed };
       } catch (error) {
         const completedAt = new Date();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[SceneGeneration] Failed for project ${projectId}:`, error);
+        console.error(`[SceneGeneration] Failed for project ${projectId} after ${durationMs}ms:`, errorMessage);
 
         // Mark generationJob as failed
         await db
