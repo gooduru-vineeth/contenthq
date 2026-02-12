@@ -2,12 +2,14 @@ import type { IngestionAdapter } from "../types";
 import { youtubeAdapter } from "./youtube.adapter";
 import { rssAdapter } from "./rss.adapter";
 import { urlAdapter } from "./url.adapter";
+import { topicAdapter } from "./topic.adapter";
 
 // Order matters: more specific adapters first
 const adapters: IngestionAdapter[] = [
   youtubeAdapter,
   rssAdapter,
-  urlAdapter, // fallback - detects any URL
+  urlAdapter, // detects any valid URL
+  topicAdapter, // fallback - catches non-URL strings (topics)
 ];
 
 export function detectAdapter(input: string): IngestionAdapter {
@@ -16,8 +18,8 @@ export function detectAdapter(input: string): IngestionAdapter {
       return adapter;
     }
   }
-  // Default to URL adapter
-  return urlAdapter;
+  // Default to topic adapter for unrecognized input
+  return topicAdapter;
 }
 
-export { youtubeAdapter, rssAdapter, urlAdapter };
+export { youtubeAdapter, rssAdapter, urlAdapter, topicAdapter };

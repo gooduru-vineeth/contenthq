@@ -28,6 +28,16 @@ export async function initWorkers(): Promise<void> {
   workers.push(createAudioMixingWorker());
   workers.push(createVideoAssemblyWorker());
 
+  const { createSpeechGenerationWorker } = await import(
+    "./speech-generation.worker"
+  );
+  workers.push(createSpeechGenerationWorker());
+
+  const { createMediaGenerationWorker } = await import(
+    "./media-generation.worker"
+  );
+  workers.push(createMediaGenerationWorker());
+
   console.warn(`[Workers] ${workers.length} workers initialized`);
 }
 

@@ -2,7 +2,17 @@ export { registry } from "./registry";
 export { getOpenAIProvider, OPENAI_MODELS } from "./providers/openai";
 export { getAnthropicProvider, ANTHROPIC_MODELS } from "./providers/anthropic";
 export { getGoogleProvider, GOOGLE_MODELS } from "./providers/google";
-export { getModelInstance, resolveModelFromDb, type ResolvedModel } from "./providers/model-factory";
+export { getXAIProvider, XAI_MODELS } from "./providers/xai";
+export { getVertexGoogleProvider, getVertexAnthropicProvider } from "./providers/google-vertex";
+export {
+  getModelInstance,
+  resolveModelFromDb,
+  isProviderSupported,
+  getSupportedProviders,
+  SUPPORTED_PROVIDERS,
+  type SupportedProvider,
+  type ResolvedModel,
+} from "./providers/model-factory";
 export {
   generateTextContent,
   generateStructuredContent,
@@ -32,6 +42,14 @@ export type {
   ImageGenerationOptions,
   ImageGenerationResult,
 } from "./types";
+export { mediaProviderRegistry } from "./providers/media";
+export type {
+  MediaGenerationProvider,
+  ImageProviderOptions,
+  VideoProviderOptions,
+  ImageEditOptions,
+  ProviderMediaResult,
+} from "./providers/media";
 export { composePrompt, extractVariables } from "./prompts/composer";
 export { resolvePromptForStage } from "./prompts/resolver";
 export { DEFAULT_PROMPT_TEMPLATES, DEFAULT_PERSONAS, DEFAULT_AGENTS, DEFAULT_FLOW } from "./prompts/seed-data";

@@ -1,5 +1,5 @@
 import { db } from "@contenthq/db/client";
-import { flowExecutions, flows, projectFlowConfigs } from "@contenthq/db/schema";
+import { flowExecutions, flows, projectFlowConfigs, generatedMedia } from "@contenthq/db/schema";
 import { eq } from "drizzle-orm";
 import { executeAgent } from "@contenthq/ai";
 import {
@@ -8,6 +8,8 @@ import {
   addAudioMixingJob,
   addVideoAssemblyJob,
   addVideoGenerationJob,
+  addSpeechGenerationJob,
+  addMediaGenerationJob,
   waitForJobCompletion,
   QUEUE_NAMES,
 } from "@contenthq/queue";
@@ -431,6 +433,125 @@ export class FlowEngine {
         });
         const result = await waitForJobCompletion(
           QUEUE_NAMES.VIDEO_GENERATION,
+          job.id!,
+          flowExecutionId,
+          node.id
+        );
+        return { data: result, nextNodeIds };
+      }
+
+      case "speech_generation": {
+        const config = node.data.config ?? {};
+        // Text can come from config or upstream node outputs
+        let text = (config.text as string) ?? "";
+        if (!text) {
+          for (const output of Object.values(context.nodeOutputs)) {
+            if (output && typeof output === "object") {
+              const val = (output as Record<string, unknown>).text;
+              if (typeof val === "string" && val) {
+                text = val;
+                break;
+              }
+            }
+          }
+        }
+
+        // Create speech generation record
+        const speechGenId = crypto.randomUUID();
+        const { speechGenerations } = await import("@contenthq/db/schema");
+        await this.dbInstance.insert(speechGenerations).values({
+          id: speechGenId,
+          userId,
+          projectId,
+          inputText: text,
+          provider: (config.provider as string) ?? "openai",
+          model: (config.model as string) ?? null,
+          voiceId: (config.voiceId as string) ?? "alloy",
+          voiceSettings:
+            (config.voiceSettings as Record<string, unknown>) ?? null,
+          audioFormat: (config.audioFormat as string) ?? "mp3",
+          status: "pending",
+          progress: 0,
+          flowExecutionId,
+          flowNodeId: node.id,
+        });
+
+        const job = await addSpeechGenerationJob({
+          speechGenerationId: speechGenId,
+          userId,
+          projectId,
+          text,
+          provider: (config.provider as string) ?? "openai",
+          model: config.model as string | undefined,
+          voiceId: (config.voiceId as string) ?? "alloy",
+          voiceSettings: config.voiceSettings as
+            | Record<string, unknown>
+            | undefined,
+          flowExecutionId,
+          flowNodeId: node.id,
+        });
+        const result = await waitForJobCompletion(
+          QUEUE_NAMES.SPEECH_GENERATION,
+          job.id!,
+          flowExecutionId,
+          node.id
+        );
+        return { data: result, nextNodeIds };
+      }
+
+      case "media_generation": {
+        const config = node.data.config ?? {};
+        const prompt =
+          (config.prompt as string) ??
+          (context.inputData.prompt as string) ??
+          "";
+        const mediaType =
+          (config.mediaType as string) ?? "image";
+        const model =
+          (config.model as string) ?? "dall-e-3";
+        const provider =
+          (config.provider as string) ?? "openai";
+        const aspectRatio =
+          (config.aspectRatio as string) ?? "1:1";
+        const quality =
+          (config.quality as string) ?? "standard";
+        const duration = config.duration as number | undefined;
+        const mediaCount = (config.count as number) ?? 1;
+
+        // Create placeholder record
+        const mediaId = crypto.randomUUID();
+        await this.dbInstance.insert(generatedMedia).values({
+          id: mediaId,
+          userId,
+          projectId,
+          mediaType: mediaType as "image" | "video",
+          prompt,
+          model,
+          provider,
+          aspectRatio,
+          quality,
+          status: "pending",
+          flowExecutionId,
+          flowNodeId: node.id,
+        });
+
+        const job = await addMediaGenerationJob({
+          userId,
+          projectId,
+          generatedMediaId: mediaId,
+          prompt,
+          mediaType: mediaType as "image" | "video",
+          model,
+          provider,
+          aspectRatio,
+          quality,
+          duration,
+          count: mediaCount,
+          flowExecutionId,
+          flowNodeId: node.id,
+        });
+        const result = await waitForJobCompletion(
+          QUEUE_NAMES.MEDIA_GENERATION,
           job.id!,
           flowExecutionId,
           node.id

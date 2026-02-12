@@ -2,15 +2,48 @@ import type { LanguageModel } from "ai";
 import { getOpenAIProvider, OPENAI_MODELS } from "./openai";
 import { getAnthropicProvider, ANTHROPIC_MODELS } from "./anthropic";
 import { getGoogleProvider, GOOGLE_MODELS } from "./google";
+import { getXAIProvider, XAI_MODELS } from "./xai";
+import {
+  getVertexGoogleProvider,
+  getVertexAnthropicProvider,
+} from "./google-vertex";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DrizzleDb = any;
+
+export const SUPPORTED_PROVIDERS = [
+  "openai",
+  "anthropic",
+  "google",
+  "xai",
+  "vertex-google",
+  "vertex-anthropic",
+] as const;
+
+export type SupportedProvider = (typeof SUPPORTED_PROVIDERS)[number];
 
 const PROVIDER_DEFAULTS: Record<string, string> = {
   openai: OPENAI_MODELS.GPT4O,
   anthropic: ANTHROPIC_MODELS.CLAUDE_SONNET,
   google: GOOGLE_MODELS.GEMINI_PRO,
+  xai: XAI_MODELS.GROK_3,
+  "vertex-google": GOOGLE_MODELS.GEMINI_2_FLASH,
+  "vertex-anthropic": ANTHROPIC_MODELS.CLAUDE_SONNET_4_5,
 };
+
+/**
+ * Check if a provider slug is supported.
+ */
+export function isProviderSupported(provider: string): provider is SupportedProvider {
+  return (SUPPORTED_PROVIDERS as readonly string[]).includes(provider);
+}
+
+/**
+ * Get the list of all supported provider slugs.
+ */
+export function getSupportedProviders(): readonly string[] {
+  return SUPPORTED_PROVIDERS;
+}
 
 /**
  * Synchronous factory: provider slug -> AI SDK model instance.
@@ -29,6 +62,19 @@ export function getModelInstance(provider: string, modelId: string): LanguageMod
     case "google": {
       const p = getGoogleProvider();
       return p(modelId);
+    }
+    case "xai": {
+      const p = getXAIProvider();
+      // SDK v3+ returns LanguageModelV3; cast through unknown for V1 compat
+      return p(modelId) as unknown as LanguageModel;
+    }
+    case "vertex-google": {
+      const p = getVertexGoogleProvider();
+      return p(modelId) as unknown as LanguageModel;
+    }
+    case "vertex-anthropic": {
+      const p = getVertexAnthropicProvider();
+      return p(modelId) as unknown as LanguageModel;
     }
     default:
       throw new Error(`Unknown provider: ${provider}`);

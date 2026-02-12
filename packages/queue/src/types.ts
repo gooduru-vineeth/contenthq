@@ -75,6 +75,38 @@ export interface VideoAssemblyJobData extends BaseFlowJobData {
   sceneIds: string[];
 }
 
+export interface SpeechGenerationJobData extends BaseFlowJobData {
+  speechGenerationId: string;
+  userId: string;
+  projectId?: string;
+  text: string;
+  provider: string;
+  model?: string;
+  voiceId: string;
+  voiceSettings?: Record<string, unknown>;
+}
+
+export interface MediaGenerationJobData extends BaseFlowJobData {
+  userId: string;
+  projectId?: string;
+  generatedMediaId: string;
+  prompt: string;
+  mediaType: "image" | "video";
+  model: string;
+  provider: string;
+  aspectRatio: string;
+  quality: string;
+  style?: string;
+  duration?: number;
+  count: number;
+  referenceImageUrl?: string;
+  conversationId?: string;
+  editOptions?: {
+    sourceImageUrl: string;
+    strength?: number;
+  };
+}
+
 export type JobData =
   | IngestionJobData
   | StoryWritingJobData
@@ -84,4 +116,6 @@ export type JobData =
   | VideoGenerationJobData
   | TTSGenerationJobData
   | AudioMixingJobData
-  | VideoAssemblyJobData;
+  | VideoAssemblyJobData
+  | SpeechGenerationJobData
+  | MediaGenerationJobData;

@@ -17,6 +17,8 @@ const BUILTIN_ACTIONS = [
   "audio_mixing",
   "video_assembly",
   "video_generation",
+  "speech_generation",
+  "media_generation",
 ] as const;
 
 interface NodeConfigPanelProps {
@@ -109,6 +111,317 @@ export function NodeConfigPanel({ node, onUpdate, onClose }: NodeConfigPanelProp
                 </Select>
               </div>
             )}
+
+            {/* Speech Generation Config */}
+            {data.nodeType === "builtin" &&
+              data.builtinAction === "speech_generation" && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="sg-provider">Provider</Label>
+                    <Select
+                      value={
+                        ((data.config as Record<string, unknown> | undefined)
+                          ?.provider as string) || "openai"
+                      }
+                      onValueChange={(value: string) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          provider: value,
+                        })
+                      }
+                    >
+                      <SelectTrigger id="sg-provider">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                        <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+                        <SelectItem value="google">Google Cloud</SelectItem>
+                        <SelectItem value="google-gemini">
+                          Google Gemini
+                        </SelectItem>
+                        <SelectItem value="inworld">Inworld</SelectItem>
+                        <SelectItem value="sarvam">Sarvam</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="sg-voiceId">Voice ID</Label>
+                    <Input
+                      id="sg-voiceId"
+                      value={
+                        ((data.config as Record<string, unknown> | undefined)
+                          ?.voiceId as string) || ""
+                      }
+                      onChange={(e) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          voiceId: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., alloy, coral, nova"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="sg-model">Model</Label>
+                    <Input
+                      id="sg-model"
+                      value={
+                        ((data.config as Record<string, unknown> | undefined)
+                          ?.model as string) || ""
+                      }
+                      onChange={(e) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          model: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., tts-1, tts-1-hd"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="sg-text">Text (static)</Label>
+                    <Textarea
+                      id="sg-text"
+                      value={
+                        ((data.config as Record<string, unknown> | undefined)
+                          ?.text as string) || ""
+                      }
+                      onChange={(e) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          text: e.target.value,
+                        })
+                      }
+                      placeholder="Enter text or leave empty to use upstream node output"
+                      rows={3}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Leave empty to use text from upstream node output
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="sg-speed">Speed</Label>
+                    <Input
+                      id="sg-speed"
+                      type="number"
+                      min={0.25}
+                      max={4}
+                      step={0.25}
+                      value={
+                        ((
+                          (data.config as Record<string, unknown> | undefined)
+                            ?.voiceSettings as Record<string, unknown>
+                        )?.speed as number) || 1
+                      }
+                      onChange={(e) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          voiceSettings: {
+                            ...((data.config as Record<string, unknown>)
+                              ?.voiceSettings as Record<string, unknown>),
+                            speed: parseFloat(e.target.value) || 1,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+
+            {/* Media Generation Config */}
+            {data.nodeType === "builtin" &&
+              data.builtinAction === "media_generation" && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="mg-mediaType">Media Type</Label>
+                    <Select
+                      value={
+                        ((data.config as Record<string, unknown> | undefined)
+                          ?.mediaType as string) || "image"
+                      }
+                      onValueChange={(value: string) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          mediaType: value,
+                        })
+                      }
+                    >
+                      <SelectTrigger id="mg-mediaType">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="image">Image</SelectItem>
+                        <SelectItem value="video">Video</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="mg-model">Model</Label>
+                    <Input
+                      id="mg-model"
+                      value={
+                        ((data.config as Record<string, unknown> | undefined)
+                          ?.model as string) || ""
+                      }
+                      onChange={(e) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          model: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., dall-e-3, gpt-image-1"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="mg-provider">Provider</Label>
+                    <Select
+                      value={
+                        ((data.config as Record<string, unknown> | undefined)
+                          ?.provider as string) || "openai"
+                      }
+                      onValueChange={(value: string) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          provider: value,
+                        })
+                      }
+                    >
+                      <SelectTrigger id="mg-provider">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                        <SelectItem value="replicate">Replicate</SelectItem>
+                        <SelectItem value="fal">fal.ai</SelectItem>
+                        <SelectItem value="google">Google</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="mg-aspectRatio">Aspect Ratio</Label>
+                    <Select
+                      value={
+                        ((data.config as Record<string, unknown> | undefined)
+                          ?.aspectRatio as string) || "1:1"
+                      }
+                      onValueChange={(value: string) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          aspectRatio: value,
+                        })
+                      }
+                    >
+                      <SelectTrigger id="mg-aspectRatio">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                        <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
+                        <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
+                        <SelectItem value="4:3">4:3</SelectItem>
+                        <SelectItem value="3:4">3:4</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="mg-quality">Quality</Label>
+                    <Select
+                      value={
+                        ((data.config as Record<string, unknown> | undefined)
+                          ?.quality as string) || "standard"
+                      }
+                      onValueChange={(value: string) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          quality: value,
+                        })
+                      }
+                    >
+                      <SelectTrigger id="mg-quality">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">Standard</SelectItem>
+                        <SelectItem value="hd">HD</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {((data.config as Record<string, unknown> | undefined)
+                    ?.mediaType as string) === "video" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="mg-duration">Duration (seconds)</Label>
+                      <Input
+                        id="mg-duration"
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={
+                          ((data.config as Record<string, unknown> | undefined)
+                            ?.duration as number) || 5
+                        }
+                        onChange={(e) =>
+                          handleUpdate("config", {
+                            ...(data.config as Record<string, unknown>),
+                            duration: parseInt(e.target.value) || 5,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="mg-prompt">Prompt</Label>
+                    <Textarea
+                      id="mg-prompt"
+                      value={
+                        ((data.config as Record<string, unknown> | undefined)
+                          ?.prompt as string) || ""
+                      }
+                      onChange={(e) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          prompt: e.target.value,
+                        })
+                      }
+                      placeholder="Describe the media to generate, or leave empty to use upstream input"
+                      rows={3}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Leave empty to use prompt from upstream node output
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="mg-count">Count</Label>
+                    <Input
+                      id="mg-count"
+                      type="number"
+                      min={1}
+                      max={4}
+                      value={
+                        ((data.config as Record<string, unknown> | undefined)
+                          ?.count as number) || 1
+                      }
+                      onChange={(e) =>
+                        handleUpdate("config", {
+                          ...(data.config as Record<string, unknown>),
+                          count: parseInt(e.target.value) || 1,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
 
             {/* Condition Node Config */}
             {data.nodeType === "condition" && (

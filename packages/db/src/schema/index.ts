@@ -31,3 +31,7 @@ export * from "./agent-versions";
 export * from "./flows";
 export * from "./flow-executions";
 export * from "./project-flow-configs";
+export * from "./speech-generations";
+export * from "./generated-media";
+export * from "./media-conversations";
+export * from "./media-conversation-messages";

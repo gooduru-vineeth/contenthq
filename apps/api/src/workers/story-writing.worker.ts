@@ -3,9 +3,10 @@ import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { StoryWritingJobData } from "@contenthq/queue";
 import { generateStructuredContent, resolvePromptForStage, executeAgent } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
-import { stories, scenes, ingestedContent, projects, aiGenerations } from "@contenthq/db/schema";
-import { eq } from "drizzle-orm";
+import { stories, scenes, ingestedContent, projects, aiGenerations, generationJobs } from "@contenthq/db/schema";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod";
+import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 
 const storyOutputSchema = z.object({
   title: z.string(),
@@ -35,6 +36,18 @@ export function createStoryWritingWorker(): Worker {
       console.warn(`[StoryWriting] Processing job ${job.id} for project ${projectId}`);
 
       try {
+        // Mark generationJob as processing
+        await db
+          .update(generationJobs)
+          .set({ status: "processing", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "STORY_WRITING"),
+              eq(generationJobs.status, "queued")
+            )
+          );
+
         // Update project status
         await db
           .update(projects)
@@ -153,9 +166,43 @@ export function createStoryWritingWorker(): Worker {
         console.warn(
           `[StoryWriting] Completed: "${storyData.title}" with ${storyData.scenes.length} scenes`
         );
+
+        // Mark generationJob as completed
+        await db
+          .update(generationJobs)
+          .set({
+            status: "completed",
+            progressPercent: 100,
+            result: { storyId: story.id, sceneCount: storyData.scenes.length },
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "STORY_WRITING"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
+        // Advance pipeline to next stage
+        await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "STORY_WRITING");
+
         return { success: true, storyId: story.id, sceneCount: storyData.scenes.length };
       } catch (error) {
         console.error(`[StoryWriting] Failed for project ${projectId}:`, error);
+
+        // Mark generationJob as failed
+        await db
+          .update(generationJobs)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "STORY_WRITING"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
         await db
           .update(projects)
           .set({ status: "failed", updatedAt: new Date() })

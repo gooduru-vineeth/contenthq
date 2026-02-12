@@ -4,8 +4,9 @@ import type { VisualVerificationJobData } from "@contenthq/queue";
 import { verifyImage, resolvePromptForStage, executeAgent } from "@contenthq/ai";
 import type { VerificationResult } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
-import { scenes, sceneVisuals, projects } from "@contenthq/db/schema";
+import { scenes, sceneVisuals, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
+import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 
 export function createVisualVerificationWorker(): Worker {
   return new Worker<VisualVerificationJobData>(
@@ -15,6 +16,18 @@ export function createVisualVerificationWorker(): Worker {
       console.warn(`[VisualVerification] Processing job ${job.id} for scene ${sceneId}`);
 
       try {
+        // Mark generationJob as processing
+        await db
+          .update(generationJobs)
+          .set({ status: "processing", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "VISUAL_VERIFICATION"),
+              eq(generationJobs.status, "queued")
+            )
+          );
+
         await job.updateProgress(10);
 
         let result: VerificationResult;
@@ -87,6 +100,26 @@ export function createVisualVerificationWorker(): Worker {
           console.warn(
             `[VisualVerification] Approved for scene ${sceneId} (score: ${result.totalScore})`
           );
+
+          // Mark generationJob as completed
+          await db
+            .update(generationJobs)
+            .set({
+              status: "completed",
+              progressPercent: 100,
+              result: { approved: true, score: result.totalScore },
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(generationJobs.projectId, projectId),
+                eq(generationJobs.jobType, "VISUAL_VERIFICATION"),
+                eq(generationJobs.status, "processing")
+              )
+            );
+
+          // Advance pipeline (only when approved — all scenes must be verified)
+          await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "VISUAL_VERIFICATION");
         } else {
           // Image failed verification - check retry count
           const [visual] = await db
@@ -131,6 +164,22 @@ export function createVisualVerificationWorker(): Worker {
               .set({ status: "failed", updatedAt: new Date() })
               .where(eq(scenes.id, sceneId));
 
+            // Mark generationJob as failed
+            await db
+              .update(generationJobs)
+              .set({
+                status: "failed",
+                result: { approved: false, score: result.totalScore },
+                updatedAt: new Date(),
+              })
+              .where(
+                and(
+                  eq(generationJobs.projectId, projectId),
+                  eq(generationJobs.jobType, "VISUAL_VERIFICATION"),
+                  eq(generationJobs.status, "processing")
+                )
+              );
+
             console.warn(
               `[VisualVerification] Failed for scene ${sceneId} after ${retryCount + 1} attempts (score: ${result.totalScore})`
             );
@@ -141,6 +190,19 @@ export function createVisualVerificationWorker(): Worker {
         return { success: true, approved: result.approved, score: result.totalScore };
       } catch (error) {
         console.error(`[VisualVerification] Failed for scene ${sceneId}:`, error);
+
+        // Mark generationJob as failed
+        await db
+          .update(generationJobs)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "VISUAL_VERIFICATION"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
         await db
           .update(projects)
           .set({ status: "failed", updatedAt: new Date() })

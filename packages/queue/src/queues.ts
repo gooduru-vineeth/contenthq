@@ -11,6 +11,8 @@ export const QUEUE_NAMES = {
   TTS_GENERATION: "tts-generation",
   AUDIO_MIXING: "audio-mixing",
   VIDEO_ASSEMBLY: "video-assembly",
+  SPEECH_GENERATION: "speech-generation",
+  MEDIA_GENERATION: "media-generation",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -27,6 +29,8 @@ const DEFAULT_JOB_OPTIONS: Record<string, { attempts: number; backoff: { type: s
   [QUEUE_NAMES.TTS_GENERATION]: { attempts: 3, backoff: { type: "exponential", delay: 5000 } },
   [QUEUE_NAMES.AUDIO_MIXING]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
   [QUEUE_NAMES.VIDEO_ASSEMBLY]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
+  [QUEUE_NAMES.SPEECH_GENERATION]: { attempts: 3, backoff: { type: "exponential", delay: 5000 } },
+  [QUEUE_NAMES.MEDIA_GENERATION]: { attempts: 3, backoff: { type: "exponential", delay: 10000 } },
 };
 
 export function getQueue(name: QueueName): Queue {
