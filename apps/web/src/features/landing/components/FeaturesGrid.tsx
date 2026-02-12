@@ -21,11 +21,11 @@ export function FeaturesGrid() {
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
             Everything You Need to{" "}
-            <span className="text-gradient-landing">Create at Scale</span>
+            <span className="text-gradient-landing">Create Amazing Videos</span>
           </h2>
           <p className="mx-auto max-w-2xl text-muted-foreground">
-            From content ingestion to final video, ContentHQ handles every step
-            with AI-powered precision.
+            Powerful tools that are simple to use. No video editing experience
+            required.
           </p>
         </motion.div>
 
@@ -42,7 +42,7 @@ export function FeaturesGrid() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.06 }}
                 whileHover={prefersReducedMotion ? undefined : { y: -6 }}
-                className="group relative overflow-hidden rounded-xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-lg"
+                className="group relative overflow-hidden rounded-xl border bg-white/60 dark:bg-white/5 backdrop-blur-xl p-6 shadow-sm transition-shadow hover:shadow-lg"
               >
                 {/* Hover gradient overlay */}
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-600/5 to-brand-400/5 opacity-0 transition-opacity group-hover:opacity-100" />

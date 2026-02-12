@@ -15,13 +15,14 @@ export function PipelineOverlay({
   reducedMotion,
 }: PipelineOverlayProps) {
   const stage = pipelineStages[activeStage];
+  const Icon = stage.icon;
 
   return (
     <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-end pb-6">
       {/* Screen reader description */}
       <p className="sr-only">
-        7-stage AI content pipeline: Ingestion, Story Writing, Scene Generation,
-        Visual Generation, Visual Verification, Audio Layering, and Assembly.
+        AI video creation pipeline: Import, Write Script, Storyboard,
+        Create Visuals, Quality Check, Add Voice &amp; Music, and Final Video.
         Currently viewing stage {activeStage + 1}: {stage.name}.
       </p>
 
@@ -35,12 +36,15 @@ export function PipelineOverlay({
             exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
             transition={{ duration: 0.25 }}
           >
-            <span
-              className="mb-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white"
-              style={{ backgroundColor: stage.color }}
-            >
-              {activeStage + 1} / {pipelineStages.length}
-            </span>
+            <div className="mb-1 flex items-center justify-center gap-1.5">
+              <Icon className="h-5 w-5" style={{ color: stage.color }} />
+              <span
+                className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold text-white"
+                style={{ backgroundColor: stage.color }}
+              >
+                {activeStage + 1} / {pipelineStages.length}
+              </span>
+            </div>
             <h3 className="text-xl font-bold tracking-tight text-foreground">
               {stage.name}
             </h3>

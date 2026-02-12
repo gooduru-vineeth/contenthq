@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Float } from "@react-three/drei";
+import { useRef, useState, useMemo } from "react";
+import { Float, RoundedBox, Edges } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { CardGlow } from "./CardGlow";
 
 interface StageNodeProps {
   position: [number, number, number];
@@ -12,7 +13,6 @@ interface StageNodeProps {
   isPast: boolean;
   index: number;
   onClick: () => void;
-  geometry: THREE.IcosahedronGeometry;
   reducedMotion: boolean;
 }
 
@@ -23,83 +23,74 @@ export function StageNode({
   isPast,
   index: _index,
   onClick,
-  geometry,
   reducedMotion,
 }: StageNodeProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const haloRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
 
-  const targetScale = isActive ? 1.2 : isPast ? 0.8 : 0.6;
-  const targetEmissiveIntensity = isActive ? 0.6 : isPast ? 0.15 : 0;
-  const targetOpacity = isActive ? 1 : isPast ? 0.7 : 0.4;
+  const targetScale = isActive ? 1.08 : isPast ? 1.0 : 0.95;
+  const targetZ = isActive ? 0.4 : 0;
+  const targetEmissiveIntensity = isActive ? 0.2 : isPast ? 0.05 : 0;
+  const targetOpacity = isActive ? 1.0 : isPast ? 0.85 : 0.5;
+
+  const colors = useMemo(() => {
+    const base = new THREE.Color(color);
+    base.lerp(new THREE.Color("#ffffff"), 0.7);
+    const emissive = new THREE.Color(color);
+    const edge = new THREE.Color(color);
+    edge.lerp(new THREE.Color("#ffffff"), 0.3);
+    return {
+      base,
+      emissive,
+      edgeHex: `#${edge.getHexString()}`,
+    };
+  }, [color]);
 
   useFrame((_state, delta) => {
     if (!meshRef.current) return;
     const mesh = meshRef.current;
-    const mat = mesh.material as THREE.MeshStandardMaterial;
-
-    // Smooth scale lerp
+    const mat = mesh.material as THREE.MeshPhysicalMaterial;
     const lerpFactor = 1 - Math.pow(0.001, delta);
-    const s = THREE.MathUtils.lerp(mesh.scale.x, targetScale, lerpFactor);
+
+    const hoverBoost = hovered ? 0.02 : 0;
+    const s = THREE.MathUtils.lerp(
+      mesh.scale.x,
+      targetScale + hoverBoost,
+      lerpFactor
+    );
     mesh.scale.set(s, s, s);
 
-    // Smooth emissive and opacity
+    mesh.position.z = THREE.MathUtils.lerp(
+      mesh.position.z,
+      targetZ,
+      lerpFactor
+    );
+
     mat.emissiveIntensity = THREE.MathUtils.lerp(
       mat.emissiveIntensity,
       targetEmissiveIntensity,
       lerpFactor
     );
     mat.opacity = THREE.MathUtils.lerp(mat.opacity, targetOpacity, lerpFactor);
-
-    // Gentle rotation
-    if (!reducedMotion) {
-      mesh.rotation.y += delta * 0.3;
-      mesh.rotation.x += delta * 0.15;
-    }
-
-    // Halo pulse
-    if (haloRef.current) {
-      const haloMat = haloRef.current.material as THREE.MeshBasicMaterial;
-      const haloTargetOpacity = isActive ? 0.15 : 0;
-      haloMat.opacity = THREE.MathUtils.lerp(
-        haloMat.opacity,
-        haloTargetOpacity,
-        lerpFactor
-      );
-      const haloScale = isActive
-        ? 1.8 + Math.sin(Date.now() * 0.003) * 0.15
-        : 1.5;
-      haloRef.current.scale.setScalar(
-        THREE.MathUtils.lerp(haloRef.current.scale.x, haloScale, lerpFactor)
-      );
-    }
   });
 
-  const threeColor = new THREE.Color(color);
+  const glowIntensity = isActive ? 1 : 0;
 
   return (
     <Float
-      speed={reducedMotion ? 0 : 1.5}
-      rotationIntensity={reducedMotion ? 0 : 0.3}
-      floatIntensity={reducedMotion ? 0 : 0.5}
+      speed={reducedMotion ? 0 : 1.2}
+      rotationIntensity={reducedMotion ? 0 : 0.08}
+      floatIntensity={reducedMotion ? 0 : 0.15}
+      floatingRange={[-0.03, 0.03]}
     >
       <group position={position}>
-        {/* Halo glow sphere */}
-        <mesh ref={haloRef}>
-          <sphereGeometry args={[1, 16, 16]} />
-          <meshBasicMaterial
-            color={threeColor}
-            transparent
-            opacity={0}
-            depthWrite={false}
-          />
-        </mesh>
+        <CardGlow color={color} intensity={glowIntensity} />
 
-        {/* Main icosahedron */}
-        <mesh
+        <RoundedBox
           ref={meshRef}
-          geometry={geometry}
+          args={[1.4, 0.9, 0.08]}
+          radius={0.12}
+          smoothness={4}
           onClick={(e) => {
             e.stopPropagation();
             onClick();
@@ -113,33 +104,19 @@ export function StageNode({
             setHovered(false);
             document.body.style.cursor = "auto";
           }}
-          scale={targetScale}
         >
-          <meshStandardMaterial
-            color={threeColor}
-            emissive={threeColor}
+          <meshPhysicalMaterial
+            color={colors.base}
+            emissive={colors.emissive}
             emissiveIntensity={targetEmissiveIntensity}
             transparent
             opacity={targetOpacity}
-            roughness={0.3}
-            metalness={0.2}
+            roughness={0.15}
+            metalness={0.05}
             toneMapped={false}
           />
-        </mesh>
-
-        {/* Hover highlight ring */}
-        {hovered && (
-          <mesh rotation={[Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[1.3, 1.45, 32]} />
-            <meshBasicMaterial
-              color={threeColor}
-              transparent
-              opacity={0.3}
-              side={THREE.DoubleSide}
-              depthWrite={false}
-            />
-          </mesh>
-        )}
+          <Edges color={colors.edgeHex} linewidth={1} />
+        </RoundedBox>
       </group>
     </Float>
   );

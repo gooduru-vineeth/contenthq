@@ -11,14 +11,13 @@ import {
   Bot,
   Rss,
   Link,
-  Settings,
-  Cpu,
-  Share2,
+  Palette,
   Sparkles,
   CreditCard,
   FileText,
   Eye,
   Lightbulb,
+  Share2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -30,8 +29,8 @@ export interface NavLink {
 
 export const landingNavLinks: NavLink[] = [
   { label: "Features", href: "#features" },
-  { label: "Pipeline", href: "#pipeline" },
-  { label: "How It Works", href: "#how-it-works" },
+  { label: "How It Works", href: "#pipeline" },
+  { label: "Examples", href: "#media-studio" },
   { label: "Pricing", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
 ];
@@ -48,65 +47,65 @@ export interface PipelineStage {
 
 export const pipelineStages: PipelineStage[] = [
   {
-    name: "Ingestion",
-    description: "Import content from any source",
+    name: "Import",
+    description: "Bring in your content",
     detail:
-      "Pull content from YouTube, RSS feeds, URLs, or generate from topics. AI ranks by engagement score.",
-    tagline: "Pull from any source",
+      "Paste a YouTube link, share an article, enter a topic, or upload your own content. We handle the rest.",
+    tagline: "Start with anything",
     icon: Download,
     color: "#0D1A63",
   },
   {
-    name: "Story Writing",
-    description: "AI crafts your narrative",
+    name: "Write Script",
+    description: "AI writes your story",
     detail:
-      "Claude or GPT-4 generates structured narratives with scene breakdowns and audience targeting.",
-    tagline: "AI crafts the narrative",
+      "Our AI transforms your content into a compelling, well-structured video script tailored to your audience.",
+    tagline: "Words that connect",
     icon: Pencil,
     color: "#1A2CA3",
   },
   {
-    name: "Scene Generation",
-    description: "Break into visual scenes",
+    name: "Storyboard",
+    description: "Plan every scene",
     detail:
-      "Stories split into scenes with descriptions, narration text, and motion instructions.",
+      "Your script is broken into perfectly-timed scenes with visual direction, narration cues, and smooth transitions.",
     tagline: "Scenes take shape",
     icon: Layers,
     color: "#2845D6",
   },
   {
-    name: "Visual Generation",
-    description: "Create stunning visuals",
+    name: "Create Visuals",
+    description: "AI-generated imagery",
     detail:
-      "Multi-provider image and video generation with DALL-E, Fal.ai, Replicate, and more.",
+      "AI creates stunning visuals for every scene — custom images, video clips, and graphics that match your brand and story.",
     tagline: "Visuals come alive",
     icon: Image,
     color: "#4F6FE4",
   },
   {
-    name: "Visual Verification",
-    description: "AI quality assurance",
+    name: "Quality Check",
+    description: "Every detail reviewed",
     detail:
-      "Vision models validate visuals for relevance, quality, consistency, and safety. Auto-retry if score <60%.",
+      "AI reviews every image and clip to make sure it matches your story perfectly. Anything that doesn't meet the bar gets regenerated automatically.",
     tagline: "Quality guaranteed",
     icon: ShieldCheck,
     color: "#3A5ADC",
   },
   {
-    name: "Audio Layering",
-    description: "Add voice and music",
+    name: "Add Voice & Music",
+    description: "Professional audio",
     detail:
-      "Generate TTS narration from 6 providers, mix with background music using intelligent audio ducking.",
+      "Choose from 50+ natural-sounding AI voices in 40+ languages. We layer in background music with professional-grade audio mixing.",
     tagline: "Voice meets music",
     icon: Music,
     color: "#6585E8",
   },
   {
-    name: "Assembly",
-    description: "Final video output",
+    name: "Final Video",
+    description: "Ready to publish",
     detail:
-      "Combine video timeline with mixed audio, add captions and branding for the final polished video.",
-    tagline: "Final cut, delivered",
+      "Everything comes together — video, voiceover, music, and captions — into a polished, ready-to-share video.",
+    tagline: "Ready to share",
     icon: Film,
     color: "#8199ED",
   },
@@ -121,51 +120,51 @@ export interface Feature {
 
 export const features: Feature[] = [
   {
-    title: "Visual Flow Builder",
+    title: "Custom Workflows",
     description:
-      "React Flow-based workflow programming with 8 node types for custom automation pipelines.",
+      "Build your own video creation process with our visual drag-and-drop editor. No coding needed.",
     icon: GitBranch,
   },
   {
-    title: "6 TTS Providers",
+    title: "50+ Natural AI Voices",
     description:
-      "OpenAI, ElevenLabs, Google Cloud, Gemini, Sarvam, and Inworld — find the perfect voice.",
+      "Choose from dozens of natural-sounding voices in 40+ languages. Find the perfect voice for your brand.",
     icon: Mic,
   },
   {
-    title: "Multi-Provider AI",
+    title: "Best-in-Class AI",
     description:
-      "Anthropic, OpenAI, Google, xAI with intelligent selection and automatic failover.",
+      "We automatically use the best AI for each task — writing, visuals, voices — so your videos are always top quality.",
     icon: Bot,
   },
   {
-    title: "Media Generation Studio",
+    title: "Creative Studio",
     description:
-      "Create images, videos, and audio with AI conversations for iterative refinement.",
+      "Create custom images, videos, and graphics by chatting with AI. Refine until it's exactly what you want.",
     icon: Sparkles,
   },
   {
-    title: "Content Ingestion",
+    title: "Import from Anywhere",
     description:
-      "Import from YouTube, RSS, URLs, or topics. AI ranks content by engagement score.",
+      "Start with a YouTube video, blog post, website, RSS feed, or just a topic idea. We work with what you have.",
     icon: Rss,
   },
   {
-    title: "AI Verification",
+    title: "Automatic Quality Review",
     description:
-      "Vision models validate visuals for relevance, quality, consistency, and safety.",
+      "Every visual is automatically reviewed by AI to make sure it matches your story. No more manual checking.",
     icon: Eye,
   },
   {
-    title: "Credit System",
+    title: "Simple Pay-As-You-Go",
     description:
-      "Transparent pay-as-you-go billing with real-time cost estimation before generation.",
+      "See exactly what each video costs before you create it. Start free, upgrade when you're ready.",
     icon: CreditCard,
   },
   {
-    title: "Prompt Versioning",
+    title: "Smart Templates",
     description:
-      "Version-controlled prompt templates with variable interpolation and A/B testing.",
+      "Save your favorite styles and settings as reusable templates. Keep your brand consistent across every video.",
     icon: FileText,
   },
 ];
@@ -181,30 +180,30 @@ export interface HowItWorksStep {
 export const howItWorksSteps: HowItWorksStep[] = [
   {
     step: 1,
-    title: "Import Content",
+    title: "Add Your Content",
     description:
-      "Connect YouTube channels, RSS feeds, or paste any URL. AI extracts and ranks content automatically.",
+      "Paste a YouTube link, share a blog post URL, or just type in a topic. ContentHQ takes it from there.",
     icon: Link,
   },
   {
     step: 2,
-    title: "Configure Pipeline",
+    title: "Choose Your Style",
     description:
-      "Choose your AI providers, voice, visual style, and branding. Use presets or build custom flows.",
-    icon: Settings,
+      "Pick a voice, visual style, and tone — or use one of our ready-made presets to get started fast.",
+    icon: Palette,
   },
   {
     step: 3,
     title: "AI Does the Work",
     description:
-      "Our 7-stage pipeline writes, generates visuals, narrates, and assembles your video automatically.",
-    icon: Cpu,
+      "Our AI writes the script, generates visuals, records the voiceover, and assembles everything into a polished video.",
+    icon: Sparkles,
   },
   {
     step: 4,
     title: "Publish Anywhere",
     description:
-      "Download your polished video or publish directly to YouTube, TikTok, and social platforms.",
+      "Download your finished video or share it directly to YouTube, TikTok, Instagram, and more.",
     icon: Share2,
   },
 ];
@@ -231,8 +230,8 @@ export const pricingTiers: PricingTier[] = [
     features: [
       "50 credits included",
       "3 projects",
-      "All 7 pipeline stages",
-      "2 AI providers",
+      "Full AI video creation",
+      "5 AI voice options",
       "720p video output",
       "Community support",
     ],
@@ -247,8 +246,8 @@ export const pricingTiers: PricingTier[] = [
     features: [
       "500 credits/month",
       "Unlimited projects",
-      "All 7 pipeline stages",
-      "All AI providers",
+      "Full AI video creation",
+      "50+ AI voice options",
       "1080p video output",
       "Voice cloning",
       "Email support",
@@ -264,10 +263,10 @@ export const pricingTiers: PricingTier[] = [
     features: [
       "2,500 credits/month",
       "Unlimited projects",
-      "Visual Flow Builder",
-      "All AI & TTS providers",
+      "Custom workflows",
+      "All AI & voice options",
       "4K video output",
-      "Custom personas & prompts",
+      "Brand templates & presets",
       "Priority processing",
       "Priority support",
     ],
@@ -287,7 +286,7 @@ export const pricingTiers: PricingTier[] = [
       "Custom AI model training",
       "SLA guarantee",
       "Dedicated success manager",
-      "SSO & SAML",
+      "Single sign-on (SSO)",
       "Custom integrations",
     ],
     cta: "Talk to Sales",
@@ -302,44 +301,44 @@ export interface FAQItem {
 
 export const faqItems: FAQItem[] = [
   {
-    question: "What is the AI content pipeline?",
+    question: "How does ContentHQ create videos?",
     answer:
-      "ContentHQ uses a 7-stage automated pipeline to transform raw content into polished videos. It handles ingestion, story writing, scene generation, visual creation, quality verification, audio layering, and final assembly — all powered by AI.",
+      "ContentHQ uses AI to handle every step of video creation. You provide the content — a link, article, or topic — and our platform writes the script, generates visuals, adds a natural voiceover, mixes in background music, and delivers a polished, ready-to-publish video.",
   },
   {
-    question: "Which AI providers do you support?",
+    question: "What kind of content can I turn into videos?",
     answer:
-      "We support Anthropic (Claude), OpenAI (GPT-4), Google (Gemini), xAI (Grok) for text generation. For images, we use DALL-E, Fal.ai, and Replicate. For TTS, we offer OpenAI, ElevenLabs, Google Cloud, Gemini, Sarvam, and Inworld.",
+      "Almost anything! Paste a YouTube link, share a blog post or article URL, drop in an RSS feed, or simply type a topic idea. ContentHQ extracts the key information and transforms it into an engaging video script automatically.",
   },
   {
     question: "How do credits work?",
     answer:
-      "Credits are consumed when you use AI services. Each action has a transparent cost — you can see the estimated credits before confirming. Free accounts start with 50 credits, and paid plans include monthly credit allowances.",
+      "Credits are consumed when you create videos. You can see the estimated cost before you start — no surprises. Free accounts start with 50 credits, and paid plans include monthly allowances. Credits roll over on paid plans.",
   },
   {
-    question: "Can I use my own API keys?",
+    question: "Do the AI voices sound natural?",
     answer:
-      "Yes! Enterprise plans allow you to bring your own API keys for any supported provider. This gives you full control over costs and rate limits while still using our pipeline infrastructure.",
+      "Yes! We offer 50+ natural-sounding AI voices in over 40 languages. You can preview any voice before using it, adjust speed and tone, and even clone your own voice on paid plans for a truly personal touch.",
   },
   {
     question: "Is my content secure?",
     answer:
-      "Absolutely. ContentHQ uses multi-tenant architecture with complete data isolation. Your content, API keys, and generated assets are encrypted and never shared between accounts.",
+      "Absolutely. Your content, settings, and generated videos are private to your account and never shared. All data is encrypted and stored securely. Enterprise plans include additional compliance and security features.",
   },
   {
     question: "Do you support team collaboration?",
     answer:
-      "Yes. Pro and Enterprise plans support team workspaces with role-based access control, shared projects, and collaborative editing of flows and prompt templates.",
+      "Yes. Pro and Enterprise plans support team workspaces with shared projects, role-based permissions, and collaborative editing. Everyone on your team can create and manage videos together.",
   },
   {
     question: "What video formats and resolutions are supported?",
     answer:
-      "We support MP4, AVI, MOV, and MKV formats. Resolution depends on your plan: Free supports 720p, Starter supports 1080p, Pro supports 4K, and Enterprise supports custom resolutions.",
+      "We export videos in MP4 format, which works everywhere — YouTube, TikTok, Instagram, LinkedIn, and more. Resolution depends on your plan: Free supports 720p, Starter supports 1080p, Pro supports 4K, and Enterprise supports custom resolutions.",
   },
   {
-    question: "Can I customize the visual style of my videos?",
+    question: "Can I customize the look and feel of my videos?",
     answer:
-      "Yes! Use AI personas to define visual styles, create custom prompt templates for consistent branding, and use the Visual Flow Builder for complete pipeline customization.",
+      "Yes! Choose from ready-made style presets or create your own brand templates with custom colors, fonts, and visual styles. Save your settings as reusable templates to keep every video on-brand.",
   },
 ];
 
@@ -358,7 +357,7 @@ export const testimonials: Testimonial[] = [
     role: "Content Director",
     company: "MediaFlow",
     quote:
-      "ContentHQ cut our video production time by 80%. The AI pipeline is incredibly accurate and the quality verification step ensures nothing subpar goes out.",
+      "ContentHQ cut our video production time by 80%. The quality is incredible — every video looks like it was made by a professional editor.",
     initials: "SC",
   },
   {
@@ -366,7 +365,7 @@ export const testimonials: Testimonial[] = [
     role: "Founder",
     company: "CreatorStack",
     quote:
-      "The Visual Flow Builder is a game-changer. We built custom content workflows that would have taken months to develop manually.",
+      "We set up custom workflows in an afternoon and now produce 10x more content. It's like having an entire video production team on autopilot.",
     initials: "MR",
   },
   {
@@ -374,7 +373,7 @@ export const testimonials: Testimonial[] = [
     role: "Head of Marketing",
     company: "GrowthLabs",
     quote:
-      "Six TTS providers in one platform means we always find the perfect voice. The multi-language support has been essential for our global campaigns.",
+      "The AI voices sound incredibly natural. We run campaigns in 12 languages now — something that was completely impossible before ContentHQ.",
     initials: "EW",
   },
   {
@@ -387,10 +386,10 @@ export const testimonials: Testimonial[] = [
   },
   {
     name: "Priya Patel",
-    role: "Product Manager",
-    company: "ScaleUp AI",
+    role: "Online Educator",
+    company: "LearnWith Priya",
     quote:
-      "The multi-provider AI failover means zero downtime. We've never missed a deadline since switching to ContentHQ.",
+      "As a teacher, I needed something simple. I type my lesson topic and get a professional video back in five minutes. My students love it.",
     initials: "PP",
   },
 ];
@@ -402,19 +401,19 @@ export interface Stat {
 }
 
 export const heroStats: Stat[] = [
-  { value: "7", label: "Pipeline Stages" },
-  { value: "6", label: "TTS Providers" },
-  { value: "5+", label: "LLM Providers" },
-  { value: "<5 min", label: "Avg. Generation" },
+  { value: "10K+", label: "Videos Created" },
+  { value: "40+", label: "Languages" },
+  { value: "<5 min", label: "Per Video" },
+  { value: "500+", label: "Happy Creators" },
 ];
 
 export const tickerStats: Stat[] = [
-  { value: "10K+", label: "Videos Generated" },
-  { value: "500+", label: "Active Creators" },
+  { value: "10K+", label: "Videos Created" },
+  { value: "500+", label: "Happy Creators" },
   { value: "99.9%", label: "Uptime" },
-  { value: "7", label: "AI Pipeline Stages" },
-  { value: "6", label: "TTS Providers" },
-  { value: "5+", label: "LLM Providers" },
+  { value: "50+", label: "Natural AI Voices" },
+  { value: "<5 min", label: "Average Video Time" },
+  { value: "24/7", label: "Always Available" },
   { value: "4K", label: "Max Resolution" },
   { value: "40+", label: "Languages" },
 ];
@@ -430,34 +429,29 @@ export const trustedCompanies: TrustedCompany[] = [
   { name: "CreatorStack", initials: "CS" },
   { name: "GrowthLabs", initials: "GL" },
   { name: "NexGen Media", initials: "NM" },
-  { name: "ScaleUp AI", initials: "SA" },
+  { name: "LearnWith Priya", initials: "LP" },
   { name: "ContentPro", initials: "CP" },
 ];
 
 // --- Integrations ---
 export interface Integration {
   name: string;
-  category: "ai" | "tts" | "source";
+  category: "ai" | "source" | "publish";
   abbreviation: string;
 }
 
 export const integrations: Integration[] = [
-  { name: "Anthropic", category: "ai", abbreviation: "An" },
+  { name: "YouTube", category: "source", abbreviation: "YT" },
+  { name: "Blog Posts", category: "source", abbreviation: "BP" },
+  { name: "RSS Feeds", category: "source", abbreviation: "RS" },
+  { name: "Any Website", category: "source", abbreviation: "WB" },
+  { name: "YouTube", category: "publish", abbreviation: "YT" },
+  { name: "TikTok", category: "publish", abbreviation: "TT" },
+  { name: "Instagram", category: "publish", abbreviation: "IG" },
+  { name: "LinkedIn", category: "publish", abbreviation: "LI" },
   { name: "OpenAI", category: "ai", abbreviation: "OA" },
   { name: "Google AI", category: "ai", abbreviation: "Go" },
-  { name: "xAI", category: "ai", abbreviation: "xA" },
-  { name: "Fal.ai", category: "ai", abbreviation: "Fa" },
-  { name: "Replicate", category: "ai", abbreviation: "Re" },
-  { name: "OpenAI TTS", category: "tts", abbreviation: "OT" },
-  { name: "ElevenLabs", category: "tts", abbreviation: "EL" },
-  { name: "Google Cloud", category: "tts", abbreviation: "GC" },
-  { name: "Gemini TTS", category: "tts", abbreviation: "GT" },
-  { name: "Sarvam AI", category: "tts", abbreviation: "Sv" },
-  { name: "Inworld", category: "tts", abbreviation: "IW" },
-  { name: "YouTube", category: "source", abbreviation: "YT" },
-  { name: "RSS Feeds", category: "source", abbreviation: "RS" },
-  { name: "URL Import", category: "source", abbreviation: "UR" },
-  { name: "Topics", category: "source", abbreviation: "Tp" },
+  { name: "ElevenLabs", category: "ai", abbreviation: "EL" },
 ];
 
 // --- Media Studio bullets ---
@@ -469,18 +463,18 @@ export interface MediaStudioBullet {
 
 export const mediaStudioBullets: MediaStudioBullet[] = [
   {
-    title: "Multi-Turn Conversations",
-    description: "Refine outputs with AI conversations, not one-shot prompts.",
+    title: "Chat to Create",
+    description: "Describe what you want and refine it through conversation — not one-shot prompts.",
     icon: Bot,
   },
   {
-    title: "Real-Time Cost Estimation",
+    title: "Know the Cost Upfront",
     description:
       "See credit costs before generating. No surprise bills.",
     icon: CreditCard,
   },
   {
-    title: "Smart Prompt Suggestions",
+    title: "AI-Powered Suggestions",
     description:
       "AI suggests improvements to get better results on every generation.",
     icon: Lightbulb,

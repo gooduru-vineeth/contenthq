@@ -6,19 +6,19 @@ import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
 
 const categories = [
   {
-    key: "ai" as const,
-    label: "AI Providers",
-    gradient: "from-brand-600 to-brand-700",
+    key: "source" as const,
+    label: "Import From",
+    gradient: "from-cta-500 to-cta-600",
   },
   {
-    key: "tts" as const,
-    label: "TTS Providers",
+    key: "publish" as const,
+    label: "Publish To",
     gradient: "from-brand-400 to-brand-500",
   },
   {
-    key: "source" as const,
-    label: "Content Sources",
-    gradient: "from-cta-500 to-cta-600",
+    key: "ai" as const,
+    label: "Powered By",
+    gradient: "from-brand-600 to-brand-700",
   },
 ];
 
@@ -38,12 +38,12 @@ export function IntegrationsSection() {
             Integrations
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-            Powered by the{" "}
-            <span className="text-gradient-landing">Best Providers</span>
+            Works With the Tools{" "}
+            <span className="text-gradient-landing">You Already Use</span>
           </h2>
           <p className="mx-auto max-w-2xl text-muted-foreground">
-            Multi-provider architecture with automatic failover — always get
-            results.
+            Import from your favorite platforms and publish everywhere your
+            audience lives.
           </p>
         </motion.div>
 
@@ -58,7 +58,7 @@ export function IntegrationsSection() {
                   .filter((i) => i.category === cat.key)
                   .map((integration, idx) => (
                     <motion.div
-                      key={integration.name}
+                      key={`${integration.name}-${integration.category}`}
                       initial={
                         prefersReducedMotion
                           ? undefined

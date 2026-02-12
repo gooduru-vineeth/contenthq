@@ -35,7 +35,7 @@ export function PipelineCanvas3D({
     <div ref={containerRef} className="h-[420px] w-full">
       {isInView && (
         <Canvas
-          camera={{ position: [0, 0, 12], fov: 50 }}
+          camera={{ position: [0, 0.3, 10], fov: 50 }}
           gl={{ alpha: true, antialias: true }}
           dpr={[1, 1.5]}
           style={{ background: "transparent" }}

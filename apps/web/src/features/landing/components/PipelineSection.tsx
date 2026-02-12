@@ -27,7 +27,7 @@ export function PipelineSection() {
 
   useEffect(() => {
     if (isPaused || prefersReducedMotion) return;
-    const timer = setInterval(advance, 3000);
+    const timer = setInterval(advance, 4000);
     return () => clearInterval(timer);
   }, [isPaused, prefersReducedMotion, advance]);
 
@@ -47,14 +47,15 @@ export function PipelineSection() {
           className="mb-12 text-center"
         >
           <span className="mb-3 inline-block rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
-            7-Stage Pipeline
+            How It Works
           </span>
           <h2 className="mb-3 text-3xl font-bold tracking-tight sm:text-4xl">
-            From Raw Content to{" "}
-            <span className="text-gradient-landing">Polished Video</span>
+            Your AI Video Team,{" "}
+            <span className="text-gradient-landing">Working for You</span>
           </h2>
-          <p className="mx-auto max-w-xl text-sm text-muted-foreground">
-            Every stage automated, verified, and optimized by AI.
+          <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
+            From a simple idea to a finished video — our AI handles every step
+            so you can focus on what matters.
           </p>
         </motion.div>
 

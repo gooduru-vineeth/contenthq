@@ -12,10 +12,10 @@ import {
 } from "lucide-react";
 
 const stages = [
-  { label: "Ingestion", icon: Download, status: "done" as const },
-  { label: "Story Writing", icon: Pencil, status: "done" as const },
-  { label: "Visual Gen", icon: Image, status: "active" as const },
-  { label: "Assembly", icon: Film, status: "pending" as const },
+  { label: "Importing content", icon: Download, status: "done" as const },
+  { label: "Writing script", icon: Pencil, status: "done" as const },
+  { label: "Creating visuals", icon: Image, status: "active" as const },
+  { label: "Building video", icon: Film, status: "pending" as const },
 ];
 
 export function FloatingCard() {
@@ -38,7 +38,7 @@ export function FloatingCard() {
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-cta-400" />
             <span className="text-sm font-semibold text-white">
-              AI Content Pipeline
+              Your Video, In Progress
             </span>
           </div>
           <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
@@ -159,7 +159,7 @@ export function FloatingCard() {
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
           </div>
           <span className="whitespace-nowrap text-xs font-medium text-white/80">
-            Video exported
+            Ready to publish
           </span>
         </div>
       </motion.div>
@@ -180,7 +180,7 @@ export function FloatingCard() {
             <Sparkles className="h-3.5 w-3.5 text-brand-400" />
           </div>
           <span className="whitespace-nowrap text-xs font-medium text-white/80">
-            5+ AI providers
+            AI-powered
           </span>
         </div>
       </motion.div>

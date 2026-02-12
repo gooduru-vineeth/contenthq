@@ -28,7 +28,7 @@ export function HowItWorksSection() {
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
             Four Steps to{" "}
-            <span className="text-gradient-landing">Automated Content</span>
+            <span className="text-gradient-landing">Your First Video</span>
           </h2>
           <p className="mx-auto max-w-2xl text-muted-foreground">
             Get started in minutes. No video editing experience required.

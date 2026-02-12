@@ -48,7 +48,7 @@ export function TestimonialsSection() {
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
             Loved by{" "}
-            <span className="text-gradient-landing">Content Creators</span>
+            <span className="text-gradient-landing">Creators Everywhere</span>
           </h2>
         </motion.div>
 

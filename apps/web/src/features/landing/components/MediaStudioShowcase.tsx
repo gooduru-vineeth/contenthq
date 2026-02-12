@@ -33,7 +33,7 @@ export function MediaStudioShowcase() {
   }
 
   return (
-    <section className="py-24 bg-muted/30">
+    <section id="media-studio" className="py-24 bg-muted/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           {/* Left - text */}
@@ -43,7 +43,7 @@ export function MediaStudioShowcase() {
             viewport={{ once: true }}
           >
             <span className="mb-3 inline-block rounded-full border border-cta-200 bg-cta-50 px-3 py-1 text-xs font-medium text-cta-700 dark:border-cta-800 dark:bg-cta-950/50 dark:text-cta-300">
-              Media Studio
+              Creative Studio
             </span>
             <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
               Create with AI,{" "}
@@ -52,8 +52,8 @@ export function MediaStudioShowcase() {
               </span>
             </h2>
             <p className="mb-8 text-muted-foreground">
-              Our Media Generation Studio lets you iterate with AI through
-              multi-turn conversations — not just one-shot prompts.
+              Describe what you want, and our AI creates it. Then keep chatting
+              to refine every detail until it&apos;s exactly right.
             </p>
             <div className="space-y-5">
               {mediaStudioBullets.map((bullet) => {
@@ -123,8 +123,8 @@ export function MediaStudioShowcase() {
                         <Sparkles className="h-3 w-3" />
                         <span className="font-medium">AI</span>
                       </div>
-                      Generated with DALL-E 3. Shall I adjust the lighting or
-                      add atmospheric fog?
+                      Done! Want me to adjust the lighting or add some
+                      atmospheric fog?
                     </div>
                     <div className="rounded-lg bg-muted/60 p-2.5 text-xs text-muted-foreground">
                       Add atmospheric fog and make the sky more dramatic
@@ -144,7 +144,7 @@ export function MediaStudioShowcase() {
                     </div>
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>DALL-E 3</span>
+                    <span>AI Generated</span>
                     <span>4 credits</span>
                   </div>
                 </div>

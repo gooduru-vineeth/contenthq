@@ -55,7 +55,7 @@ export default function FlowExecutionsPage() {
   const getStatusBadge = (status: string) => {
     const configs: Record<
       string,
-      { variant: "default" | "secondary" | "outline" | "destructive"; icon: React.ElementType }
+      { variant: "default" | "secondary" | "outline" | "destructive"; icon: React.ComponentType<{ className?: string }> }
     > = {
       pending: { variant: "secondary", icon: Clock },
       running: { variant: "default", icon: Loader2 },

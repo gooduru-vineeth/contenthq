@@ -14,6 +14,11 @@ export function middleware(request: NextRequest) {
   const isAuthPage =
     pathname.startsWith("/login") || pathname.startsWith("/register");
 
+  // Redirect authenticated users from landing page to dashboard
+  if (sessionCookie && pathname === "/") {
+    return NextResponse.redirect(new URL("/projects", request.url));
+  }
+
   // Allow public routes without authentication
   if (isPublicRoute && !isAuthPage) {
     return NextResponse.next();
@@ -33,5 +38,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api|auth|trpc|health|_next|favicon.ico).*)"],
 };

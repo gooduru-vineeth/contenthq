@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +20,6 @@ type RegisterInput = z.infer<typeof registerSchema>;
 
 export function RegisterForm() {
   const [error, setError] = useState("");
-  const router = useRouter();
 
   const form = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -47,8 +45,9 @@ export function RegisterForm() {
         return;
       }
 
-      router.push("/projects");
-      router.refresh();
+      // Full page redirect to ensure cookies are sent with the request
+      // eslint-disable-next-line react-hooks/immutability
+      window.location.href = "/projects";
     } catch {
       setError("An unexpected error occurred");
     }

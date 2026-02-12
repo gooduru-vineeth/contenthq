@@ -10,7 +10,7 @@ import type { FlowNodeType } from "@contenthq/shared";
 interface NodeTypeDefinition {
   type: FlowNodeType;
   label: string;
-  icon: React.ElementType;
+  icon: React.ComponentType<{ className?: string }>;
   color: string;
 }
 

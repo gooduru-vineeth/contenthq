@@ -7,15 +7,15 @@ import { Button } from "@/components/ui/button";
 const footerLinks = {
   Product: [
     { label: "Features", href: "#features" },
-    { label: "Pipeline", href: "#pipeline" },
+    { label: "How It Works", href: "#pipeline" },
     { label: "Pricing", href: "#pricing" },
-    { label: "Integrations", href: "#integrations" },
+    { label: "Examples", href: "#media-studio" },
   ],
   Resources: [
-    { label: "Documentation", href: "#" },
-    { label: "API Reference", href: "#" },
+    { label: "Help Center", href: "#" },
     { label: "Blog", href: "#" },
     { label: "Changelog", href: "#" },
+    { label: "Tutorials", href: "#" },
   ],
   Company: [
     { label: "About", href: "#" },
@@ -47,8 +47,8 @@ export function LandingFooter() {
               </span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">
-              AI-powered content generation platform. Transform raw content into
-              polished videos with our 7-stage automated pipeline.
+              AI-powered content generation platform. Turn your ideas, articles,
+              and content into professional videos in minutes.
             </p>
           </div>
 

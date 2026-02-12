@@ -2,10 +2,10 @@ import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { VideoAssemblyJobData } from "@contenthq/queue";
 import { db } from "@contenthq/db/client";
-import { projects, scenes, sceneVideos, sceneAudioMixes, generationJobs } from "@contenthq/db/schema";
+import { projects, scenes, sceneVideos, sceneVisuals, sceneAudioMixes, generationJobs } from "@contenthq/db/schema";
 import { eq, and, inArray, asc } from "drizzle-orm";
 import { videoService } from "@contenthq/video";
-import { storage, getOutputPath, getVideoContentType } from "@contenthq/storage";
+import { storage, getOutputPath, getSceneVideoPath, getVideoContentType } from "@contenthq/storage";
 
 export function createVideoAssemblyWorker(): Worker {
   return new Worker<VideoAssemblyJobData>(
@@ -58,24 +58,87 @@ export function createVideoAssemblyWorker(): Worker {
             .from(sceneAudioMixes)
             .where(eq(sceneAudioMixes.sceneId, scene.id));
 
-          if (!video?.videoUrl || !audio?.mixedAudioUrl) {
-            console.warn(`[VideoAssembly] Skipping scene ${scene.id}: missing video or audio`);
+          if (!audio?.mixedAudioUrl) {
+            console.warn(`[VideoAssembly] Skipping scene ${scene.id}: missing audio`);
             continue;
           }
 
-          console.warn(`[VideoAssembly] Downloading media for scene ${scene.id}`);
-          const videoResponse = await fetch(video.videoUrl);
-          const audioResponse = await fetch(audio.mixedAudioUrl);
+          let videoUrl = video?.videoUrl ?? null;
+          let videoBuffer: Buffer | null = null;
 
-          if (!videoResponse.ok || !audioResponse.ok) {
-            console.warn(`[VideoAssembly] Failed to download media for scene ${scene.id}`);
+          // Fallback: generate video from scene image when videoUrl is missing
+          // This handles the path where enableVideoGeneration is false and the
+          // video generation stage was skipped.
+          if (!videoUrl) {
+            const [visual] = await db
+              .select()
+              .from(sceneVisuals)
+              .where(eq(sceneVisuals.sceneId, scene.id));
+
+            if (!visual?.imageUrl) {
+              console.warn(`[VideoAssembly] Skipping scene ${scene.id}: no video or image available`);
+              continue;
+            }
+
+            console.warn(`[VideoAssembly] Generating video from image for scene ${scene.id}`);
+            const duration = scene.duration ?? 5;
+            const videoResult = await videoService.generateSceneVideo({
+              imageUrl: visual.imageUrl,
+              duration,
+              width: 1920,
+              height: 1080,
+            });
+
+            // Upload generated video to R2
+            const videoKey = getSceneVideoPath(userId, projectId, scene.id, `video.${videoResult.format}`);
+            const uploadResult = await storage.uploadFileWithRetry(
+              videoKey,
+              videoResult.videoBuffer,
+              getVideoContentType(videoResult.format),
+            );
+            videoUrl = uploadResult.url;
+            videoBuffer = videoResult.videoBuffer;
+
+            // Update or insert sceneVideos record with the generated videoUrl
+            if (video) {
+              await db
+                .update(sceneVideos)
+                .set({ videoUrl, storageKey: videoKey, duration, updatedAt: new Date() })
+                .where(eq(sceneVideos.id, video.id));
+            } else {
+              await db.insert(sceneVideos).values({
+                sceneId: scene.id,
+                videoUrl,
+                storageKey: videoKey,
+                duration,
+              });
+            }
+
+            console.warn(`[VideoAssembly] Generated fallback video for scene ${scene.id}: key=${videoKey}`);
+          }
+
+          console.warn(`[VideoAssembly] Downloading media for scene ${scene.id}`);
+
+          // Download video (skip if we already have the buffer from generation)
+          if (!videoBuffer) {
+            const videoResponse = await fetch(videoUrl);
+            if (!videoResponse.ok) {
+              console.warn(`[VideoAssembly] Failed to download video for scene ${scene.id}`);
+              continue;
+            }
+            videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+          }
+
+          const audioResponse = await fetch(audio.mixedAudioUrl);
+          if (!audioResponse.ok) {
+            console.warn(`[VideoAssembly] Failed to download audio for scene ${scene.id}`);
             continue;
           }
 
           assemblyScenes.push({
-            videoBuffer: Buffer.from(await videoResponse.arrayBuffer()),
+            videoBuffer,
             audioBuffer: Buffer.from(await audioResponse.arrayBuffer()),
-            duration: scene.duration ?? video.duration ?? 5,
+            duration: scene.duration ?? video?.duration ?? 5,
           });
         }
 

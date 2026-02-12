@@ -5,11 +5,11 @@ import { motion } from "framer-motion";
 import {
   Zap,
   Play,
-  Download,
-  GitBranch,
+  Link as LinkIcon,
+  Pencil,
   Mic,
-  Bot,
-  CreditCard,
+  Image,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { heroStats } from "../lib/constants";
@@ -17,12 +17,12 @@ import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
 import { FloatingCard } from "./FloatingCard";
 
 const pills = [
-  { label: "YouTube Ingestion", icon: Download },
-  { label: "7-Stage Pipeline", icon: Zap },
-  { label: "6 TTS Providers", icon: Mic },
-  { label: "Multi-Provider AI", icon: Bot },
-  { label: "Visual Flow Builder", icon: GitBranch },
-  { label: "Credit-Based", icon: CreditCard },
+  { label: "Paste Any Link", icon: LinkIcon },
+  { label: "AI Script Writing", icon: Pencil },
+  { label: "Natural Voiceovers", icon: Mic },
+  { label: "Auto-Generated Visuals", icon: Image },
+  { label: "Ready in Minutes", icon: Zap },
+  { label: "40+ Languages", icon: Globe },
 ];
 
 export function HeroSection() {
@@ -103,33 +103,28 @@ export function HeroSection() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-500" />
             </span>
-            AI-Powered Content Pipeline
+            Trusted by 500+ Creators
           </span>
         </motion.div>
 
         {/* Heading */}
         <motion.h1
           variants={itemVariants}
-          className="mb-6 text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
+          className="mb-6 text-5xl font-extrabold tracking-tighter sm:text-6xl md:text-7xl lg:text-8xl"
         >
-          Transform{" "}
-          <span className="text-gradient-landing">Raw Content</span>
-          <br className="hidden sm:block" /> Into Polished Videos{" "}
-          <br className="hidden sm:block" />
-          with{" "}
-          <span className="bg-gradient-to-r from-cta-500 to-cta-600 bg-clip-text text-transparent">
-            AI
-          </span>
+          Turn Any Idea Into a
+          <br />
+          <span className="text-gradient-landing">Stunning Video</span>
         </motion.h1>
 
         {/* Subtitle */}
         <motion.p
           variants={itemVariants}
-          className="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground sm:text-xl"
+          className="mx-auto mb-8 max-w-3xl text-lg text-muted-foreground sm:text-xl"
         >
-          A 7-stage automated pipeline that ingests content, writes stories,
-          generates visuals, adds narration, and assembles polished videos — all
-          powered by multi-provider AI.
+          Paste a link, type a topic, or upload your content. ContentHQ writes
+          the script, creates the visuals, adds a natural voiceover, and
+          delivers a ready-to-publish video — in minutes, not days.
         </motion.p>
 
         {/* Feature pills */}
@@ -160,7 +155,7 @@ export function HeroSection() {
           >
             <Link href="/register">
               <Zap className="mr-2 h-4 w-4" />
-              Start Free — 50 Credits
+              Start Creating for Free
             </Link>
           </Button>
           <Button
@@ -171,7 +166,7 @@ export function HeroSection() {
           >
             <Link href="#pipeline">
               <Play className="mr-2 h-4 w-4" />
-              Watch Demo
+              See It in Action
             </Link>
           </Button>
         </motion.div>
