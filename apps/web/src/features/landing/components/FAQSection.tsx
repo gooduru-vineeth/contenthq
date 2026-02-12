@@ -22,7 +22,7 @@ export function FAQSection() {
           viewport={{ once: true }}
           className="mb-12 text-center"
         >
-          <span className="mb-3 inline-block rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-300">
+          <span className="mb-3 inline-block rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
             FAQ
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">

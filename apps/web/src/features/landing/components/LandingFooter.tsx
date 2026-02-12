@@ -39,7 +39,7 @@ export function LandingFooter() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-blue-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-700 to-brand-500">
                 <Zap className="h-4 w-4 text-white" />
               </div>
               <span className="text-lg font-bold tracking-tight">
@@ -93,7 +93,7 @@ export function LandingFooter() {
               <Button
                 size="sm"
                 type="submit"
-                className="bg-gradient-to-r from-violet-600 to-blue-600 text-white"
+                className="bg-gradient-to-r from-brand-700 to-brand-500 text-white"
               >
                 Subscribe
               </Button>

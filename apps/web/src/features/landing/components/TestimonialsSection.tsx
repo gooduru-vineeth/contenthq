@@ -43,7 +43,7 @@ export function TestimonialsSection() {
           viewport={{ once: true }}
           className="mb-12 text-center"
         >
-          <span className="mb-3 inline-block rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700 dark:border-green-800 dark:bg-green-950/50 dark:text-green-300">
+          <span className="mb-3 inline-block rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
             Testimonials
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
@@ -75,7 +75,7 @@ export function TestimonialsSection() {
                       {Array.from({ length: 5 }).map((_, j) => (
                         <Star
                           key={j}
-                          className="h-4 w-4 fill-amber-400 text-amber-400"
+                          className="h-4 w-4 fill-cta-400 text-cta-400"
                         />
                       ))}
                     </div>
@@ -83,7 +83,7 @@ export function TestimonialsSection() {
                       &quot;{t.quote}&quot;
                     </p>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500 text-xs font-bold text-white">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-700 to-brand-500 text-xs font-bold text-white">
                         {t.initials}
                       </div>
                       <div>
@@ -116,7 +116,7 @@ export function TestimonialsSection() {
                 {Array.from({ length: 5 }).map((_, j) => (
                   <Star
                     key={j}
-                    className="h-4 w-4 fill-amber-400 text-amber-400"
+                    className="h-4 w-4 fill-cta-400 text-cta-400"
                   />
                 ))}
               </div>
@@ -124,7 +124,7 @@ export function TestimonialsSection() {
                 &quot;{testimonials[current].quote}&quot;
               </p>
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500 text-xs font-bold text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-700 to-brand-500 text-xs font-bold text-white">
                   {testimonials[current].initials}
                 </div>
                 <div>
@@ -154,7 +154,7 @@ export function TestimonialsSection() {
                 onClick={() => setCurrent(i)}
                 className={`h-2 rounded-full transition-all ${
                   i === current
-                    ? "w-6 bg-violet-600"
+                    ? "w-6 bg-brand-600"
                     : "w-2 bg-muted-foreground/20 hover:bg-muted-foreground/40"
                 }`}
               />

@@ -19,7 +19,7 @@ export function PricingSection() {
           viewport={{ once: true }}
           className="mb-16 text-center"
         >
-          <span className="mb-3 inline-block rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+          <span className="mb-3 inline-block rounded-full border border-cta-200 bg-cta-50 px-3 py-1 text-xs font-medium text-cta-700 dark:border-cta-800 dark:bg-cta-950/50 dark:text-cta-300">
             Pricing
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
@@ -43,13 +43,13 @@ export function PricingSection() {
               transition={{ delay: i * 0.08 }}
               className={`relative flex flex-col rounded-xl border p-6 shadow-sm ${
                 tier.popular
-                  ? "border-violet-300 bg-gradient-to-b from-violet-50/50 to-background shadow-lg ring-1 ring-violet-200 dark:border-violet-700 dark:from-violet-950/30 dark:ring-violet-800"
+                  ? "border-brand-300 bg-gradient-to-b from-brand-50/50 to-background shadow-lg ring-1 ring-brand-200 dark:border-brand-700 dark:from-brand-950/30 dark:ring-brand-800"
                   : "bg-card"
               }`}
             >
               {tier.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-violet-600 to-blue-600 px-3 py-1 text-xs font-semibold text-white">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-brand-700 to-brand-500 px-3 py-1 text-xs font-semibold text-white">
                     <Sparkles className="h-3 w-3" />
                     Most Popular
                   </span>
@@ -69,7 +69,7 @@ export function PricingSection() {
                     </span>
                   )}
                 </div>
-                <p className="mt-2 text-sm font-medium text-violet-600 dark:text-violet-400">
+                <p className="mt-2 text-sm font-medium text-brand-600 dark:text-brand-400">
                   {tier.credits}
                 </p>
               </div>
@@ -88,7 +88,7 @@ export function PricingSection() {
               <Button
                 className={
                   tier.popular
-                    ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md hover:from-amber-600 hover:to-orange-600"
+                    ? "bg-gradient-to-r from-cta-500 to-cta-600 text-white shadow-md hover:from-cta-600 hover:to-cta-700"
                     : ""
                 }
                 variant={tier.popular ? "default" : "outline"}

@@ -64,7 +64,7 @@ export function HeroSection() {
             <motion.div
               animate={{ y: [0, -30, 0], x: [0, 15, 0] }}
               transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-violet-500/10 blur-3xl"
+              className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-brand-500/10 blur-3xl"
             />
             <motion.div
               animate={{ y: [0, 20, 0], x: [0, -20, 0] }}
@@ -74,7 +74,7 @@ export function HeroSection() {
                 ease: "easeInOut",
                 delay: 1,
               }}
-              className="absolute -top-16 -right-32 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl"
+              className="absolute -top-16 -right-32 h-96 w-96 rounded-full bg-brand-400/10 blur-3xl"
             />
             <motion.div
               animate={{ y: [0, -15, 0] }}
@@ -84,7 +84,7 @@ export function HeroSection() {
                 ease: "easeInOut",
                 delay: 2,
               }}
-              className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl"
+              className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-brand-600/10 blur-3xl"
             />
           </>
         )}
@@ -98,10 +98,10 @@ export function HeroSection() {
       >
         {/* Badge */}
         <motion.div variants={itemVariants} className="mb-8 inline-flex">
-          <span className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-1.5 text-sm font-medium text-violet-700 dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-300">
+          <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-4 py-1.5 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-500" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-500" />
             </span>
             AI-Powered Content Pipeline
           </span>
@@ -117,7 +117,7 @@ export function HeroSection() {
           <br className="hidden sm:block" /> Into Polished Videos{" "}
           <br className="hidden sm:block" />
           with{" "}
-          <span className="bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-cta-500 to-cta-600 bg-clip-text text-transparent">
             AI
           </span>
         </motion.h1>
@@ -155,7 +155,7 @@ export function HeroSection() {
         >
           <Button
             size="lg"
-            className="bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 hover:from-amber-600 hover:to-orange-600"
+            className="bg-gradient-to-r from-cta-500 to-cta-600 text-white shadow-lg shadow-cta-500/25 hover:from-cta-600 hover:to-cta-700"
             asChild
           >
             <Link href="/register">
@@ -176,7 +176,7 @@ export function HeroSection() {
           </Button>
         </motion.div>
 
-        {/* Three.js Floating Card */}
+        {/* Floating Pipeline Card */}
         <motion.div variants={itemVariants} className="mb-12">
           <FloatingCard />
         </motion.div>

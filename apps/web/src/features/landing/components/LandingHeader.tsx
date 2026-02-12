@@ -40,7 +40,7 @@ export function LandingHeader() {
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-blue-600">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-brand-500">
             <Zap className="h-4 w-4 text-white" />
           </div>
           <span className="text-lg font-bold tracking-tight">ContentHQ</span>
@@ -66,7 +66,7 @@ export function LandingHeader() {
           </Button>
           <Button
             size="sm"
-            className="bg-gradient-to-r from-violet-600 to-blue-600 text-white shadow-md hover:from-violet-700 hover:to-blue-700"
+            className="bg-gradient-to-r from-brand-700 to-brand-500 text-white shadow-md hover:from-brand-800 hover:to-brand-600"
             asChild
           >
             <Link href="/register">Get Started Free</Link>
@@ -84,7 +84,7 @@ export function LandingHeader() {
           <SheetContent side="right" className="w-72">
             <SheetHeader>
               <SheetTitle className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-blue-600">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-brand-500">
                   <Zap className="h-3.5 w-3.5 text-white" />
                 </div>
                 ContentHQ
@@ -108,7 +108,7 @@ export function LandingHeader() {
                 </Link>
               </Button>
               <Button
-                className="mt-1 bg-gradient-to-r from-violet-600 to-blue-600 text-white"
+                className="mt-1 bg-gradient-to-r from-brand-700 to-brand-500 text-white"
                 asChild
               >
                 <Link href="/register" onClick={() => setOpen(false)}>

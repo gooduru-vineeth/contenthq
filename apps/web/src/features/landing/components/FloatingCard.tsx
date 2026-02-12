@@ -22,21 +22,21 @@ export function FloatingCard() {
   return (
     <div className="relative mx-auto w-full max-w-lg">
       {/* Glow behind the card */}
-      <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-violet-500/20 via-indigo-500/20 to-blue-500/20 blur-2xl" />
+      <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-brand-600/20 via-brand-500/20 to-brand-400/20 blur-2xl" />
 
       {/* Main card */}
       <motion.div
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-        className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 shadow-2xl shadow-violet-500/10"
+        className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 shadow-2xl shadow-brand-500/10"
       >
         {/* Decorative gradient bar */}
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-indigo-500 to-amber-500" />
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-600 via-brand-500 to-cta-500" />
 
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-amber-400" />
+            <Sparkles className="h-4 w-4 text-cta-400" />
             <span className="text-sm font-semibold text-white">
               AI Content Pipeline
             </span>
@@ -55,7 +55,7 @@ export function FloatingCard() {
                   stage.status === "done"
                     ? "bg-emerald-500/15 text-emerald-400"
                     : stage.status === "active"
-                      ? "bg-violet-500/15 text-violet-400"
+                      ? "bg-brand-500/15 text-brand-400"
                       : "bg-white/5 text-white/30"
                 }`}
               >
@@ -92,7 +92,7 @@ export function FloatingCard() {
                       stage.status === "done"
                         ? "text-emerald-400"
                         : stage.status === "active"
-                          ? "text-violet-400"
+                          ? "text-brand-400"
                           : "text-white/30"
                     }`}
                   >
@@ -110,7 +110,7 @@ export function FloatingCard() {
                       stage.status === "done"
                         ? "bg-emerald-500"
                         : stage.status === "active"
-                          ? "bg-violet-500"
+                          ? "bg-brand-500"
                           : "bg-transparent"
                     }`}
                     initial={{ width: "0%" }}
@@ -136,8 +136,8 @@ export function FloatingCard() {
             <span className="font-medium text-white/70">3 of 4</span> stages
             complete
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-amber-400">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+          <div className="flex items-center gap-1.5 text-xs text-cta-400">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-cta-400 animate-pulse" />
             ETA: 2 min
           </div>
         </div>
@@ -176,8 +176,8 @@ export function FloatingCard() {
         className="absolute -bottom-3 -left-4 rounded-xl border border-white/10 bg-slate-900/90 px-3 py-2 shadow-lg backdrop-blur-sm sm:-left-10"
       >
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-violet-500/15">
-            <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-brand-500/15">
+            <Sparkles className="h-3.5 w-3.5 text-brand-400" />
           </div>
           <span className="whitespace-nowrap text-xs font-medium text-white/80">
             5+ AI providers

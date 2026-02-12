@@ -41,6 +41,7 @@ export interface PipelineStage {
   name: string;
   description: string;
   detail: string;
+  tagline: string;
   icon: LucideIcon;
   color: string;
 }
@@ -51,56 +52,63 @@ export const pipelineStages: PipelineStage[] = [
     description: "Import content from any source",
     detail:
       "Pull content from YouTube, RSS feeds, URLs, or generate from topics. AI ranks by engagement score.",
+    tagline: "Pull from any source",
     icon: Download,
-    color: "#6D28D9",
+    color: "#0D1A63",
   },
   {
     name: "Story Writing",
     description: "AI crafts your narrative",
     detail:
       "Claude or GPT-4 generates structured narratives with scene breakdowns and audience targeting.",
+    tagline: "AI crafts the narrative",
     icon: Pencil,
-    color: "#7C3AED",
+    color: "#1A2CA3",
   },
   {
     name: "Scene Generation",
     description: "Break into visual scenes",
     detail:
       "Stories split into scenes with descriptions, narration text, and motion instructions.",
+    tagline: "Scenes take shape",
     icon: Layers,
-    color: "#8B5CF6",
+    color: "#2845D6",
   },
   {
     name: "Visual Generation",
     description: "Create stunning visuals",
     detail:
       "Multi-provider image and video generation with DALL-E, Fal.ai, Replicate, and more.",
+    tagline: "Visuals come alive",
     icon: Image,
-    color: "#A78BFA",
+    color: "#4F6FE4",
   },
   {
     name: "Visual Verification",
     description: "AI quality assurance",
     detail:
       "Vision models validate visuals for relevance, quality, consistency, and safety. Auto-retry if score <60%.",
+    tagline: "Quality guaranteed",
     icon: ShieldCheck,
-    color: "#2563EB",
+    color: "#3A5ADC",
   },
   {
     name: "Audio Layering",
     description: "Add voice and music",
     detail:
       "Generate TTS narration from 6 providers, mix with background music using intelligent audio ducking.",
+    tagline: "Voice meets music",
     icon: Music,
-    color: "#3B82F6",
+    color: "#6585E8",
   },
   {
     name: "Assembly",
     description: "Final video output",
     detail:
       "Combine video timeline with mixed audio, add captions and branding for the final polished video.",
+    tagline: "Final cut, delivered",
     icon: Film,
-    color: "#60A5FA",
+    color: "#8199ED",
   },
 ];
 

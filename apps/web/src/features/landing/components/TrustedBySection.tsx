@@ -26,7 +26,7 @@ export function TrustedBySection() {
               whileHover={{ y: -4 }}
               className="flex items-center gap-2.5 rounded-lg border bg-card px-4 py-2.5 shadow-sm transition-shadow hover:shadow-md"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-violet-500 to-blue-500 text-xs font-bold text-white">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-brand-700 to-brand-500 text-xs font-bold text-white">
                 {company.initials}
               </div>
               <span className="whitespace-nowrap text-sm font-medium">{company.name}</span>

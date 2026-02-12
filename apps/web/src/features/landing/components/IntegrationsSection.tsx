@@ -8,17 +8,17 @@ const categories = [
   {
     key: "ai" as const,
     label: "AI Providers",
-    gradient: "from-violet-500 to-purple-600",
+    gradient: "from-brand-600 to-brand-700",
   },
   {
     key: "tts" as const,
     label: "TTS Providers",
-    gradient: "from-blue-500 to-cyan-500",
+    gradient: "from-brand-400 to-brand-500",
   },
   {
     key: "source" as const,
     label: "Content Sources",
-    gradient: "from-amber-500 to-orange-500",
+    gradient: "from-cta-500 to-cta-600",
   },
 ];
 
@@ -34,7 +34,7 @@ export function IntegrationsSection() {
           viewport={{ once: true }}
           className="mb-16 text-center"
         >
-          <span className="mb-3 inline-block rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700 dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-300">
+          <span className="mb-3 inline-block rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
             Integrations
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
