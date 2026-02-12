@@ -33,6 +33,7 @@ export function createStoryWritingWorker(): Worker {
     QUEUE_NAMES.STORY_WRITING,
     async (job) => {
       const { projectId, userId, tone, targetDuration, agentId } = job.data;
+      const startedAt = new Date();
       console.warn(`[StoryWriting] Processing job ${job.id} for project ${projectId}`);
 
       try {
@@ -51,7 +52,7 @@ export function createStoryWritingWorker(): Worker {
         // Update project status
         await db
           .update(projects)
-          .set({ status: "writing", progressPercent: 15, updatedAt: new Date() })
+          .set({ status: "writing", progressPercent: 12, updatedAt: new Date() })
           .where(eq(projects.id, projectId));
 
         await job.updateProgress(10);
@@ -115,32 +116,35 @@ export function createStoryWritingWorker(): Worker {
 
         await job.updateProgress(70);
 
-        // Store story
-        const [story] = await db
-          .insert(stories)
-          .values({
-            projectId,
-            title: storyData.title,
-            hook: storyData.hook,
-            synopsis: storyData.synopsis,
-            narrativeArc: storyData.narrativeArc,
-            sceneCount: storyData.scenes.length,
-            aiModelUsed: usedModel,
-          })
-          .returning();
+        // Store story and scenes in a transaction
+        const story = await db.transaction(async (tx) => {
+          const [s] = await tx
+            .insert(stories)
+            .values({
+              projectId,
+              title: storyData.title,
+              hook: storyData.hook,
+              synopsis: storyData.synopsis,
+              narrativeArc: storyData.narrativeArc,
+              sceneCount: storyData.scenes.length,
+              aiModelUsed: usedModel,
+            })
+            .returning();
 
-        // Store scenes
-        for (const sceneData of storyData.scenes) {
-          await db.insert(scenes).values({
-            storyId: story.id,
-            projectId,
-            index: sceneData.index,
-            visualDescription: sceneData.visualDescription,
-            narrationScript: sceneData.narrationScript,
-            duration: sceneData.duration,
-            status: "outlined",
-          });
-        }
+          for (const sceneData of storyData.scenes) {
+            await tx.insert(scenes).values({
+              storyId: s.id,
+              projectId,
+              index: sceneData.index,
+              visualDescription: sceneData.visualDescription,
+              narrationScript: sceneData.narrationScript,
+              duration: sceneData.duration,
+              status: "outlined",
+            });
+          }
+
+          return s;
+        });
 
         // Track prompt usage in ai_generations (only for non-agent path, agent executor records its own)
         if (!agentId && composedPrompt) {
@@ -163,6 +167,7 @@ export function createStoryWritingWorker(): Worker {
           .set({ status: "generating_scenes", progressPercent: 25, updatedAt: new Date() })
           .where(eq(projects.id, projectId));
 
+        const completedAt = new Date();
         console.warn(
           `[StoryWriting] Completed: "${storyData.title}" with ${storyData.scenes.length} scenes`
         );
@@ -173,7 +178,18 @@ export function createStoryWritingWorker(): Worker {
           .set({
             status: "completed",
             progressPercent: 100,
-            result: { storyId: story.id, sceneCount: storyData.scenes.length },
+            result: {
+              storyId: story.id,
+              sceneCount: storyData.scenes.length,
+              log: {
+                stage: "STORY_WRITING",
+                status: "completed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                details: `Generated "${storyData.title}" with ${storyData.scenes.length} scenes`,
+              },
+            },
             updatedAt: new Date(),
           })
           .where(
@@ -189,12 +205,27 @@ export function createStoryWritingWorker(): Worker {
 
         return { success: true, storyId: story.id, sceneCount: storyData.scenes.length };
       } catch (error) {
+        const completedAt = new Date();
+        const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[StoryWriting] Failed for project ${projectId}:`, error);
 
         // Mark generationJob as failed
         await db
           .update(generationJobs)
-          .set({ status: "failed", updatedAt: new Date() })
+          .set({
+            status: "failed",
+            result: {
+              log: {
+                stage: "STORY_WRITING",
+                status: "failed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                error: errorMessage,
+              },
+            },
+            updatedAt: new Date(),
+          })
           .where(
             and(
               eq(generationJobs.projectId, projectId),

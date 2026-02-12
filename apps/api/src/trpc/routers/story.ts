@@ -18,17 +18,18 @@ export const storyRouter = router({
         );
       if (!project) throw new TRPCError({ code: "NOT_FOUND" });
 
-      const [story] = await db
-        .select()
-        .from(stories)
-        .where(eq(stories.projectId, input.projectId));
+      const [[story], storyScenes] = await Promise.all([
+        db
+          .select()
+          .from(stories)
+          .where(eq(stories.projectId, input.projectId)),
+        db
+          .select()
+          .from(scenes)
+          .where(eq(scenes.projectId, input.projectId))
+          .orderBy(asc(scenes.index)),
+      ]);
       if (!story) return null;
-
-      const storyScenes = await db
-        .select()
-        .from(scenes)
-        .where(eq(scenes.storyId, story.id))
-        .orderBy(asc(scenes.index));
 
       return { ...story, scenes: storyScenes };
     }),
@@ -65,6 +66,14 @@ export const storyRouter = router({
   regenerate: protectedProcedure
     .input(z.object({ projectId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
       const [job] = await db
         .insert(generationJobs)
         .values({

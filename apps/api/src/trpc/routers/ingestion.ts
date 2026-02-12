@@ -33,6 +33,14 @@ export const ingestionRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
       const [job] = await db
         .insert(generationJobs)
         .values({
@@ -56,6 +64,14 @@ export const ingestionRouter = router({
   retry: protectedProcedure
     .input(z.object({ projectId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
       const [job] = await db
         .insert(generationJobs)
         .values({

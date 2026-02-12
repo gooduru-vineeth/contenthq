@@ -1,8 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GenerationForm } from "@/components/media-studio/generation-form";
-import { GalleryView } from "@/components/media-studio/gallery-view";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const GenerationForm = dynamic(
+  () => import("@/components/media-studio/generation-form").then((mod) => mod.GenerationForm),
+  { loading: () => <Skeleton className="h-96 w-full" /> }
+);
+const GalleryView = dynamic(
+  () => import("@/components/media-studio/gallery-view").then((mod) => mod.GalleryView),
+  { loading: () => <Skeleton className="h-96 w-full" /> }
+);
 
 export default function MediaStudioPage() {
   return (

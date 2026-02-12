@@ -583,11 +583,7 @@ export class FlowEngine {
         inputData: context.inputData,
       };
        
-      const fn = new Function(
-        "ctx",
-        `with(ctx) { return ${expression}; }`
-      );
-      conditionResult = Boolean(fn(evalContext));
+      conditionResult = safeEvaluateCondition(expression, evalContext);
     } catch {
       console.warn(
         `[FlowEngine] Failed to evaluate condition: ${expression}`
@@ -651,6 +647,60 @@ export class FlowEngine {
     // for external approval. For now, pass through.
     return { data: { delayed: true }, nextNodeIds };
   }
+}
+
+function resolveDotPath(obj: unknown, path: string): unknown {
+  let current: unknown = obj;
+  for (const key of path.split(".")) {
+    if (current == null || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+}
+
+function safeEvaluateCondition(
+  expression: string,
+  context: Record<string, unknown>
+): boolean {
+  const operators = [">=", "<=", "===", "!==", "==", "!=", ">", "<"] as const;
+  for (const op of operators) {
+    const idx = expression.indexOf(op);
+    if (idx === -1) continue;
+
+    const left = expression.slice(0, idx).trim();
+    const right = expression.slice(idx + op.length).trim();
+
+    const leftVal = resolveDotPath(context, left) ?? parseValue(left);
+    const rightVal = resolveDotPath(context, right) ?? parseValue(right);
+
+    switch (op) {
+      case ">": return Number(leftVal) > Number(rightVal);
+      case "<": return Number(leftVal) < Number(rightVal);
+      case ">=": return Number(leftVal) >= Number(rightVal);
+      case "<=": return Number(leftVal) <= Number(rightVal);
+      case "===": return leftVal === rightVal;
+      case "!==": return leftVal !== rightVal;
+      case "==": return leftVal == rightVal;
+      case "!=": return leftVal != rightVal;
+    }
+  }
+
+  // No operator found — treat as a truthy check on a dot-path
+  const val = resolveDotPath(context, expression.trim());
+  return Boolean(val);
+}
+
+function parseValue(raw: string): unknown {
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  if (raw === "null") return null;
+  if (raw === "undefined") return undefined;
+  if (/^-?\d+(\.\d+)?$/.test(raw)) return Number(raw);
+  // Strip surrounding quotes
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    return raw.slice(1, -1);
+  }
+  return raw;
 }
 
 function buildAdjacencyList(edges: FlowEdge[]): Map<string, string[]> {

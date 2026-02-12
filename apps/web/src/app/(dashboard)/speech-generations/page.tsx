@@ -2,6 +2,6 @@
 
 import { SpeechGenerationPage } from "@/components/speech-generation/speech-generation-page";
 
-export default function SpeechGenerationsAdminPage() {
+export default function SpeechGenerationsPage() {
   return <SpeechGenerationPage />;
 }

@@ -4,7 +4,12 @@ import { useParams } from "next/navigation";
 import { Loader2, ArrowLeft, History } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { FlowCanvas } from "@/components/flow-builder/flow-canvas";
+import dynamic from "next/dynamic";
+
+const FlowCanvas = dynamic(
+  () => import("@/components/flow-builder/flow-canvas").then((mod) => mod.FlowCanvas),
+  { loading: () => <div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div> }
+);
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import type { FlowData } from "@contenthq/shared";

@@ -11,6 +11,7 @@ export function createVisualGenerationWorker(): Worker {
     QUEUE_NAMES.VISUAL_GENERATION,
     async (job) => {
       const { projectId, sceneId, userId, imagePrompt, agentId } = job.data;
+      const startedAt = new Date();
       console.warn(`[VisualGeneration] Processing job ${job.id} for scene ${sceneId}`);
 
       try {
@@ -92,7 +93,14 @@ export function createVisualGenerationWorker(): Worker {
         });
 
         await job.updateProgress(100);
+        const completedAt = new Date();
         console.warn(`[VisualGeneration] Completed for scene ${sceneId}`);
+
+        // Update project status to generating_visuals
+        await db
+          .update(projects)
+          .set({ status: "generating_visuals", updatedAt: new Date() })
+          .where(eq(projects.id, projectId));
 
         // Mark generationJob as completed
         await db
@@ -100,7 +108,17 @@ export function createVisualGenerationWorker(): Worker {
           .set({
             status: "completed",
             progressPercent: 100,
-            result: { imageUrl },
+            result: {
+              imageUrl,
+              log: {
+                stage: "VISUAL_GENERATION",
+                status: "completed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                details: `Generated visual for scene ${sceneId}`,
+              },
+            },
             updatedAt: new Date(),
           })
           .where(
@@ -113,12 +131,27 @@ export function createVisualGenerationWorker(): Worker {
 
         return { success: true, imageUrl };
       } catch (error) {
+        const completedAt = new Date();
+        const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[VisualGeneration] Failed for scene ${sceneId}:`, error);
 
         // Mark generationJob as failed
         await db
           .update(generationJobs)
-          .set({ status: "failed", updatedAt: new Date() })
+          .set({
+            status: "failed",
+            result: {
+              log: {
+                stage: "VISUAL_GENERATION",
+                status: "failed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                error: errorMessage,
+              },
+            },
+            updatedAt: new Date(),
+          })
           .where(
             and(
               eq(generationJobs.projectId, projectId),

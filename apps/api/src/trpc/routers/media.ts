@@ -2,14 +2,22 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { db } from "@contenthq/db/client";
-import { mediaAssets } from "@contenthq/db/schema";
+import { mediaAssets, projects } from "@contenthq/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { storage } from "@contenthq/storage";
 
 export const mediaRouter = router({
   listByProject: protectedProcedure
     .input(z.object({ projectId: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
       return db
         .select()
         .from(mediaAssets)

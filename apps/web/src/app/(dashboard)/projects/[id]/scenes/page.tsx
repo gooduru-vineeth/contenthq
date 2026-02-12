@@ -91,7 +91,7 @@ export default function ScenesPage({
           {/* Scene editor panel */}
           {selectedScene && (
             <div className="lg:col-span-1">
-              <SceneEditor scene={selectedScene} projectId={id} />
+              <SceneEditor key={selectedScene.id} scene={selectedScene} projectId={id} />
             </div>
           )}
         </div>

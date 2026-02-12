@@ -1,11 +1,12 @@
 import { db } from "@contenthq/db/client";
-import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs } from "@contenthq/db/schema";
+import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals } from "@contenthq/db/schema";
 import { eq, asc } from "drizzle-orm";
 import {
   addIngestionJob,
   addStoryWritingJob,
   addSceneGenerationJob,
   addVisualGenerationJob,
+  addVideoGenerationJob,
   addTTSGenerationJob,
   addAudioMixingJob,
   addVideoAssemblyJob,
@@ -176,8 +177,8 @@ export class PipelineOrchestrator {
     await db
       .update(projects)
       .set({
-        status: "generating_video",
-        progressPercent: 40,
+        status: "generating_visuals",
+        progressPercent: 33,
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
@@ -210,8 +211,87 @@ export class PipelineOrchestrator {
     );
     if (!allVerified) return; // Not all scenes done yet, wait
 
-    // Queue TTS generation for all scenes
-    for (const scene of sceneList) {
+    const activeScenes = sceneList.filter(s => s.status !== "failed");
+
+    if (project.enableVideoGeneration) {
+      // Queue VIDEO_GENERATION jobs for each non-failed scene
+      for (const scene of activeScenes) {
+        // Fetch the verified image URL from sceneVisuals
+        const [visual] = await db
+          .select()
+          .from(sceneVisuals)
+          .where(eq(sceneVisuals.sceneId, scene.id));
+
+        const imageUrl = visual?.imageUrl ?? "";
+
+        await db.insert(generationJobs).values({
+          userId,
+          projectId,
+          jobType: "VIDEO_GENERATION",
+          status: "queued",
+        });
+
+        await addVideoGenerationJob({
+          projectId,
+          sceneId: scene.id,
+          userId,
+          imageUrl,
+          motionSpec: (scene.motionSpec as Record<string, unknown>) ?? {},
+        });
+      }
+
+      await db
+        .update(projects)
+        .set({
+          status: "generating_video",
+          progressPercent: 55,
+          updatedAt: new Date(),
+        })
+        .where(eq(projects.id, projectId));
+    } else {
+      // Skip video generation — go straight to TTS
+      await this.queueTTSForScenes(projectId, userId, activeScenes, project.voiceProfileId);
+    }
+  }
+
+  async advanceAfterVideoGeneration(
+    projectId: string,
+    userId: string
+  ): Promise<void> {
+    console.warn(
+      `[Pipeline] Advancing after video generation for ${projectId}`
+    );
+
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
+
+    if (!project) return;
+
+    const sceneList = await db
+      .select()
+      .from(scenes)
+      .where(eq(scenes.projectId, projectId))
+      .orderBy(asc(scenes.index));
+
+    // Check all scenes have reached video_generated or failed status
+    const allDone = sceneList.every(
+      (s) => s.status === "video_generated" || s.status === "failed"
+    );
+    if (!allDone) return; // Not all scenes done yet, wait
+
+    const activeScenes = sceneList.filter(s => s.status !== "failed");
+    await this.queueTTSForScenes(projectId, userId, activeScenes, project.voiceProfileId);
+  }
+
+  private async queueTTSForScenes(
+    projectId: string,
+    userId: string,
+    activeScenes: { id: string; narrationScript: string | null }[],
+    voiceProfileId: string | null
+  ): Promise<void> {
+    for (const scene of activeScenes) {
       if (scene.narrationScript) {
         await db.insert(generationJobs).values({
           userId,
@@ -225,7 +305,7 @@ export class PipelineOrchestrator {
           sceneId: scene.id,
           userId,
           narrationScript: scene.narrationScript,
-          voiceId: project.voiceProfileId ?? "alloy",
+          voiceId: voiceProfileId ?? "alloy",
           provider: "openai",
         });
       }
@@ -234,8 +314,8 @@ export class PipelineOrchestrator {
     await db
       .update(projects)
       .set({
-        status: "mixing_audio",
-        progressPercent: 60,
+        status: "generating_tts",
+        progressPercent: 66,
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
@@ -256,8 +336,9 @@ export class PipelineOrchestrator {
     );
     if (!allTTSDone) return; // Not all scenes done yet, wait
 
-    // Queue audio mixing for all scenes
-    for (const scene of sceneList) {
+    // Queue audio mixing for non-failed scenes only
+    const activeScenesForMixing = sceneList.filter(s => s.status !== "failed");
+    for (const scene of activeScenesForMixing) {
       await db.insert(generationJobs).values({
         userId,
         projectId,
@@ -273,6 +354,15 @@ export class PipelineOrchestrator {
         musicTrackId: null,
       });
     }
+
+    await db
+      .update(projects)
+      .set({
+        status: "mixing_audio",
+        progressPercent: 77,
+        updatedAt: new Date(),
+      })
+      .where(eq(projects.id, projectId));
   }
 
   async advanceAfterAudioMixing(
@@ -293,7 +383,8 @@ export class PipelineOrchestrator {
     );
     if (!allMixed) return; // Not all scenes done yet, wait
 
-    // Queue final video assembly
+    // Queue final video assembly with non-failed scenes only
+    const activeScenesForAssembly = sceneList.filter(s => s.status !== "failed");
     await db.insert(generationJobs).values({
       userId,
       projectId,
@@ -304,14 +395,14 @@ export class PipelineOrchestrator {
     await addVideoAssemblyJob({
       projectId,
       userId,
-      sceneIds: sceneList.map((s) => s.id),
+      sceneIds: activeScenesForAssembly.map((s) => s.id),
     });
 
     await db
       .update(projects)
       .set({
         status: "assembling",
-        progressPercent: 85,
+        progressPercent: 88,
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
@@ -340,8 +431,14 @@ export class PipelineOrchestrator {
       case "SCENE_GENERATION":
         await this.advanceAfterSceneGeneration(projectId, userId);
         break;
+      case "VISUAL_GENERATION":
+        // Visual generation chains directly to verification inline (no-op here)
+        break;
       case "VISUAL_VERIFICATION":
         await this.advanceAfterVisualsApproved(projectId, userId);
+        break;
+      case "VIDEO_GENERATION":
+        await this.advanceAfterVideoGeneration(projectId, userId);
         break;
       case "TTS_GENERATION":
         await this.advanceAfterTTS(projectId, userId);

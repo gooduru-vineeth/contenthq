@@ -11,6 +11,7 @@ export function createAudioMixingWorker(): Worker {
     QUEUE_NAMES.AUDIO_MIXING,
     async (job) => {
       const { projectId, sceneId, userId, musicTrackId } = job.data;
+      const startedAt = new Date();
       console.warn(`[AudioMix] Processing job ${job.id} for scene ${sceneId}`);
 
       try {
@@ -73,6 +74,7 @@ export function createAudioMixingWorker(): Worker {
           .set({ status: "mixing_audio", progressPercent: 75, updatedAt: new Date() })
           .where(eq(projects.id, projectId));
 
+        const completedAt = new Date();
         console.warn(`[AudioMix] Completed for scene ${sceneId}`);
 
         // Mark generationJob as completed
@@ -81,7 +83,17 @@ export function createAudioMixingWorker(): Worker {
           .set({
             status: "completed",
             progressPercent: 100,
-            result: { sceneId },
+            result: {
+              sceneId,
+              log: {
+                stage: "AUDIO_MIXING",
+                status: "completed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                details: `Mixed audio for scene ${sceneId}`,
+              },
+            },
             updatedAt: new Date(),
           })
           .where(
@@ -97,12 +109,27 @@ export function createAudioMixingWorker(): Worker {
 
         return { success: true };
       } catch (error) {
+        const completedAt = new Date();
+        const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[AudioMix] Failed for scene ${sceneId}:`, error);
 
         // Mark generationJob as failed
         await db
           .update(generationJobs)
-          .set({ status: "failed", updatedAt: new Date() })
+          .set({
+            status: "failed",
+            result: {
+              log: {
+                stage: "AUDIO_MIXING",
+                status: "failed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                error: errorMessage,
+              },
+            },
+            updatedAt: new Date(),
+          })
           .where(
             and(
               eq(generationJobs.projectId, projectId),
@@ -110,6 +137,12 @@ export function createAudioMixingWorker(): Worker {
               eq(generationJobs.status, "processing")
             )
           );
+
+        // Mark project as failed
+        await db
+          .update(projects)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(eq(projects.id, projectId));
 
         throw error;
       }

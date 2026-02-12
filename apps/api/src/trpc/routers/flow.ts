@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@contenthq/db/client";
-import { flows, projectFlowConfigs } from "@contenthq/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { flows, projectFlowConfigs, projects } from "@contenthq/db/schema";
+import { eq, desc, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   createFlowSchema,
@@ -64,13 +64,13 @@ export const flowRouter = router({
 
   update: protectedProcedure
     .input(updateFlowSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
 
       const [existing] = await db
         .select()
         .from(flows)
-        .where(eq(flows.id, id));
+        .where(and(eq(flows.id, id), eq(flows.createdBy, ctx.user.id)));
 
       if (!existing) {
         throw new TRPCError({
@@ -94,11 +94,11 @@ export const flowRouter = router({
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const [existing] = await db
         .select()
         .from(flows)
-        .where(eq(flows.id, input.id));
+        .where(and(eq(flows.id, input.id), eq(flows.createdBy, ctx.user.id)));
 
       if (!existing) {
         throw new TRPCError({
@@ -119,7 +119,17 @@ export const flowRouter = router({
   // Project flow config management
   getProjectFlowConfig: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      }
+
       const [config] = await db
         .select()
         .from(projectFlowConfigs)
@@ -130,7 +140,17 @@ export const flowRouter = router({
 
   setProjectFlowConfig: protectedProcedure
     .input(projectFlowConfigSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      }
+
       const [result] = await db
         .insert(projectFlowConfigs)
         .values({
@@ -153,7 +173,17 @@ export const flowRouter = router({
 
   removeProjectFlowConfig: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      }
+
       await db
         .delete(projectFlowConfigs)
         .where(eq(projectFlowConfigs.projectId, input.projectId));

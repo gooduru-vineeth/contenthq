@@ -25,9 +25,10 @@ type StageStatus = "pending" | "active" | "completed" | "failed";
 interface PipelineProgressProps {
   currentStage: PipelineStage | null;
   projectStatus: string;
+  progressPercent?: number;
 }
 
-const stageIcons: Record<PipelineStage, LucideIcon> = {
+const stageIcons: Record<string, LucideIcon> = {
   INGESTION: Download,
   STORY_WRITING: Pen,
   SCENE_GENERATION: Layers,
@@ -80,14 +81,36 @@ const badgeVariantMap: Record<StageStatus, "secondary" | "default" | "destructiv
 export function PipelineProgress({
   currentStage,
   projectStatus,
+  progressPercent,
 }: PipelineProgressProps) {
+  const percent = progressPercent ?? 0;
+
   return (
-    <div className="w-full">
+    <div className="w-full space-y-3">
+      {/* Overall progress bar */}
+      {projectStatus !== "draft" && (
+        <div className="w-full">
+          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all duration-500",
+                projectStatus === "completed"
+                  ? "bg-green-500"
+                  : projectStatus === "failed"
+                    ? "bg-destructive"
+                    : "bg-primary",
+              )}
+              style={{ width: `${Math.min(percent, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Desktop: horizontal */}
       <div className="hidden md:flex items-center gap-1">
         {PIPELINE_STAGE_ORDER.map((stage, index) => {
           const status = getStageStatus(stage, currentStage, projectStatus);
-          const Icon = stageIcons[stage];
+          const Icon = stageIcons[stage] ?? Clapperboard;
           return (
             <div key={stage} className="flex items-center">
               <div className="flex flex-col items-center gap-1">
@@ -121,7 +144,7 @@ export function PipelineProgress({
       <div className="flex flex-col gap-2 md:hidden">
         {PIPELINE_STAGE_ORDER.map((stage) => {
           const status = getStageStatus(stage, currentStage, projectStatus);
-          const Icon = stageIcons[stage];
+          const Icon = stageIcons[stage] ?? Clapperboard;
           return (
             <div
               key={stage}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, startTransition } from "react";
+import { useState } from "react";
 import { Save, Loader2, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -51,19 +51,6 @@ export function SceneEditor({ scene, projectId }: SceneEditorProps) {
   const [imagePrompt, setImagePrompt] = useState(scene.imagePrompt ?? "");
   const [narrationScript, setNarrationScript] = useState(scene.narrationScript ?? "");
   const [duration, setDuration] = useState(scene.duration ?? 5);
-
-  useEffect(() => {
-    const vd = scene.visualDescription ?? "";
-    const ip = scene.imagePrompt ?? "";
-    const ns = scene.narrationScript ?? "";
-    const d = scene.duration ?? 5;
-    startTransition(() => {
-      setVisualDescription(vd);
-      setImagePrompt(ip);
-      setNarrationScript(ns);
-      setDuration(d);
-    });
-  }, [scene.id, scene.visualDescription, scene.imagePrompt, scene.narrationScript, scene.duration]);
 
   const updateMutation = trpc.scene.update.useMutation({
     onSuccess: () => {

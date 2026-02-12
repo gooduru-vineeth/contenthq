@@ -1,4 +1,4 @@
-import { PipelineStage } from "../types/pipeline";
+import { PipelineStage, ProjectStatus } from "../types/pipeline";
 
 export const PIPELINE_STAGE_ORDER: PipelineStage[] = [
   PipelineStage.INGESTION,
@@ -12,7 +12,7 @@ export const PIPELINE_STAGE_ORDER: PipelineStage[] = [
   PipelineStage.VIDEO_ASSEMBLY,
 ];
 
-export const PIPELINE_STAGE_LABELS: Record<PipelineStage, string> = {
+export const PIPELINE_STAGE_LABELS: Record<string, string> = {
   [PipelineStage.INGESTION]: "Content Ingestion",
   [PipelineStage.STORY_WRITING]: "Story Writing",
   [PipelineStage.SCENE_GENERATION]: "Scene Generation",
@@ -23,6 +23,47 @@ export const PIPELINE_STAGE_LABELS: Record<PipelineStage, string> = {
   [PipelineStage.AUDIO_MIXING]: "Audio Mixing",
   [PipelineStage.VIDEO_ASSEMBLY]: "Final Assembly",
 };
+
+/** Maps project status to the pipeline stage currently active */
+export const PROJECT_STATUS_TO_STAGE: Record<string, PipelineStage | null> = {
+  [ProjectStatus.DRAFT]: null,
+  [ProjectStatus.INGESTING]: PipelineStage.INGESTION,
+  [ProjectStatus.WRITING]: PipelineStage.STORY_WRITING,
+  [ProjectStatus.GENERATING_SCENES]: PipelineStage.SCENE_GENERATION,
+  [ProjectStatus.GENERATING_VISUALS]: PipelineStage.VISUAL_GENERATION,
+  [ProjectStatus.VERIFYING]: PipelineStage.VISUAL_VERIFICATION,
+  [ProjectStatus.GENERATING_TTS]: PipelineStage.TTS_GENERATION,
+  [ProjectStatus.GENERATING_VIDEO]: PipelineStage.VIDEO_GENERATION,
+  [ProjectStatus.MIXING_AUDIO]: PipelineStage.AUDIO_MIXING,
+  [ProjectStatus.ASSEMBLING]: PipelineStage.VIDEO_ASSEMBLY,
+  [ProjectStatus.COMPLETED]: PipelineStage.VIDEO_ASSEMBLY,
+  [ProjectStatus.FAILED]: null,
+  [ProjectStatus.CANCELLED]: null,
+};
+
+/** Progress percentage for each stage start */
+export const STAGE_PROGRESS_PERCENT: Record<string, number> = {
+  [PipelineStage.INGESTION]: 0,
+  [PipelineStage.STORY_WRITING]: 11,
+  [PipelineStage.SCENE_GENERATION]: 22,
+  [PipelineStage.VISUAL_GENERATION]: 33,
+  [PipelineStage.VISUAL_VERIFICATION]: 44,
+  [PipelineStage.VIDEO_GENERATION]: 55,
+  [PipelineStage.TTS_GENERATION]: 66,
+  [PipelineStage.AUDIO_MIXING]: 77,
+  [PipelineStage.VIDEO_ASSEMBLY]: 88,
+};
+
+/** Structured log stored in job result JSONB */
+export interface JobResultLog {
+  stage: string;
+  status: "completed" | "failed";
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  details?: string;
+  error?: string;
+}
 
 export const QUEUE_CONFIG = {
   INGESTION: { concurrency: 5, retries: 2 },

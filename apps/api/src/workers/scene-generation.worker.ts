@@ -12,6 +12,7 @@ export function createSceneGenerationWorker(): Worker {
     QUEUE_NAMES.SCENE_GENERATION,
     async (job) => {
       const { projectId, storyId, userId, agentId } = job.data;
+      const startedAt = new Date();
       console.warn(`[SceneGeneration] Processing job ${job.id} for project ${projectId}`);
 
       try {
@@ -105,9 +106,16 @@ export function createSceneGenerationWorker(): Worker {
         });
 
         await job.updateProgress(100);
+        const completedAt = new Date();
         console.warn(
           `[SceneGeneration] Completed for project ${projectId}: ${processed} scenes processed`
         );
+
+        // Update project progress
+        await db
+          .update(projects)
+          .set({ progressPercent: 25, updatedAt: new Date() })
+          .where(eq(projects.id, projectId));
 
         // Mark generationJob as completed
         await db
@@ -115,7 +123,18 @@ export function createSceneGenerationWorker(): Worker {
           .set({
             status: "completed",
             progressPercent: 100,
-            result: { storyId, scenesProcessed: processed },
+            result: {
+              storyId,
+              scenesProcessed: processed,
+              log: {
+                stage: "SCENE_GENERATION",
+                status: "completed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                details: `Processed ${processed} scenes`,
+              },
+            },
             updatedAt: new Date(),
           })
           .where(
@@ -131,12 +150,27 @@ export function createSceneGenerationWorker(): Worker {
 
         return { success: true, storyId, scenesProcessed: processed };
       } catch (error) {
+        const completedAt = new Date();
+        const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[SceneGeneration] Failed for project ${projectId}:`, error);
 
         // Mark generationJob as failed
         await db
           .update(generationJobs)
-          .set({ status: "failed", updatedAt: new Date() })
+          .set({
+            status: "failed",
+            result: {
+              log: {
+                stage: "SCENE_GENERATION",
+                status: "failed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                error: errorMessage,
+              },
+            },
+            updatedAt: new Date(),
+          })
           .where(
             and(
               eq(generationJobs.projectId, projectId),

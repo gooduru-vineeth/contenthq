@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, User } from "lucide-react";
 
-import { cn } from "@/lib/utils";
-import { navigation, adminNavigation } from "@/lib/navigation";
+import { navigation } from "@/lib/navigation";
+import { NavLink } from "./nav-link";
+import { AdminNav } from "./admin-nav";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -65,53 +65,10 @@ export function Header() {
             </SheetTitle>
           </SheetHeader>
           <nav className="space-y-1 px-3 py-4">
-            {navigation.map((item) => {
-              const isActive =
-                item.href === "/"
-                  ? pathname === "/"
-                  : pathname.startsWith(item.href);
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-            {session?.user?.role === "admin" && (
-              <div className="mt-4 border-t pt-4">
-                <p className="mb-2 px-3 text-xs font-semibold uppercase text-muted-foreground/50">
-                  Admin
-                </p>
-                {adminNavigation.map((item) => {
-                  const isAdminActive = pathname.startsWith(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                        isAdminActive
-                          ? "bg-accent text-accent-foreground"
-                          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                      )}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
+            {navigation.map((item) => (
+              <NavLink key={item.href} item={item} />
+            ))}
+            {session?.user?.role === "admin" && <AdminNav />}
           </nav>
           <Separator />
           <div className="flex items-center gap-3 p-4">

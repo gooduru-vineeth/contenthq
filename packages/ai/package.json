@@ -6,18 +6,18 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "ai": "^4.1.0",
-    "@ai-sdk/openai": "^1.0.0",
-    "@ai-sdk/anthropic": "^1.0.0",
-    "@ai-sdk/google": "^1.0.0",
+    "@ai-sdk/anthropic": "^3.0.42",
+    "@ai-sdk/fal": "^2.0.20",
+    "@ai-sdk/google": "^3.0.26",
+    "@ai-sdk/google-vertex": "^4.0.54",
+    "@ai-sdk/openai": "^3.0.27",
     "@ai-sdk/xai": "^3.0.0",
-    "@ai-sdk/google-vertex": "^4.0.0",
-    "@ai-sdk/fal": "^1.0.0",
-    "openai": "^4.0.0",
-    "replicate": "^1.0.0",
     "@contenthq/db": "workspace:*",
     "@contenthq/shared": "workspace:*",
+    "ai": "^6.0.81",
     "drizzle-orm": "^0.39.0",
+    "openai": "^4.0.0",
+    "replicate": "^1.0.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

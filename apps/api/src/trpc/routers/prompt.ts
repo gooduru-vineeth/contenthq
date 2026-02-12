@@ -8,6 +8,7 @@ import {
   personas,
   personaVersions,
   projectPromptConfigs,
+  projects,
 } from "@contenthq/db/schema";
 import { eq, and, isNull, or, desc } from "drizzle-orm";
 import {
@@ -1252,7 +1253,15 @@ export const promptRouter = router({
 
   getProjectConfig: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
       const [existing] = await db
         .select()
         .from(projectPromptConfigs)
@@ -1274,7 +1283,15 @@ export const promptRouter = router({
 
   updateProjectConfig: protectedProcedure
     .input(updateProjectPromptConfigSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
+        );
+      if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
       const { projectId, ...data } = input;
       const [result] = await db
         .insert(projectPromptConfigs)

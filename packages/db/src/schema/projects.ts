@@ -1,4 +1,4 @@
-import { index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./users";
 import { projectStatusEnum } from "./enums";
 
@@ -22,6 +22,7 @@ export const projects = pgTable(
     voiceProfileId: text("voice_profile_id"),
     musicTrackId: text("music_track_id"),
     finalVideoUrl: text("final_video_url"),
+    enableVideoGeneration: boolean("enable_video_generation").default(false).notNull(),
     thumbnailUrl: text("thumbnail_url"),
     progressPercent: integer("progress_percent").default(0),
     totalCreditsUsed: integer("total_credits_used").default(0),

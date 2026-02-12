@@ -13,12 +13,14 @@ export async function initWorkers(): Promise<void> {
   const { createSceneGenerationWorker } = await import("./scene-generation.worker");
   const { createVisualGenerationWorker } = await import("./visual-generation.worker");
   const { createVisualVerificationWorker } = await import("./visual-verification.worker");
+  const { createVideoGenerationWorker } = await import("./video-generation.worker");
 
   workers.push(createIngestionWorker());
   workers.push(createStoryWritingWorker());
   workers.push(createSceneGenerationWorker());
   workers.push(createVisualGenerationWorker());
   workers.push(createVisualVerificationWorker());
+  workers.push(createVideoGenerationWorker());
 
   const { createTTSGenerationWorker } = await import("./tts-generation.worker");
   const { createAudioMixingWorker } = await import("./audio-mixing.worker");

@@ -13,6 +13,7 @@ export function createVisualVerificationWorker(): Worker {
     QUEUE_NAMES.VISUAL_VERIFICATION,
     async (job) => {
       const { projectId, sceneId, userId, imageUrl, visualDescription, agentId } = job.data;
+      const startedAt = new Date();
       console.warn(`[VisualVerification] Processing job ${job.id} for scene ${sceneId}`);
 
       try {
@@ -90,6 +91,12 @@ export function createVisualVerificationWorker(): Worker {
 
         await job.updateProgress(80);
 
+        // Update project status to verifying
+        await db
+          .update(projects)
+          .set({ status: "verifying", progressPercent: 44, updatedAt: new Date() })
+          .where(eq(projects.id, projectId));
+
         if (result.approved) {
           // Image passed verification
           await db
@@ -97,6 +104,7 @@ export function createVisualVerificationWorker(): Worker {
             .set({ status: "visual_verified", updatedAt: new Date() })
             .where(eq(scenes.id, sceneId));
 
+          const completedAt = new Date();
           console.warn(
             `[VisualVerification] Approved for scene ${sceneId} (score: ${result.totalScore})`
           );
@@ -107,7 +115,18 @@ export function createVisualVerificationWorker(): Worker {
             .set({
               status: "completed",
               progressPercent: 100,
-              result: { approved: true, score: result.totalScore },
+              result: {
+                approved: true,
+                score: result.totalScore,
+                log: {
+                  stage: "VISUAL_VERIFICATION",
+                  status: "completed",
+                  startedAt: startedAt.toISOString(),
+                  completedAt: completedAt.toISOString(),
+                  durationMs: completedAt.getTime() - startedAt.getTime(),
+                  details: `Approved scene ${sceneId} (score: ${result.totalScore})`,
+                },
+              },
               updatedAt: new Date(),
             })
             .where(
@@ -132,7 +151,15 @@ export function createVisualVerificationWorker(): Worker {
               )
             );
 
-          const retryCount = visual?.retryCount ?? 0;
+          if (!visual) {
+            await db
+              .update(scenes)
+              .set({ status: "failed", updatedAt: new Date() })
+              .where(eq(scenes.id, sceneId));
+            throw new Error(`No visual record found for scene ${sceneId}`);
+          }
+
+          const retryCount = visual.retryCount ?? 0;
 
           if (retryCount < 3) {
             // Increment retry count and re-queue visual generation
@@ -164,12 +191,25 @@ export function createVisualVerificationWorker(): Worker {
               .set({ status: "failed", updatedAt: new Date() })
               .where(eq(scenes.id, sceneId));
 
+            const completedAt = new Date();
+
             // Mark generationJob as failed
             await db
               .update(generationJobs)
               .set({
                 status: "failed",
-                result: { approved: false, score: result.totalScore },
+                result: {
+                  approved: false,
+                  score: result.totalScore,
+                  log: {
+                    stage: "VISUAL_VERIFICATION",
+                    status: "failed",
+                    startedAt: startedAt.toISOString(),
+                    completedAt: completedAt.toISOString(),
+                    durationMs: completedAt.getTime() - startedAt.getTime(),
+                    error: `Verification failed after ${retryCount + 1} attempts (score: ${result.totalScore})`,
+                  },
+                },
                 updatedAt: new Date(),
               })
               .where(
@@ -189,12 +229,27 @@ export function createVisualVerificationWorker(): Worker {
         await job.updateProgress(100);
         return { success: true, approved: result.approved, score: result.totalScore };
       } catch (error) {
+        const completedAt = new Date();
+        const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`[VisualVerification] Failed for scene ${sceneId}:`, error);
 
         // Mark generationJob as failed
         await db
           .update(generationJobs)
-          .set({ status: "failed", updatedAt: new Date() })
+          .set({
+            status: "failed",
+            result: {
+              log: {
+                stage: "VISUAL_VERIFICATION",
+                status: "failed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                error: errorMessage,
+              },
+            },
+            updatedAt: new Date(),
+          })
           .where(
             and(
               eq(generationJobs.projectId, projectId),
