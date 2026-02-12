@@ -1,8 +1,10 @@
 import { cors } from "hono/cors";
 import { env } from "../lib/env";
 
+const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
+
 export const corsMiddleware = cors({
-  origin: env.CORS_ORIGIN,
+  origin: allowedOrigins,
   credentials: true,
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowHeaders: [

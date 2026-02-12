@@ -39,7 +39,9 @@ function validateDuration(duration: number): void {
 }
 
 function validateVolume(volume: number, name: string): void {
-  validateNumeric(volume, name);
+  if (typeof volume !== 'number' || !Number.isFinite(volume) || volume < 0) {
+    throw new Error(`Invalid ${name}: must be a non-negative finite number`);
+  }
 }
 
 export async function checkFFmpeg(): Promise<boolean> {
