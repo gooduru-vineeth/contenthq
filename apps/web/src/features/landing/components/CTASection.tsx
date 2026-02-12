@@ -18,7 +18,7 @@ export function CTASection() {
   return (
     <section className="relative overflow-hidden py-24">
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-600" />
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-800 via-brand-600 to-brand-500" />
       <div
         className="pointer-events-none absolute inset-0 opacity-10"
         style={{
@@ -34,18 +34,19 @@ export function CTASection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <Sparkles className="mx-auto mb-6 h-10 w-10 text-amber-300" />
+          <Sparkles className="mx-auto mb-6 h-10 w-10 text-cta-300" />
           <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Ready to automate your content pipeline?
+            Ready to Create Your First Video?
           </h2>
           <p className="mb-10 text-lg text-white/80">
-            Start with 50 free credits. No credit card required.
+            Try ContentHQ free — no credit card needed. Your first video is
+            minutes away.
           </p>
 
           <div className="mb-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button
               size="lg"
-              className="bg-white text-violet-700 shadow-lg hover:bg-white/90"
+              className="bg-white text-brand-700 shadow-lg hover:bg-white/90"
               asChild
             >
               <Link href="/register">
@@ -56,7 +57,7 @@ export function CTASection() {
             <Button
               size="lg"
               variant="outline"
-              className="border-white/30 text-white hover:bg-white/10"
+              className="border-white/30 bg-transparent text-white hover:bg-white/10"
               asChild
             >
               <Link href="#">Talk to Sales</Link>

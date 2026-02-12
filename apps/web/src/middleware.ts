@@ -1,19 +1,35 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const publicRoutes = ["/", "/login", "/register"];
+
 export function middleware(request: NextRequest) {
   const sessionCookie =
     request.cookies.get("better-auth.session_token") ??
     request.cookies.get("__Secure-better-auth.session_token");
 
-  const isAuthPage =
-    request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/register");
+  const { pathname } = request.nextUrl;
 
-  if (!sessionCookie && !isAuthPage) {
+  const isPublicRoute = publicRoutes.includes(pathname);
+  const isAuthPage =
+    pathname.startsWith("/login") || pathname.startsWith("/register");
+
+  // Redirect authenticated users from landing page to dashboard
+  if (sessionCookie && pathname === "/") {
+    return NextResponse.redirect(new URL("/projects", request.url));
+  }
+
+  // Allow public routes without authentication
+  if (isPublicRoute && !isAuthPage) {
+    return NextResponse.next();
+  }
+
+  // Redirect unauthenticated users to login (except public/auth pages)
+  if (!sessionCookie && !isAuthPage && !isPublicRoute) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  // Redirect authenticated users away from auth pages
   if (sessionCookie && isAuthPage) {
     return NextResponse.redirect(new URL("/projects", request.url));
   }
@@ -22,5 +38,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api|auth|trpc|health|_next|favicon.ico).*)"],
 };

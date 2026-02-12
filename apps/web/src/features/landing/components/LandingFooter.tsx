@@ -7,15 +7,15 @@ import { Button } from "@/components/ui/button";
 const footerLinks = {
   Product: [
     { label: "Features", href: "#features" },
-    { label: "Pipeline", href: "#pipeline" },
+    { label: "How It Works", href: "#pipeline" },
     { label: "Pricing", href: "#pricing" },
-    { label: "Integrations", href: "#integrations" },
+    { label: "Examples", href: "#media-studio" },
   ],
   Resources: [
-    { label: "Documentation", href: "#" },
-    { label: "API Reference", href: "#" },
+    { label: "Help Center", href: "#" },
     { label: "Blog", href: "#" },
     { label: "Changelog", href: "#" },
+    { label: "Tutorials", href: "#" },
   ],
   Company: [
     { label: "About", href: "#" },
@@ -39,7 +39,7 @@ export function LandingFooter() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-blue-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-700 to-brand-500">
                 <Zap className="h-4 w-4 text-white" />
               </div>
               <span className="text-lg font-bold tracking-tight">
@@ -47,8 +47,8 @@ export function LandingFooter() {
               </span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">
-              AI-powered content generation platform. Transform raw content into
-              polished videos with our 7-stage automated pipeline.
+              AI-powered content generation platform. Turn your ideas, articles,
+              and content into professional videos in minutes.
             </p>
           </div>
 
@@ -93,7 +93,7 @@ export function LandingFooter() {
               <Button
                 size="sm"
                 type="submit"
-                className="bg-gradient-to-r from-violet-600 to-blue-600 text-white"
+                className="bg-gradient-to-r from-brand-700 to-brand-500 text-white"
               >
                 Subscribe
               </Button>

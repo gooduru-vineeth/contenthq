@@ -23,12 +23,12 @@ export function HowItWorksSection() {
           viewport={{ once: true }}
           className="mb-16 text-center"
         >
-          <span className="mb-3 inline-block rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300">
+          <span className="mb-3 inline-block rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
             How It Works
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
             Four Steps to{" "}
-            <span className="text-gradient-landing">Automated Content</span>
+            <span className="text-gradient-landing">Your First Video</span>
           </h2>
           <p className="mx-auto max-w-2xl text-muted-foreground">
             Get started in minutes. No video editing experience required.
@@ -41,7 +41,7 @@ export function HowItWorksSection() {
             {/* Connector line */}
             <div className="absolute left-[12.5%] right-[12.5%] top-8 h-0.5 bg-border">
               <motion.div
-                className="h-full origin-left rounded-full bg-gradient-to-r from-violet-600 to-blue-600"
+                className="h-full origin-left rounded-full bg-gradient-to-r from-brand-800 to-brand-500"
                 style={
                   prefersReducedMotion
                     ? { scaleX: 1 }
@@ -66,11 +66,11 @@ export function HowItWorksSection() {
                     transition={{ delay: i * 0.12 }}
                     className="flex flex-col items-center text-center"
                   >
-                    <div className="relative z-10 mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-blue-50 dark:border-violet-800 dark:from-violet-950/50 dark:to-blue-950/50">
-                      <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-xs font-bold text-white">
+                    <div className="relative z-10 mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 border-brand-200 bg-gradient-to-br from-brand-50 to-brand-100 dark:border-brand-800 dark:from-brand-950/50 dark:to-brand-900/50">
+                      <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-brand-700 to-brand-500 text-xs font-bold text-white">
                         {step.step}
                       </span>
-                      <Icon className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+                      <Icon className="h-6 w-6 text-brand-600 dark:text-brand-400" />
                     </div>
                     <h3 className="mb-2 font-semibold">{step.title}</h3>
                     <p className="text-sm text-muted-foreground">
@@ -99,7 +99,7 @@ export function HowItWorksSection() {
                 className="flex gap-4"
               >
                 <div className="flex flex-col items-center">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-white">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-700 to-brand-500 text-white">
                     <Icon className="h-5 w-5" />
                   </div>
                   {i < howItWorksSteps.length - 1 && (
@@ -107,7 +107,7 @@ export function HowItWorksSection() {
                   )}
                 </div>
                 <div className="pb-6">
-                  <span className="text-xs font-medium text-violet-600 dark:text-violet-400">
+                  <span className="text-xs font-medium text-brand-600 dark:text-brand-400">
                     Step {step.step}
                   </span>
                   <h3 className="font-semibold">{step.title}</h3>

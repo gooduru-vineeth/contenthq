@@ -334,6 +334,7 @@ export default function PromptsPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="text-destructive hover:text-destructive"
                                 onClick={() =>
                                   deleteMutation.mutate({ id: tmpl.id })
                                 }

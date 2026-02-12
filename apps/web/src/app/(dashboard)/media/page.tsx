@@ -46,7 +46,7 @@ export default function MediaPage() {
         </p>
       </div>
 
-      <MediaUpload />
+      <MediaUpload onUploadComplete={() => utils.media.listAll.invalidate()} />
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as MediaFilter)}>
         <TabsList>

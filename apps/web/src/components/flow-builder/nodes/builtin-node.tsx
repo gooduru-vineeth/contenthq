@@ -16,7 +16,7 @@ type BuiltinNodeData = {
 
 type BuiltinNode = Node<BuiltinNodeData>;
 
-const BUILTIN_ACTION_ICONS: Record<BuiltinAction, React.ElementType> = {
+const BUILTIN_ACTION_ICONS: Record<BuiltinAction, React.ComponentType<{ className?: string }>> = {
   ingestion: FileText,
   tts_generation: Mic,
   audio_mixing: Music,

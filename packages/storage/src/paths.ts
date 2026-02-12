@@ -56,6 +56,14 @@ export function getIngestedContentPath(
   return `users/${sanitizePathSegment(userId)}/projects/${sanitizePathSegment(projectId)}/ingested/content-${sanitizePathSegment(contentId)}.json`;
 }
 
+export function getMediaUploadPath(
+  userId: string,
+  filename: string
+): string {
+  const uuid = crypto.randomUUID();
+  return `users/${sanitizePathSegment(userId)}/media/${uuid}-${sanitizeFilename(filename)}`;
+}
+
 export function getSpeechGenerationPath(
   userId: string,
   speechGenerationId: string,

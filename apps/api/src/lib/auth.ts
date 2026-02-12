@@ -13,7 +13,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
-  trustedOrigins: [env.CORS_ORIGIN],
+  trustedOrigins: ["*"],
   user: {
     additionalFields: {
       role: {

@@ -19,6 +19,17 @@ import { Separator } from "@/components/ui/separator";
 import { trpc } from "@/lib/trpc";
 import { ProviderVoiceSelector } from "./provider-voice-selector";
 
+function generateId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // Fallback for non-secure contexts (HTTP) and SSR
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 interface GenerationConfig {
   id: string;
   provider: string;
@@ -31,7 +42,7 @@ export function SpeechGenerationBatchDialog() {
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
   const [configs, setConfigs] = useState<GenerationConfig[]>([
-    { id: crypto.randomUUID(), provider: "openai", voiceId: "alloy", model: "" },
+    { id: generateId(), provider: "openai", voiceId: "alloy", model: "" },
   ]);
 
   const utils = trpc.useUtils();
@@ -46,7 +57,7 @@ export function SpeechGenerationBatchDialog() {
       setText("");
       setTitle("");
       setConfigs([
-        { id: crypto.randomUUID(), provider: "openai", voiceId: "alloy", model: "" },
+        { id: generateId(), provider: "openai", voiceId: "alloy", model: "" },
       ]);
     },
     onError: (error) => {
@@ -57,7 +68,7 @@ export function SpeechGenerationBatchDialog() {
   const addConfig = () => {
     setConfigs((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), provider: "openai", voiceId: "alloy", model: "" },
+      { id: generateId(), provider: "openai", voiceId: "alloy", model: "" },
     ]);
   };
 
@@ -161,7 +172,7 @@ export function SpeechGenerationBatchDialog() {
                       className="h-6 w-6"
                       onClick={() => removeConfig(config.id)}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>
                   )}
                 </div>

@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["72.60.223.71"],
   transpilePackages: ["@contenthq/db", "@contenthq/shared"],
   images: {
     remotePatterns: [
