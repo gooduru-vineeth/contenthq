@@ -171,6 +171,21 @@ body {
   background-clip: text;
 }
 
+/* Modern text gradient — vibrant purple → blue → cyan */
+.text-gradient-landing-modern {
+  background: linear-gradient(135deg, #6D28D9, #2563EB, #0891B2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dark .text-gradient-landing-modern {
+  background: linear-gradient(135deg, #A78BFA, #60A5FA, #22D3EE);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 /* Hero headline accent — bright blue gradient with extrusion depth */
 .hero-headline-accent {
   background: linear-gradient(135deg, #1A2CA3, #2845D6, #4F6FE4);
@@ -194,6 +209,29 @@ body {
     drop-shadow(0 4px 8px rgba(79, 111, 228, 0.08));
 }
 
+/* Modern headline accent — vibrant gradient with glow depth */
+.hero-headline-accent-modern {
+  background: linear-gradient(135deg, #7C3AED, #3B82F6, #06B6D4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter:
+    drop-shadow(0 2px 0 rgba(124, 58, 237, 0.18))
+    drop-shadow(0 4px 8px rgba(59, 130, 246, 0.15))
+    drop-shadow(0 8px 24px rgba(6, 182, 212, 0.12));
+}
+
+.dark .hero-headline-accent-modern {
+  background: linear-gradient(135deg, #A78BFA, #93C5FD, #67E8F9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter:
+    drop-shadow(0 2px 0 rgba(167, 139, 250, 0.22))
+    drop-shadow(0 4px 8px rgba(147, 197, 253, 0.15))
+    drop-shadow(0 8px 24px rgba(103, 232, 249, 0.1));
+}
+
 /* Hero headline "AI" accent — CTA orange gradient with glow */
 .hero-headline-ai {
   background: linear-gradient(135deg, #F68048, #DC6530, #FB9158);
@@ -215,6 +253,67 @@ body {
     drop-shadow(0 1px 0 rgba(251, 145, 88, 0.25))
     drop-shadow(0 2px 0 rgba(251, 145, 88, 0.15))
     drop-shadow(0 4px 12px rgba(251, 145, 88, 0.12));
+}
+
+/* Modern "AI" accent — vivid magenta-to-orange gradient with neon glow */
+.hero-headline-ai-modern {
+  background: linear-gradient(135deg, #EC4899, #F59E0B, #F97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter:
+    drop-shadow(0 2px 0 rgba(236, 72, 153, 0.22))
+    drop-shadow(0 4px 12px rgba(245, 158, 11, 0.2))
+    drop-shadow(0 8px 24px rgba(249, 115, 22, 0.15));
+}
+
+.dark .hero-headline-ai-modern {
+  background: linear-gradient(135deg, #F472B6, #FCD34D, #FB923C);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter:
+    drop-shadow(0 2px 0 rgba(244, 114, 182, 0.28))
+    drop-shadow(0 4px 12px rgba(252, 211, 77, 0.2))
+    drop-shadow(0 8px 24px rgba(251, 146, 60, 0.15));
+}
+
+/* Modern hero badge with gradient border */
+.hero-badge-modern {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(6, 182, 212, 0.08));
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  color: #6D28D9;
+}
+
+.dark .hero-badge-modern {
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.1), rgba(103, 232, 249, 0.1));
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  color: #C4B5FD;
+}
+
+/* Modern feature pills with subtle gradient */
+.hero-pill-modern {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(124, 58, 237, 0.12);
+  color: #4B5563;
+}
+
+.hero-pill-modern:hover {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.06), rgba(6, 182, 212, 0.06));
+  border-color: rgba(124, 58, 237, 0.25);
+  color: #6D28D9;
+}
+
+.dark .hero-pill-modern {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(167, 139, 250, 0.15);
+  color: #9CA3AF;
+}
+
+.dark .hero-pill-modern:hover {
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.08), rgba(103, 232, 249, 0.08));
+  border-color: rgba(167, 139, 250, 0.3);
+  color: #C4B5FD;
 }
 
 /* Animated gradient shimmer for headline */
