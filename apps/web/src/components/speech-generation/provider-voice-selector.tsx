@@ -4,7 +4,10 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -39,6 +42,14 @@ export function ProviderVoiceSelector({
       { enabled: !!provider }
     );
 
+  const { data: clonedVoices } = trpc.voice.getClonedVoices.useQuery(
+    undefined,
+    { enabled: provider === "inworld" }
+  );
+
+  const hasClonedVoices =
+    provider === "inworld" && clonedVoices && clonedVoices.length > 0;
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -66,6 +77,22 @@ export function ProviderVoiceSelector({
             />
           </SelectTrigger>
           <SelectContent>
+            {hasClonedVoices && (
+              <>
+                <SelectGroup>
+                  <SelectLabel>My Cloned Voices</SelectLabel>
+                  {clonedVoices.map((cv) => (
+                    <SelectItem key={cv.id} value={cv.providerVoiceId!}>
+                      {cv.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+                <SelectSeparator />
+                <SelectGroup>
+                  <SelectLabel>Stock Voices</SelectLabel>
+                </SelectGroup>
+              </>
+            )}
             {voices?.map((voice) => (
               <SelectItem key={voice.id} value={voice.id}>
                 {voice.name}

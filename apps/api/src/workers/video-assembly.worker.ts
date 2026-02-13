@@ -11,9 +11,16 @@ export function createVideoAssemblyWorker(): Worker {
   return new Worker<VideoAssemblyJobData>(
     QUEUE_NAMES.VIDEO_ASSEMBLY,
     async (job) => {
-      const { projectId, userId, sceneIds } = job.data;
+      const { projectId, userId, sceneIds, stageConfig, captionConfig } = job.data;
       const startedAt = new Date();
-      console.warn(`[VideoAssembly] Processing job ${job.id} for project ${projectId}, sceneCount=${sceneIds?.length ?? 0}`);
+      console.warn(`[VideoAssembly] Processing job ${job.id} for project ${projectId}, sceneCount=${sceneIds?.length ?? 0}, hasStageConfig=${!!stageConfig}, hasCaptionConfig=${!!captionConfig}`);
+
+      // Apply stageConfig overrides for assembly
+      const outputResolution = stageConfig?.resolution ?? "1920x1080";
+      const [resWidth, resHeight] = outputResolution.split("x").map(Number);
+      const assemblyWidth = resWidth || 1920;
+      const assemblyHeight = resHeight || 1080;
+      const _assemblyFps = stageConfig?.fps ?? 30;
 
       try {
         // Mark generationJob as processing
@@ -85,8 +92,8 @@ export function createVideoAssemblyWorker(): Worker {
             const videoResult = await videoService.generateSceneVideo({
               imageUrl: visual.imageUrl,
               duration,
-              width: 1920,
-              height: 1080,
+              width: assemblyWidth,
+              height: assemblyHeight,
             });
 
             // Upload generated video to R2
@@ -152,8 +159,8 @@ export function createVideoAssemblyWorker(): Worker {
         console.warn(`[VideoAssembly] Assembling ${assemblyScenes.length} scene(s) for project ${projectId}`);
         const result = await videoService.assembleProject({
           scenes: assemblyScenes,
-          width: 1920,
-          height: 1080,
+          width: assemblyWidth,
+          height: assemblyHeight,
         });
 
         await job.updateProgress(80);

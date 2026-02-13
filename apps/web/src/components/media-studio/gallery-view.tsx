@@ -105,18 +105,7 @@ export function GalleryView() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {data.items.map((item) => (
-              <MediaCard
-                key={item.id}
-                id={item.id}
-                url={item.mediaUrl || ""}
-                mediaType={item.mediaType}
-                status={item.status}
-                modelName={item.model}
-                provider={item.provider}
-                aspectRatio={item.aspectRatio}
-                prompt={item.prompt}
-                error={item.errorMessage || undefined}
-              />
+              <MediaCard key={item.id} media={item} />
             ))}
           </div>
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Zap, Menu } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,7 +14,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { landingNavLinks } from "../lib/constants";
-import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 export function LandingHeader() {
   const [scrolled, setScrolled] = useState(false);
@@ -61,6 +62,7 @@ export function LandingHeader() {
 
         {/* Desktop CTA */}
         <div className="hidden items-center gap-3 md:flex">
+          <ThemeToggle />
           <Button variant="ghost" size="sm" asChild>
             <Link href="/login">Sign In</Link>
           </Button>
@@ -101,6 +103,11 @@ export function LandingHeader() {
                   {link.label}
                 </a>
               ))}
+              <div className="my-4 border-t" />
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="text-sm font-medium text-muted-foreground">Theme</span>
+                <ThemeToggle />
+              </div>
               <div className="my-4 border-t" />
               <Button variant="ghost" className="justify-start" asChild>
                 <Link href="/login" onClick={() => setOpen(false)}>

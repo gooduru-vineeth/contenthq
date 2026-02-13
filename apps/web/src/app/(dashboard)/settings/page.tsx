@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Settings, Key, Palette } from "lucide-react";
+import { useState, useSyncExternalStore } from "react";
+import { useTheme } from "next-themes";
+import { Settings, Key, Palette, Sun, Moon, Monitor } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,16 +90,51 @@ export default function SettingsPage() {
       </Card>
 
       {/* Appearance */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Palette className="h-4 w-4" /> Appearance
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Theme settings coming soon.</p>
-        </CardContent>
-      </Card>
+      <ThemeSelector />
     </div>
+  );
+}
+
+const themeOptions = [
+  { value: "light", label: "Light", icon: Sun, description: "Light background with dark text" },
+  { value: "dark", label: "Dark", icon: Moon, description: "Dark background with light text" },
+  { value: "system", label: "System", icon: Monitor, description: "Follows your OS preference" },
+] as const;
+
+const emptySubscribe = () => () => {};
+
+function ThemeSelector() {
+  const { theme, setTheme } = useTheme();
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Palette className="h-4 w-4" /> Appearance
+        </CardTitle>
+        <CardDescription>Choose how ContentHQ looks to you.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-3">
+          {themeOptions.map(({ value, label, icon: Icon, description }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTheme(value)}
+              className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors ${
+                mounted && theme === value
+                  ? "border-primary bg-accent"
+                  : "border-border hover:border-primary/50"
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="text-sm font-medium">{label}</span>
+              <span className="text-xs text-muted-foreground text-center">{description}</span>
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

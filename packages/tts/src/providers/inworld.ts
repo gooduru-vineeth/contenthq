@@ -30,6 +30,34 @@ function estimateDurationSeconds(text: string, speakingRate = 1): number {
   return minutes * 60;
 }
 
+export interface InworldVoiceCloneRequest {
+  displayName: string;
+  langCode: string;
+  voiceSamples: Array<{ audioData: string }>;
+  description?: string;
+  tags?: string[];
+  audioProcessingConfig?: {
+    removeBackgroundNoise?: boolean;
+  };
+}
+
+export interface InworldVoiceCloneResponse {
+  voice: {
+    voiceId: string;
+    name: string;
+    displayName: string;
+    description?: string;
+    languages: string[];
+    tags?: string[];
+  };
+  audioSamplesValidated: Array<{
+    langCode: string;
+    warnings: string[];
+    errors: string[];
+    transcription: string;
+  }>;
+}
+
 export class InworldTTSProvider implements ITTSProvider {
   readonly provider: Extract<SpeechProvider, 'inworld'> = 'inworld';
   readonly capabilities: TTSProviderCapabilities = {
@@ -38,7 +66,7 @@ export class InworldTTSProvider implements ITTSProvider {
     supportedFormats: ['wav', 'mp3', 'opus'],
     supportedLanguages: ['en', 'es', 'fr', 'ko', 'nl', 'zh', 'de', 'it', 'ja', 'pl', 'pt', 'ru'],
     supportsSSML: false,
-    supportsVoiceCloning: false,
+    supportsVoiceCloning: true,
     supportsEmotions: true,
     supportsSpeechMarks: false,
     costPerCharacter: 0,
@@ -197,5 +225,33 @@ export class InworldTTSProvider implements ITTSProvider {
       voiceId: options.voiceId,
       format: options.format || this.defaultFormat,
     });
+  }
+
+  async cloneVoice(request: InworldVoiceCloneRequest): Promise<InworldVoiceCloneResponse> {
+    const url = `${this.baseUrl}/voices/v1/voices:clone`;
+    const body = {
+      displayName: request.displayName,
+      langCode: request.langCode,
+      voiceSamples: request.voiceSamples,
+      ...(request.description && { description: request.description }),
+      ...(request.tags?.length && { tags: request.tags }),
+      ...(request.audioProcessingConfig && {
+        audioProcessingConfig: request.audioProcessingConfig,
+      }),
+    };
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { ...this.authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Inworld voice cloning failed: ${resp.status} ${text}`);
+    }
+
+    const data = (await resp.json()) as InworldVoiceCloneResponse;
+    return data;
   }
 }

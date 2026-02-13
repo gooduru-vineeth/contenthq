@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { integrations } from "../lib/constants";
-import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 const categories = [
   {

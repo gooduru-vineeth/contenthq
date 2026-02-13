@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@contenthq/db/client";
-import { voiceProfiles } from "@contenthq/db/schema";
+import { voiceProfiles, clonedVoices } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export const voiceRouter = router({
@@ -79,4 +79,16 @@ export const voiceRouter = router({
       };
       return voices[input.provider] ?? [];
     }),
+
+  getClonedVoices: protectedProcedure.query(async ({ ctx }) => {
+    return db
+      .select()
+      .from(clonedVoices)
+      .where(
+        and(
+          eq(clonedVoices.userId, ctx.user.id),
+          eq(clonedVoices.status, "ready")
+        )
+      );
+  }),
 });

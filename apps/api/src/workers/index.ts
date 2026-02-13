@@ -40,6 +40,11 @@ export async function initWorkers(): Promise<void> {
   );
   workers.push(createMediaGenerationWorker());
 
+  const { createCaptionGenerationWorker } = await import(
+    "./caption-generation.worker"
+  );
+  workers.push(createCaptionGenerationWorker());
+
   console.warn(`[Workers] ${workers.length} workers initialized`);
 }
 

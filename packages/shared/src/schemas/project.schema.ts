@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fullStageConfigsSchema, pipelineModeSchema } from "./pipeline-config.schema";
 
 export const createProjectSchema = z.object({
   title: z.string().min(1).max(200),
@@ -11,6 +12,12 @@ export const createProjectSchema = z.object({
   voiceProfileId: z.string().nullable().optional(),
   musicTrackId: z.string().nullable().optional(),
   enableVideoGeneration: z.boolean().default(false),
+  pipelineMode: pipelineModeSchema.default("simple"),
+  visualStyle: z.string().optional(),
+  ttsProvider: z.string().optional(),
+  ttsVoiceId: z.string().optional(),
+  enableCaptions: z.boolean().default(false),
+  stageConfigs: fullStageConfigsSchema.optional(),
 });
 
 export const updateProjectSchema = createProjectSchema.partial().extend({

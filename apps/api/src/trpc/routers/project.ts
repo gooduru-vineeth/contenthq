@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@contenthq/db/client";
-import { projects } from "@contenthq/db/schema";
+import { projects, pipelineConfigs } from "@contenthq/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { createProjectSchema, updateProjectSchema } from "@contenthq/shared";
 
@@ -9,13 +9,34 @@ export const projectRouter = router({
   create: protectedProcedure
     .input(createProjectSchema)
     .mutation(async ({ ctx, input }) => {
+      const { pipelineMode, stageConfigs, visualStyle, ttsProvider, ttsVoiceId, enableCaptions, ...projectData } = input;
       const [project] = await db
         .insert(projects)
         .values({
-          ...input,
+          ...projectData,
           userId: ctx.user.id,
         })
         .returning();
+
+      // Map simple mode fields to stage configs if in simple mode
+      const resolvedConfigs = stageConfigs ?? (
+        pipelineMode !== "advanced"
+          ? {
+              ...(visualStyle ? { sceneGeneration: { visualStyle } } : {}),
+              ...(ttsProvider || ttsVoiceId ? { tts: { ...(ttsProvider ? { provider: ttsProvider } : {}), ...(ttsVoiceId ? { voiceId: ttsVoiceId } : {}) } } : {}),
+              ...(enableCaptions ? { captionGeneration: { enabled: true } } : {}),
+            }
+          : {}
+      );
+
+      // Create default pipeline config for the new project
+      await db.insert(pipelineConfigs).values({
+        projectId: project.id,
+        userId: ctx.user.id,
+        mode: pipelineMode ?? "simple",
+        stageConfigs: resolvedConfigs,
+      });
+
       return project;
     }),
 

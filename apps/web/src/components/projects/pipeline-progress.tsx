@@ -10,6 +10,7 @@ import {
   Mic,
   Music,
   Clapperboard,
+  Captions,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ const stageIcons: Record<string, LucideIcon> = {
   VIDEO_GENERATION: Film,
   TTS_GENERATION: Mic,
   AUDIO_MIXING: Music,
+  CAPTION_GENERATION: Captions,
   VIDEO_ASSEMBLY: Clapperboard,
 };
 

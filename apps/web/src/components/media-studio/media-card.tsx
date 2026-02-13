@@ -24,33 +24,46 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Trash2, Loader2, Eye } from "lucide-react";
+import { Trash2, Loader2, Eye, Pencil, MessageSquarePlus } from "lucide-react";
+import { EditModal } from "./edit-modal";
+import { ChatEditModal } from "./chat-edit-modal";
 
-interface MediaCardProps {
+export interface MediaItem {
   id: string;
-  url: string;
+  mediaUrl: string | null;
   mediaType: "image" | "video" | "audio" | "thumbnail";
   status: "pending" | "generating" | "completed" | "failed";
-  modelName?: string;
-  provider?: string;
-  aspectRatio?: string;
-  prompt?: string;
-  error?: string;
+  model: string;
+  provider: string;
+  aspectRatio: string;
+  quality: string;
+  prompt: string;
+  errorMessage?: string | null;
 }
 
-export const MediaCard: FC<MediaCardProps> = ({
-  id,
-  url,
-  mediaType,
-  status,
-  modelName,
-  provider,
-  aspectRatio,
-  prompt,
-  error,
-}) => {
+interface MediaCardProps {
+  media: MediaItem;
+}
+
+export const MediaCard: FC<MediaCardProps> = ({ media }) => {
+  const {
+    id,
+    mediaUrl,
+    mediaType,
+    status,
+    model: modelName,
+    provider,
+    aspectRatio,
+    prompt,
+    errorMessage,
+  } = media;
+
+  const url = mediaUrl || "";
+
   const [showPreview, setShowPreview] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showChatEditModal, setShowChatEditModal] = useState(false);
 
   const utils = trpc.useUtils();
 
@@ -60,14 +73,19 @@ export const MediaCard: FC<MediaCardProps> = ({
       void utils.mediaGeneration.list.invalidate();
       setShowDeleteDialog(false);
     },
-    onError: (error) => {
-      toast.error(error.message || "Failed to delete media");
+    onError: (err) => {
+      toast.error(err.message || "Failed to delete media");
     },
   });
 
   const handleDelete = () => {
     deleteMutation.mutate({ id });
   };
+
+  const isCompletedImage =
+    status === "completed" &&
+    (mediaType === "image" || mediaType === "thumbnail") &&
+    mediaUrl;
 
   const getStatusBadge = () => {
     switch (status) {
@@ -90,9 +108,7 @@ export const MediaCard: FC<MediaCardProps> = ({
           </Badge>
         );
       case "failed":
-        return (
-          <Badge variant="destructive">Failed</Badge>
-        );
+        return <Badge variant="destructive">Failed</Badge>;
       default:
         return null;
     }
@@ -142,7 +158,7 @@ export const MediaCard: FC<MediaCardProps> = ({
             ) : (
               <div className="flex h-full items-center justify-center">
                 <p className="text-sm text-destructive">
-                  {error || "Generation failed"}
+                  {errorMessage || "Generation failed"}
                 </p>
               </div>
             )}
@@ -182,6 +198,24 @@ export const MediaCard: FC<MediaCardProps> = ({
                 View
               </Button>
             )}
+            {isCompletedImage && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowEditModal(true)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowChatEditModal(true)}
+                >
+                  <MessageSquarePlus className="h-4 w-4" />
+                </Button>
+              </>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -200,7 +234,9 @@ export const MediaCard: FC<MediaCardProps> = ({
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>
-              {modelName && provider ? `${modelName} (${provider})` : "Preview"}
+              {modelName && provider
+                ? `${modelName} (${provider})`
+                : "Preview"}
             </DialogTitle>
           </DialogHeader>
           <div className="mt-4">
@@ -258,6 +294,25 @@ export const MediaCard: FC<MediaCardProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Modal */}
+      {isCompletedImage && (
+        <EditModal
+          mediaId={id}
+          mediaUrl={url}
+          open={showEditModal}
+          onOpenChange={setShowEditModal}
+        />
+      )}
+
+      {/* Chat Edit Modal */}
+      {isCompletedImage && (
+        <ChatEditModal
+          open={showChatEditModal}
+          onOpenChange={setShowChatEditModal}
+          media={media}
+        />
+      )}
     </>
   );
 };

@@ -32,9 +32,14 @@ export function createStoryWritingWorker(): Worker {
   return new Worker<StoryWritingJobData>(
     QUEUE_NAMES.STORY_WRITING,
     async (job) => {
-      const { projectId, userId, tone, targetDuration, agentId } = job.data;
+      const { projectId, userId, tone, targetDuration, agentId, stageConfig } = job.data;
       const startedAt = new Date();
-      console.warn(`[StoryWriting] Processing job ${job.id} for project ${projectId}, tone=${tone}, targetDuration=${targetDuration}s, agentId=${agentId ?? "none"}`);
+      console.warn(`[StoryWriting] Processing job ${job.id} for project ${projectId}, tone=${tone}, targetDuration=${targetDuration}s, agentId=${agentId ?? "none"}, hasStageConfig=${!!stageConfig}`);
+
+      // Apply stageConfig overrides if provided
+      const effectiveAgentId = stageConfig?.agentId ?? agentId;
+      const effectiveTemperature = stageConfig?.temperature ?? 0.7;
+      const effectiveMaxTokens = stageConfig?.maxTokens ?? 4000;
 
       try {
         // Mark generationJob as processing
@@ -77,11 +82,11 @@ export function createStoryWritingWorker(): Worker {
         let composedPrompt: string | undefined;
         let usedModel: string | undefined;
 
-        if (agentId) {
+        if (effectiveAgentId) {
           // New path: use agent executor
-          console.warn(`[StoryWriting] Using agent executor (agentId=${agentId}) for project ${projectId}`);
+          console.warn(`[StoryWriting] Using agent executor (agentId=${effectiveAgentId}) for project ${projectId}`);
           const result = await executeAgent({
-            agentId,
+            agentId: effectiveAgentId,
             variables: {
               content: contentText,
               tone,
@@ -113,8 +118,8 @@ export function createStoryWritingWorker(): Worker {
           templateId = resolved.template.id;
 
           const result = await generateStructuredContent(composedPrompt, storyOutputSchema, {
-            temperature: 0.7,
-            maxTokens: 4000,
+            temperature: effectiveTemperature,
+            maxTokens: effectiveMaxTokens,
           });
           storyData = result.data;
           usedModel = result.model;
@@ -156,7 +161,7 @@ export function createStoryWritingWorker(): Worker {
         });
 
         // Track prompt usage in ai_generations (only for non-agent path, agent executor records its own)
-        if (!agentId && composedPrompt) {
+        if (!effectiveAgentId && composedPrompt) {
           await db.insert(aiGenerations).values({
             userId,
             projectId,

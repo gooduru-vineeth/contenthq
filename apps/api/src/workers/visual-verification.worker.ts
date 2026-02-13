@@ -13,8 +13,13 @@ export function createVisualVerificationWorker(): Worker {
     QUEUE_NAMES.VISUAL_VERIFICATION,
     async (job) => {
       const { projectId, sceneId, userId, imageUrl, visualDescription, agentId } = job.data;
+      const stageConfig = (job.data as unknown as Record<string, unknown>).stageConfig as { threshold?: number; autoRetryCount?: number; provider?: string; model?: string } | undefined;
       const startedAt = new Date();
-      console.warn(`[VisualVerification] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, imageUrl=${imageUrl?.substring(0, 80)}, agentId=${agentId ?? "none"}`);
+      console.warn(`[VisualVerification] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, imageUrl=${imageUrl?.substring(0, 80)}, agentId=${agentId ?? "none"}, hasStageConfig=${!!stageConfig}`);
+
+      // Apply stageConfig overrides
+      const verificationThreshold = stageConfig?.threshold ?? 60;
+      const maxRetries = stageConfig?.autoRetryCount ?? 3;
 
       try {
         // Mark generationJob as processing
@@ -63,7 +68,7 @@ export function createVisualVerificationWorker(): Worker {
             // If no template exists yet, verifyImage falls back to its built-in prompt
           }
 
-          result = await verifyImage(imageUrl, visualDescription, 60, customPrompt);
+          result = await verifyImage(imageUrl, visualDescription, verificationThreshold, customPrompt);
         }
 
         console.warn(`[VisualVerification] Verification result for scene ${sceneId}: approved=${result.approved}, totalScore=${result.totalScore}, relevance=${result.relevance}, quality=${result.quality}, consistency=${result.consistency}, safety=${result.safety}`);
@@ -162,9 +167,9 @@ export function createVisualVerificationWorker(): Worker {
           }
 
           const retryCount = visual.retryCount ?? 0;
-          console.warn(`[VisualVerification] Scene ${sceneId} failed verification (score=${result.totalScore}), retryCount=${retryCount}/3`);
+          console.warn(`[VisualVerification] Scene ${sceneId} failed verification (score=${result.totalScore}), retryCount=${retryCount}/${maxRetries}`);
 
-          if (retryCount < 3) {
+          if (retryCount < maxRetries) {
             // Increment retry count and re-queue visual generation
             await db
               .update(sceneVisuals)
@@ -185,7 +190,7 @@ export function createVisualVerificationWorker(): Worker {
             });
 
             console.warn(
-              `[VisualVerification] Rejected for scene ${sceneId} (score: ${result.totalScore}), retry ${retryCount + 1}/3`
+              `[VisualVerification] Rejected for scene ${sceneId} (score: ${result.totalScore}), retry ${retryCount + 1}/${maxRetries}`
             );
           } else {
             // Max retries exceeded

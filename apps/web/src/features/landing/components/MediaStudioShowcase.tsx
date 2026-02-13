@@ -4,7 +4,7 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import type { MouseEvent } from "react";
 import { Sparkles, MessageSquare, ImageIcon } from "lucide-react";
 import { mediaStudioBullets } from "../lib/constants";
-import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 export function MediaStudioShowcase() {
   const prefersReducedMotion = usePrefersReducedMotion();

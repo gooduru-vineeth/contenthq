@@ -30,7 +30,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { PipelineProgress } from "@/components/projects/pipeline-progress";
+import { PipelineProgress3D } from "@/components/projects/pipeline-3d/PipelineProgress3D";
 import { PipelineLog } from "@/components/projects/pipeline-log";
 import { StageDetailPanel } from "@/components/projects/stage-detail-panel";
 import {
@@ -231,15 +231,19 @@ export default function ProjectDetailPage({
       </div>
 
       {/* Pipeline Progress */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Pipeline Progress</CardTitle>
-          <CardDescription>
-            {project.progressPercent}% complete — click a stage to view details
-          </CardDescription>
+      <Card className="overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm">
+        <CardHeader className="pb-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Pipeline Progress</CardTitle>
+              <CardDescription>
+                Click a stage to view details
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <PipelineProgress
+        <CardContent className="p-0 overflow-hidden">
+          <PipelineProgress3D
             currentStage={currentStage}
             projectStatus={project.status}
             progressPercent={project.progressPercent ?? undefined}

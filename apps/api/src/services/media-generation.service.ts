@@ -4,7 +4,7 @@ import {
   mediaConversations,
   mediaConversationMessages,
 } from "@contenthq/db/schema";
-import { eq, and, desc, like, count as countFn } from "drizzle-orm";
+import { eq, and, desc, like, count as countFn, sql } from "drizzle-orm";
 import { addMediaGenerationJob } from "@contenthq/queue";
 import { mediaProviderRegistry } from "@contenthq/ai";
 import { storage } from "@contenthq/storage";
@@ -13,6 +13,8 @@ import type {
   AspectRatio,
   MediaQuality,
   MediaGalleryFilters,
+  ChatEditCombinationResult,
+  ChatEditResponse,
 } from "@contenthq/shared";
 
 // ============================================
@@ -137,7 +139,60 @@ async function generate(
     projectId: request.projectId,
   });
 
-  return { generatedMediaId: record.id, jobId: job.id };
+  // Auto-create conversation if none provided
+  let conversationId = request.conversationId ?? null;
+  if (!conversationId) {
+    conversationId = await createConversationFromGeneration(
+      userId,
+      record.id,
+      request.prompt,
+      request.model,
+      request.mediaType
+    );
+  } else {
+    // Add messages to existing conversation
+    const [msgCount] = await db
+      .select({ total: countFn() })
+      .from(mediaConversationMessages)
+      .where(eq(mediaConversationMessages.conversationId, conversationId));
+    const position = Number(msgCount?.total ?? 0);
+
+    await db.insert(mediaConversationMessages).values([
+      {
+        conversationId,
+        role: "user" as const,
+        content: request.prompt,
+        position,
+      },
+      {
+        conversationId,
+        role: "assistant" as const,
+        content: request.prompt,
+        generatedMediaId: record.id,
+        model: request.model,
+        position: position + 1,
+      },
+    ]);
+
+    await db
+      .update(mediaConversations)
+      .set({
+        messageCount: sql`${mediaConversations.messageCount} + 2`,
+        lastMessageAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(mediaConversations.id, conversationId));
+  }
+
+  // Link generatedMedia to conversation
+  if (conversationId) {
+    await db
+      .update(generatedMedia)
+      .set({ conversationId })
+      .where(eq(generatedMedia.id, record.id));
+  }
+
+  return { generatedMediaId: record.id, jobId: job.id, conversationId };
 }
 
 async function generateMultiModel(
@@ -421,6 +476,231 @@ async function deleteMedia(userId: string, mediaId: string) {
   return { success: true };
 }
 
+async function createConversationFromGeneration(
+  userId: string,
+  generatedMediaId: string,
+  prompt: string,
+  model: string,
+  mediaType: string
+): Promise<string> {
+  const title =
+    prompt.length > 80 ? prompt.substring(0, 80) + "..." : prompt;
+
+  const [conversation] = await db
+    .insert(mediaConversations)
+    .values({
+      userId,
+      title,
+      initialPrompt: prompt,
+      model,
+      mediaType,
+      messageCount: 2,
+      lastMessageAt: new Date(),
+    })
+    .returning();
+
+  // Create user message (position 0) and assistant message (position 1)
+  await db.insert(mediaConversationMessages).values([
+    {
+      conversationId: conversation.id,
+      role: "user" as const,
+      content: prompt,
+      position: 0,
+    },
+    {
+      conversationId: conversation.id,
+      role: "assistant" as const,
+      content: prompt,
+      generatedMediaId,
+      model,
+      position: 1,
+    },
+  ]);
+
+  return conversation.id;
+}
+
+async function sendConversationMessage(
+  userId: string,
+  conversationId: string,
+  request: {
+    prompt: string;
+    model?: string;
+    mediaType?: MediaGenerationType;
+    aspectRatio?: AspectRatio;
+    quality?: MediaQuality;
+    style?: string;
+    duration?: number;
+  }
+) {
+  // Verify conversation ownership
+  const [conversation] = await db
+    .select()
+    .from(mediaConversations)
+    .where(
+      and(
+        eq(mediaConversations.id, conversationId),
+        eq(mediaConversations.userId, userId)
+      )
+    );
+
+  if (!conversation) {
+    throw new Error("Conversation not found or access denied");
+  }
+
+  checkRateLimit(userId);
+
+  // Build composite prompt from recent user messages
+  const recentUserMessages = await db
+    .select()
+    .from(mediaConversationMessages)
+    .where(
+      and(
+        eq(mediaConversationMessages.conversationId, conversationId),
+        eq(mediaConversationMessages.role, "user")
+      )
+    )
+    .orderBy(desc(mediaConversationMessages.position))
+    .limit(4);
+
+  // Build composite: oldest first, then new prompt
+  const previousPrompts = recentUserMessages
+    .reverse()
+    .map((m) => m.content);
+
+  let compositePrompt: string;
+  if (previousPrompts.length === 0) {
+    compositePrompt = request.prompt;
+  } else {
+    compositePrompt = previousPrompts[0]!;
+    for (let i = 1; i < previousPrompts.length; i++) {
+      compositePrompt += `. Additionally: ${previousPrompts[i]}`;
+    }
+    compositePrompt += `. Additionally: ${request.prompt}`;
+  }
+
+  const model = request.model ?? conversation.model;
+  const mediaType =
+    (request.mediaType as MediaGenerationType) ??
+    (conversation.mediaType as MediaGenerationType) ??
+    "image";
+
+  const provider = mediaProviderRegistry.getProviderForModel(model);
+  if (!provider) {
+    throw new Error(`Unknown model: ${model}`);
+  }
+  if (!provider.isConfigured()) {
+    throw new Error(
+      `Provider ${provider.name} is not configured. Check API key settings.`
+    );
+  }
+
+  const aspectRatio = request.aspectRatio ?? "1:1";
+  const quality = request.quality ?? "standard";
+
+  // Get current message count for positioning
+  const [msgCount] = await db
+    .select({ total: countFn() })
+    .from(mediaConversationMessages)
+    .where(eq(mediaConversationMessages.conversationId, conversationId));
+  const position = Number(msgCount?.total ?? 0);
+
+  // Create pending generatedMedia record
+  const [record] = await db
+    .insert(generatedMedia)
+    .values({
+      userId,
+      prompt: compositePrompt,
+      mediaType,
+      model,
+      provider: provider.provider,
+      aspectRatio,
+      quality,
+      style: request.style ?? null,
+      status: "pending",
+      conversationId,
+    })
+    .returning();
+
+  // Create user + assistant messages
+  await db.insert(mediaConversationMessages).values([
+    {
+      conversationId,
+      role: "user" as const,
+      content: request.prompt,
+      position,
+    },
+    {
+      conversationId,
+      role: "assistant" as const,
+      content: compositePrompt,
+      generatedMediaId: record.id,
+      model,
+      position: position + 1,
+    },
+  ]);
+
+  // Update conversation metadata
+  await db
+    .update(mediaConversations)
+    .set({
+      messageCount: sql`${mediaConversations.messageCount} + 2`,
+      lastMessageAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(mediaConversations.id, conversationId));
+
+  // Queue the generation job
+  const job = await addMediaGenerationJob({
+    userId,
+    generatedMediaId: record.id,
+    prompt: compositePrompt,
+    mediaType,
+    model,
+    provider: provider.provider,
+    aspectRatio,
+    quality,
+    style: request.style,
+    duration: request.duration,
+    count: 1,
+    conversationId,
+  });
+
+  return { generatedMediaId: record.id, jobId: job.id };
+}
+
+async function updateConversation(
+  userId: string,
+  conversationId: string,
+  updates: { title?: string }
+) {
+  const [conversation] = await db
+    .select()
+    .from(mediaConversations)
+    .where(
+      and(
+        eq(mediaConversations.id, conversationId),
+        eq(mediaConversations.userId, userId)
+      )
+    );
+
+  if (!conversation) {
+    throw new Error("Conversation not found or access denied");
+  }
+
+  const setClause: Record<string, unknown> = { updatedAt: new Date() };
+  if (updates.title !== undefined) {
+    setClause.title = updates.title;
+  }
+
+  await db
+    .update(mediaConversations)
+    .set(setClause)
+    .where(eq(mediaConversations.id, conversationId));
+
+  return { success: true };
+}
+
 async function getConversation(userId: string, conversationId: string) {
   // Fetch the conversation with ownership check
   const [conversation] = await db
@@ -522,14 +802,245 @@ async function deleteConversation(userId: string, conversationId: string) {
   return { success: true };
 }
 
+function getEditableModels() {
+  return mediaProviderRegistry.getEditableModels();
+}
+
+async function chatEditMultiCombination(
+  userId: string,
+  sourceMediaId: string,
+  request: {
+    editPrompt: string;
+    models: string[];
+    aspectRatios: AspectRatio[];
+    qualities: MediaQuality[];
+    strength?: number;
+    referenceImageUrl?: string;
+    conversationId?: string;
+  }
+): Promise<ChatEditResponse> {
+  // Validate source media ownership
+  const [sourceMedia] = await db
+    .select()
+    .from(generatedMedia)
+    .where(
+      and(eq(generatedMedia.id, sourceMediaId), eq(generatedMedia.userId, userId))
+    );
+
+  if (!sourceMedia) {
+    throw new Error("Media not found or access denied");
+  }
+
+  if (!sourceMedia.mediaUrl) {
+    throw new Error("Source media has no URL available for editing");
+  }
+
+  // Build Cartesian product: models x aspectRatios x qualities
+  const combinations: Array<{
+    model: string;
+    aspectRatio: AspectRatio;
+    quality: MediaQuality;
+  }> = [];
+
+  for (const model of request.models) {
+    for (const aspectRatio of request.aspectRatios) {
+      for (const quality of request.qualities) {
+        combinations.push({ model, aspectRatio, quality });
+      }
+    }
+  }
+
+  // Rate limit check
+  checkRateLimit(userId, combinations.length);
+
+  // Create or reuse conversation
+  let conversationId = request.conversationId ?? null;
+  if (!conversationId) {
+    const title =
+      request.editPrompt.length > 80
+        ? request.editPrompt.substring(0, 80) + "..."
+        : request.editPrompt;
+
+    const [conversation] = await db
+      .insert(mediaConversations)
+      .values({
+        userId,
+        title,
+        initialPrompt: request.editPrompt,
+        model: request.models[0] ?? "unknown",
+        mediaType: "image",
+        messageCount: 0,
+        lastMessageAt: new Date(),
+      })
+      .returning();
+    conversationId = conversation.id;
+  }
+
+  // Save user message
+  const [msgCount] = await db
+    .select({ total: countFn() })
+    .from(mediaConversationMessages)
+    .where(eq(mediaConversationMessages.conversationId, conversationId));
+  const position = Number(msgCount?.total ?? 0);
+
+  await db.insert(mediaConversationMessages).values({
+    conversationId,
+    role: "user" as const,
+    content: request.editPrompt,
+    position,
+  });
+
+  // Process all combinations synchronously via Promise.allSettled
+  const editPromises = combinations.map(async (combo) => {
+    const startTime = Date.now();
+    const provider = mediaProviderRegistry.getProviderForModel(combo.model);
+    if (!provider) {
+      throw new Error(`No provider found for model: ${combo.model}`);
+    }
+    if (!provider.editImage) {
+      throw new Error(`Provider ${provider.name} does not support editing`);
+    }
+
+    const modelConfig = provider.getModels().find((m) => m.id === combo.model);
+    const modelName = modelConfig?.name ?? combo.model;
+
+    const result = await provider.editImage({
+      image: sourceMedia.mediaUrl!,
+      prompt: request.editPrompt,
+      model: combo.model,
+      strength: request.strength,
+      count: 1,
+      referenceImage: request.referenceImageUrl,
+    });
+
+    const generationTimeMs = Date.now() - startTime;
+
+    // Upload result to R2
+    if (!result.images || result.images.length === 0) {
+      throw new Error("No image returned from provider");
+    }
+
+    const imageData = result.images[0]!;
+    const ext = imageData.mediaType === "image/webp" ? "webp" : "png";
+    const uuid = crypto.randomUUID();
+    const storageKey = `generated-media/${userId}/${uuid}.${ext}`;
+    const buffer = Buffer.from(imageData.base64, "base64");
+
+    const uploadResult = await storage.uploadFileWithRetry(
+      storageKey,
+      new Uint8Array(buffer),
+      imageData.mediaType
+    );
+
+    // Insert generated_media record
+    const [record] = await db
+      .insert(generatedMedia)
+      .values({
+        userId,
+        prompt: request.editPrompt,
+        mediaType: "image",
+        model: combo.model,
+        provider: provider.provider,
+        aspectRatio: combo.aspectRatio,
+        quality: combo.quality,
+        status: "completed",
+        mediaUrl: uploadResult.url,
+        storageKey,
+        generationTimeMs,
+        conversationId,
+        mimeType: imageData.mediaType,
+      })
+      .returning();
+
+    // Save assistant message
+    const [currentCount] = await db
+      .select({ total: countFn() })
+      .from(mediaConversationMessages)
+      .where(eq(mediaConversationMessages.conversationId, conversationId!));
+    const assistantPosition = Number(currentCount?.total ?? 0);
+
+    await db.insert(mediaConversationMessages).values({
+      conversationId: conversationId!,
+      role: "assistant" as const,
+      content: request.editPrompt,
+      generatedMediaId: record.id,
+      model: combo.model,
+      position: assistantPosition,
+    });
+
+    return {
+      modelId: combo.model,
+      modelName,
+      provider: provider.provider,
+      aspectRatio: combo.aspectRatio,
+      quality: combo.quality,
+      status: "completed" as const,
+      generatedMediaId: record.id,
+      mediaUrl: uploadResult.url,
+      generationTimeMs,
+    } satisfies ChatEditCombinationResult;
+  });
+
+  const settled = await Promise.allSettled(editPromises);
+
+  const results: ChatEditCombinationResult[] = settled.map((result, i) => {
+    const combo = combinations[i]!;
+    if (result.status === "fulfilled") {
+      return result.value;
+    }
+    const provider = mediaProviderRegistry.getProviderForModel(combo.model);
+    const modelConfig = provider?.getModels().find((m) => m.id === combo.model);
+    return {
+      modelId: combo.model,
+      modelName: modelConfig?.name ?? combo.model,
+      provider: provider?.provider ?? "unknown",
+      aspectRatio: combo.aspectRatio,
+      quality: combo.quality,
+      status: "failed" as const,
+      error:
+        result.reason instanceof Error
+          ? result.reason.message
+          : String(result.reason),
+    };
+  });
+
+  const succeeded = results.filter((r) => r.status === "completed").length;
+  const failed = results.filter((r) => r.status === "failed").length;
+
+  // Update conversation metadata
+  await db
+    .update(mediaConversations)
+    .set({
+      messageCount: sql`${mediaConversations.messageCount} + ${1 + succeeded}`,
+      lastMessageAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(mediaConversations.id, conversationId));
+
+  return {
+    results,
+    conversationId,
+    summary: {
+      totalCombinations: combinations.length,
+      succeeded,
+      failed,
+    },
+  };
+}
+
 export const mediaGenerationService = {
   getAvailableModels,
+  getEditableModels,
   generate,
   generateMultiModel,
   editMedia,
+  chatEditMultiCombination,
   listMedia,
   getMedia,
   deleteMedia,
+  createConversationFromGeneration,
+  sendConversationMessage,
+  updateConversation,
   getConversation,
   listConversations,
   deleteConversation,

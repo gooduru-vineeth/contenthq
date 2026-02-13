@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@contenthq/db/client";
-import { projects, generationJobs } from "@contenthq/db/schema";
+import { projects, generationJobs, pipelineConfigs } from "@contenthq/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { addIngestionJob } from "@contenthq/queue";
 import { startPipelineSchema, retryStageSchema } from "@contenthq/shared";
@@ -21,6 +21,22 @@ export const pipelineRouter = router({
       if (!project) {
         console.error(`[PipelineRouter] Project ${input.projectId} not found for userId=${ctx.user.id}`);
         throw new Error("Project not found");
+      }
+
+      // Freeze pipeline config for this run
+      const [config] = await db
+        .select()
+        .from(pipelineConfigs)
+        .where(eq(pipelineConfigs.projectId, input.projectId));
+      if (config) {
+        await db
+          .update(pipelineConfigs)
+          .set({
+            frozenConfig: config.stageConfigs,
+            frozenAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(pipelineConfigs.id, config.id));
       }
 
       await db
