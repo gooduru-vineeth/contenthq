@@ -251,12 +251,19 @@ export async function resolveModelFromDb(
   }
 
   // Tier 4: Hardcoded fallback
-  const fallbackProvider = options?.type === "image" ? "openai" : options?.type === "vision" ? "anthropic" : "anthropic";
+  const fallbackProvider = options?.type === "image" ? "fal" : options?.type === "vision" ? "anthropic" : "anthropic";
   const fallbackModelId = options?.type === "image"
-    ? OPENAI_MODELS.DALLE3
+    ? "fal-ai/flux/schnell"
     : PROVIDER_DEFAULTS[fallbackProvider] ?? ANTHROPIC_MODELS.CLAUDE_SONNET_4_5;
   console.warn(`[ModelFactory] Using hardcoded fallback: provider=${fallbackProvider}, model=${fallbackModelId}, type=${options?.type ?? "default"}`);
-  const model = getModelInstance(fallbackProvider, fallbackModelId);
+
+  // For non-LLM types (image, video, audio), the LanguageModel instance is not used by callers
+  let model: LanguageModel;
+  try {
+    model = getModelInstance(fallbackProvider, fallbackModelId);
+  } catch {
+    model = null as unknown as LanguageModel;
+  }
 
   return {
     provider: fallbackProvider,

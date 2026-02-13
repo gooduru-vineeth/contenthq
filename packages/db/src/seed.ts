@@ -741,7 +741,7 @@ const imageModels = [
     name: "DALL-E 3",
     modelId: "dall-e-3",
     type: "image",
-    isDefault: true,
+    isDefault: false,
     costs: { perImage: 0.04, currency: "USD" },
     capabilities: {
       maxResolution: "1024x1024",
@@ -954,7 +954,7 @@ const imageModels = [
     name: "FLUX Schnell",
     modelId: "fal-ai/flux/schnell",
     type: "image",
-    isDefault: false,
+    isDefault: true,
     costs: { perImage: 0.003, currency: "USD" },
     capabilities: {
       maxResolution: "1024x1024",
