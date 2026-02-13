@@ -1,8 +1,10 @@
 "use client";
 
-import { Download, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { Download, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StageEmptyState } from "./stage-empty-state";
 import { StageJobStatus } from "./stage-job-status";
@@ -26,6 +28,20 @@ export function IngestionStage({ projectId, isActive, jobs }: IngestionStageProp
     { projectId },
     { refetchInterval: isActive ? 5000 : false },
   );
+
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  function toggleExpand(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
 
   if (isLoading) {
     return (
@@ -52,47 +68,77 @@ export function IngestionStage({ projectId, isActive, jobs }: IngestionStageProp
         />
       ) : (
         <div className="space-y-3">
-          {ingestions.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-md border p-4 space-y-2"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">
-                    {item.title || "Untitled Content"}
-                  </p>
-                  {item.sourcePlatform && (
-                    <Badge variant="secondary" className="mt-1 text-[10px]">
-                      {item.sourcePlatform}
-                    </Badge>
+          {ingestions.map((item) => {
+            const isExpanded = expandedIds.has(item.id);
+            const hasLongBody = item.body && item.body.length > 200;
+            return (
+              <div
+                key={item.id}
+                className="rounded-md border p-4 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">
+                      {item.title || "Untitled Content"}
+                    </p>
+                    {item.sourcePlatform && (
+                      <Badge variant="secondary" className="mt-1 text-[10px]">
+                        {item.sourcePlatform}
+                      </Badge>
+                    )}
+                  </div>
+                  {item.engagementScore != null && item.engagementScore > 0 && (
+                    <div className="text-right shrink-0">
+                      <p className="text-xs text-muted-foreground">Engagement</p>
+                      <p className="text-sm font-medium">{item.engagementScore}</p>
+                    </div>
                   )}
                 </div>
-                {item.engagementScore != null && item.engagementScore > 0 && (
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-muted-foreground">Engagement</p>
-                    <p className="text-sm font-medium">{item.engagementScore}</p>
+                {item.sourceUrl && (
+                  <a
+                    href={item.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    {item.sourceUrl}
+                  </a>
+                )}
+                {item.body && (
+                  <div>
+                    <p
+                      className={`text-xs text-muted-foreground whitespace-pre-wrap ${
+                        isExpanded ? "" : "line-clamp-3"
+                      }`}
+                    >
+                      {item.body}
+                    </p>
+                    {hasLongBody && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-1 h-auto p-0 text-xs text-primary"
+                        onClick={() => toggleExpand(item.id)}
+                      >
+                        {isExpanded ? (
+                          <>
+                            <ChevronUp className="h-3 w-3 mr-1" />
+                            Show less
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-3 w-3 mr-1" />
+                            Show full content
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
-              {item.sourceUrl && (
-                <a
-                  href={item.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  {item.sourceUrl}
-                </a>
-              )}
-              {item.body && (
-                <p className="text-xs text-muted-foreground line-clamp-3">
-                  {item.body}
-                </p>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

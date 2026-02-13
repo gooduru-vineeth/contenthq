@@ -1,8 +1,13 @@
 "use client";
 
-import { Mic } from "lucide-react";
+import { useState } from "react";
+import { Mic, Save, Loader2, Pen, X } from "lucide-react";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StageEmptyState } from "./stage-empty-state";
 import { StageJobStatus } from "./stage-job-status";
@@ -22,10 +27,37 @@ interface TtsGenerationStageProps {
 }
 
 export function TtsGenerationStage({ projectId, isActive, jobs }: TtsGenerationStageProps) {
+  const utils = trpc.useUtils();
   const { data: scenes, isLoading } = trpc.scene.listByProjectEnriched.useQuery(
     { projectId },
     { refetchInterval: isActive ? 5000 : false },
   );
+
+  const [editingSceneId, setEditingSceneId] = useState<string | null>(null);
+  const [narrationScript, setNarrationScript] = useState("");
+
+  const updateScene = trpc.scene.update.useMutation({
+    onSuccess: () => {
+      toast.success("Narration script updated");
+      setEditingSceneId(null);
+      void utils.scene.listByProjectEnriched.invalidate({ projectId });
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to update script");
+    },
+  });
+
+  function startEditing(sceneId: string, currentScript: string) {
+    setEditingSceneId(sceneId);
+    setNarrationScript(currentScript);
+  }
+
+  function handleSave(sceneId: string) {
+    updateScene.mutate({
+      id: sceneId,
+      narrationScript: narrationScript || undefined,
+    });
+  }
 
   if (isLoading) {
     return (
@@ -61,6 +93,7 @@ export function TtsGenerationStage({ projectId, isActive, jobs }: TtsGenerationS
           {scenes.map((scene) => {
             const video = scene.videos?.[0];
             if (!video?.voiceoverUrl) return null;
+            const isEditing = editingSceneId === scene.id;
             return (
               <div
                 key={scene.id}
@@ -79,13 +112,61 @@ export function TtsGenerationStage({ projectId, isActive, jobs }: TtsGenerationS
                         {video.ttsVoiceId}
                       </span>
                     )}
+                    {!isEditing && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => startEditing(scene.id, scene.narrationScript ?? "")}
+                      >
+                        <Pen className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
-                {scene.narrationScript && (
-                  <p className="text-xs text-muted-foreground line-clamp-2 italic">
-                    {scene.narrationScript}
-                  </p>
+
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <Label htmlFor={`narration-${scene.id}`}>Narration Script</Label>
+                    <Textarea
+                      id={`narration-${scene.id}`}
+                      value={narrationScript}
+                      onChange={(e) => setNarrationScript(e.target.value)}
+                      rows={3}
+                      placeholder="Narration text for this scene"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleSave(scene.id)}
+                        disabled={updateScene.isPending}
+                      >
+                        {updateScene.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        Save
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingSceneId(null)}
+                        disabled={updateScene.isPending}
+                      >
+                        <X className="h-4 w-4" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  scene.narrationScript && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 italic">
+                      {scene.narrationScript}
+                    </p>
+                  )
                 )}
+
                 <audio
                   src={video.voiceoverUrl}
                   controls
