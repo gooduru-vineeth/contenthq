@@ -35,7 +35,7 @@ export function CTASection() {
           viewport={{ once: true }}
         >
           <Sparkles className="mx-auto mb-6 h-10 w-10 text-cta-300" />
-          <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl text-gradient-cta">
             Ready to Create Your First Video?
           </h2>
           <p className="mb-10 text-lg text-white/80">

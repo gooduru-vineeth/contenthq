@@ -27,7 +27,7 @@ export function FAQSection() {
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
             Frequently Asked{" "}
-            <span className="text-gradient-landing">Questions</span>
+            <span className="text-gradient-faq">Questions</span>
           </h2>
         </motion.div>
 

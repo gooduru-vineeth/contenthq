@@ -35,7 +35,7 @@ export function IntegrationsSection() {
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
             Works With the Tools{" "}
-            <span className="text-gradient-landing">You Already Use</span>
+            <span className="text-gradient-integrations">You Already Use</span>
           </h2>
           <p className="mx-auto max-w-2xl text-muted-foreground">
             Import from your favorite platforms and publish everywhere your

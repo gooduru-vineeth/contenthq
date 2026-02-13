@@ -40,7 +40,7 @@ export function MediaStudioShowcase() {
             </span>
             <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
               Create with AI,{" "}
-              <span className="bg-gradient-to-r from-cta-500 to-cta-600 bg-clip-text text-transparent">
+              <span className="text-gradient-studio">
                 refine with conversation
               </span>
             </h2>

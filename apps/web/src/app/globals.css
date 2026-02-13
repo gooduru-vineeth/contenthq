@@ -336,6 +336,228 @@ body {
   background-clip: text;
 }
 
+/* ── Section-specific heading gradients ── */
+
+/* PipelineSection: "Working for You" — Violet → Fuchsia */
+.text-gradient-pipeline {
+  background: linear-gradient(135deg, #7C3AED, #A855F7, #D946EF);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(124, 58, 237, 0.15));
+}
+.dark .text-gradient-pipeline {
+  background: linear-gradient(135deg, #A78BFA, #C084FC, #E879F9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(167, 139, 250, 0.2));
+}
+
+/* FeaturesGrid: "Create Amazing Videos" — Cyan → Blue */
+.text-gradient-features {
+  background: linear-gradient(135deg, #0891B2, #0284C7, #2563EB);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(8, 145, 178, 0.15));
+}
+.dark .text-gradient-features {
+  background: linear-gradient(135deg, #22D3EE, #38BDF8, #60A5FA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(34, 211, 238, 0.2));
+}
+
+/* MediaStudioShowcase: "refine with conversation" — Amber → Rose */
+.text-gradient-studio {
+  background: linear-gradient(135deg, #D97706, #EA580C, #E11D48);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(234, 88, 12, 0.15));
+}
+.dark .text-gradient-studio {
+  background: linear-gradient(135deg, #FBBF24, #FB923C, #FB7185);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(251, 146, 60, 0.2));
+}
+
+/* HowItWorksSection: "Your First Video" — Emerald → Teal */
+.text-gradient-howitworks {
+  background: linear-gradient(135deg, #059669, #0D9488, #0891B2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(5, 150, 105, 0.15));
+}
+.dark .text-gradient-howitworks {
+  background: linear-gradient(135deg, #34D399, #2DD4BF, #22D3EE);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(52, 211, 153, 0.2));
+}
+
+/* IntegrationsSection: "You Already Use" — Indigo → Violet */
+.text-gradient-integrations {
+  background: linear-gradient(135deg, #4338CA, #6D28D9, #7C3AED);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(67, 56, 202, 0.15));
+}
+.dark .text-gradient-integrations {
+  background: linear-gradient(135deg, #818CF8, #A78BFA, #C084FC);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(129, 140, 248, 0.2));
+}
+
+/* TestimonialsSection: "Creators Everywhere" — Rose → Orange */
+.text-gradient-testimonials {
+  background: linear-gradient(135deg, #E11D48, #F43F5E, #F97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(225, 29, 72, 0.15));
+}
+.dark .text-gradient-testimonials {
+  background: linear-gradient(135deg, #FB7185, #FDA4AF, #FB923C);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(251, 113, 133, 0.2));
+}
+
+/* PricingSection: "Pricing" — Electric Blue → Cyan */
+.text-gradient-pricing {
+  background: linear-gradient(135deg, #2563EB, #0EA5E9, #06B6D4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(37, 99, 235, 0.15));
+}
+.dark .text-gradient-pricing {
+  background: linear-gradient(135deg, #60A5FA, #38BDF8, #22D3EE);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(96, 165, 250, 0.2));
+}
+
+/* FAQSection: "Questions" — Fuchsia → Purple */
+.text-gradient-faq {
+  background: linear-gradient(135deg, #D946EF, #A855F7, #7C3AED);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(217, 70, 239, 0.15));
+}
+.dark .text-gradient-faq {
+  background: linear-gradient(135deg, #E879F9, #C084FC, #A78BFA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(232, 121, 249, 0.2));
+}
+
+/* Logo text gradient — Violet → Blue */
+.text-gradient-logo {
+  background: linear-gradient(135deg, #7C3AED, #4F46E5, #2563EB);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.dark .text-gradient-logo {
+  background: linear-gradient(135deg, #A78BFA, #818CF8, #60A5FA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* CTA headline shimmer — white with subtle pearl iridescence */
+.text-gradient-cta {
+  background: linear-gradient(135deg, #FFFFFF, #F0F0FF, #FFFFFF, #FFF5F0, #FFFFFF);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  animation: hero-gradient-shift 6s ease-in-out infinite;
+  filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.3));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .text-gradient-cta {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: white;
+    color: white;
+  }
+}
+
+/* Ticker stat values — vibrant multi-color */
+.text-gradient-ticker {
+  background: linear-gradient(135deg, #7C3AED, #2563EB, #0891B2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.dark .text-gradient-ticker {
+  background: linear-gradient(135deg, #A78BFA, #60A5FA, #22D3EE);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Feature card title accents — distinct solid colors per card */
+.text-feature-accent-1 { color: #7C3AED; }
+.dark .text-feature-accent-1 { color: #A78BFA; }
+.text-feature-accent-2 { color: #0891B2; }
+.dark .text-feature-accent-2 { color: #22D3EE; }
+.text-feature-accent-3 { color: #2563EB; }
+.dark .text-feature-accent-3 { color: #60A5FA; }
+.text-feature-accent-4 { color: #D946EF; }
+.dark .text-feature-accent-4 { color: #E879F9; }
+.text-feature-accent-5 { color: #EA580C; }
+.dark .text-feature-accent-5 { color: #FB923C; }
+.text-feature-accent-6 { color: #059669; }
+.dark .text-feature-accent-6 { color: #34D399; }
+.text-feature-accent-7 { color: #E11D48; }
+.dark .text-feature-accent-7 { color: #FB7185; }
+.text-feature-accent-8 { color: #4338CA; }
+.dark .text-feature-accent-8 { color: #818CF8; }
+
+/* Pricing tier name accents */
+.text-tier-free { color: #059669; }
+.dark .text-tier-free { color: #34D399; }
+.text-tier-starter { color: #2563EB; }
+.dark .text-tier-starter { color: #60A5FA; }
+.text-tier-pro { color: #7C3AED; }
+.dark .text-tier-pro { color: #A78BFA; }
+.text-tier-enterprise { color: #D97706; }
+.dark .text-tier-enterprise { color: #FBBF24; }
+
+/* Inline keyword highlight — subtle gradient for key phrases in subtitles */
+.text-highlight-keyword {
+  background: linear-gradient(135deg, #4F46E5, #7C3AED);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 600;
+}
+.dark .text-highlight-keyword {
+  background: linear-gradient(135deg, #818CF8, #A78BFA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 600;
+}
+
 /* Hero headline accent — bright blue gradient with extrusion depth */
 .hero-headline-accent {
   background: linear-gradient(135deg, #1A2CA3, #2845D6, #4F6FE4);

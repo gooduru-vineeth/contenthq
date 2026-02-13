@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { pricingTiers } from "../lib/constants";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
+const tierColorMap: Record<string, string> = {
+  Free: "text-tier-free",
+  Starter: "text-tier-starter",
+  Pro: "text-tier-pro",
+  Enterprise: "text-tier-enterprise",
+};
+
 export function PricingSection() {
   const prefersReducedMotion = usePrefersReducedMotion();
 
@@ -24,10 +31,10 @@ export function PricingSection() {
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
             Simple, Transparent{" "}
-            <span className="text-gradient-landing">Pricing</span>
+            <span className="text-gradient-pricing">Pricing</span>
           </h2>
           <p className="mx-auto max-w-2xl text-muted-foreground">
-            Start free, scale as you grow. No hidden fees, no surprises.
+            Start free, scale as you grow. <span className="text-highlight-keyword">No hidden fees</span>, no surprises.
           </p>
         </motion.div>
 
@@ -57,7 +64,7 @@ export function PricingSection() {
               )}
 
               <div className="mb-6">
-                <h3 className="text-lg font-semibold">{tier.name}</h3>
+                <h3 className={`text-lg font-semibold ${tierColorMap[tier.name] ?? ""}`}>{tier.name}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {tier.description}
                 </p>
