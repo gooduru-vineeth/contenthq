@@ -146,6 +146,7 @@ export const captionGenerationStageConfigSchema = baseStageConfigSchema.extend({
   highlightColor: z.string().default("#FFD700"),
   wordsPerLine: z.number().int().min(1).max(10).default(4),
   useWordLevelTiming: z.boolean().default(true),
+  animationStyle: z.string().default("none"),
 });
 
 // ─── Assembly Stage ─────────────────────────────────────────────────

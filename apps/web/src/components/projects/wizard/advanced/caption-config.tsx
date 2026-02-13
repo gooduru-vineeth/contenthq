@@ -7,10 +7,14 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ANIMATION_STYLES } from "@contenthq/video";
+import type { AnimationStyleMeta } from "@contenthq/video";
 import { Slider } from "@/components/ui/slider";
 
 const POSITIONS = [
@@ -37,6 +41,20 @@ export function CaptionConfig() {
   const configKey = "stageConfigs.captionGeneration" as any;
 
   const fontSize = form.watch(`${configKey}.fontSize` as any) ?? 24;
+
+  const stylesByCategory = ANIMATION_STYLES.reduce<Record<string, AnimationStyleMeta[]>>((acc, style) => {
+    const cat = style.category;
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(style);
+    return acc;
+  }, {});
+
+  const categoryLabels: Record<string, string> = {
+    basic: "Basic Animations",
+    styled: "Styled Captions",
+    word: "Word Animations",
+    effect: "Special Effects",
+  };
 
   return (
     <div className="space-y-3">
@@ -207,6 +225,33 @@ export function CaptionConfig() {
           }
           className="h-8 text-xs"
         />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">Animation Style</Label>
+        <Select
+          value={form.watch(`${configKey}.animationStyle` as any) ?? "none"}
+          onValueChange={(v) =>
+            form.setValue(`${configKey}.animationStyle` as any, v)
+          }
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Select animation style" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(stylesByCategory).map(([category, styles]) => (
+              <SelectGroup key={category}>
+                <SelectLabel className="text-xs font-semibold">
+                  {categoryLabels[category] ?? category}
+                </SelectLabel>
+                {styles.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

@@ -10,3 +10,14 @@ export type {
   AssemblyResult,
   MotionSpec,
 } from "./types";
+
+// Subtitles
+export { embedSubtitles, ANIMATION_STYLES, ANIMATION_STYLE_MAP } from "./subtitles";
+export type {
+  SubtitleSegment,
+  WordTiming,
+  SubtitleEmbedOptions,
+  AnimationStyleMeta,
+  AnimationCategory,
+  AnimationStyle,
+} from "./subtitles";

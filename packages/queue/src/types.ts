@@ -141,6 +141,7 @@ export interface VideoAssemblyJobData extends BaseFlowJobData {
     highlightColor?: string;
     wordsPerLine?: number;
     useWordLevelTiming?: boolean;
+    animationStyle?: string;
   };
 }
 
@@ -192,6 +193,7 @@ export interface CaptionGenerationJobData extends BaseFlowJobData {
     highlightColor?: string;
     wordsPerLine?: number;
     useWordLevelTiming?: boolean;
+    animationStyle?: string;
   };
 }
 

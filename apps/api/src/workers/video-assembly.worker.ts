@@ -164,14 +164,93 @@ export function createVideoAssemblyWorker(): Worker {
           height: assemblyHeight,
         });
 
+        await job.updateProgress(70);
+
+        // Embed subtitles if caption config is present with a non-"none" animation style
+        let finalVideoBuffer = result.videoBuffer;
+
+        if (captionConfig?.animationStyle && captionConfig.animationStyle !== "none") {
+          const { embedSubtitles } = await import("@contenthq/video");
+
+          // Query caption data from completed CAPTION_GENERATION jobs
+          const captionJobs = await db
+            .select()
+            .from(generationJobs)
+            .where(
+              and(
+                eq(generationJobs.projectId, projectId),
+                eq(generationJobs.jobType, "CAPTION_GENERATION"),
+                eq(generationJobs.status, "completed")
+              )
+            );
+
+          if (captionJobs.length > 0) {
+            // Aggregate caption segments with cumulative time offsets
+            const subtitleSegments: Array<{
+              text: string;
+              startTime: number;
+              endTime: number;
+              wordTimings?: Array<{ word: string; start: number; end: number }>;
+            }> = [];
+            let cumulativeOffset = 0;
+
+            for (const scene of sceneList) {
+              const captionJob = captionJobs.find((j) => {
+                const r = j.result as Record<string, unknown>;
+                return r?.sceneId === scene.id;
+              });
+
+              if (captionJob) {
+                const captionResult = captionJob.result as Record<string, unknown>;
+                const captions = (captionResult?.captions ?? []) as Array<{
+                  text: string;
+                  startTime: number;
+                  endTime: number;
+                  wordTimings?: Array<{ word: string; start: number; end: number }>;
+                }>;
+
+                for (const cap of captions) {
+                  subtitleSegments.push({
+                    text: cap.text,
+                    startTime: cap.startTime / 1000 + cumulativeOffset,
+                    endTime: cap.endTime / 1000 + cumulativeOffset,
+                    wordTimings: cap.wordTimings?.map((w) => ({
+                      word: w.word,
+                      start: w.start / 1000 + cumulativeOffset,
+                      end: w.end / 1000 + cumulativeOffset,
+                    })),
+                  });
+                }
+              }
+              cumulativeOffset += scene.duration ?? 5;
+            }
+
+            if (subtitleSegments.length > 0) {
+              console.warn(
+                `[VideoAssembly] Embedding ${subtitleSegments.length} subtitle segments with style "${captionConfig.animationStyle}"`
+              );
+              finalVideoBuffer = await embedSubtitles(finalVideoBuffer, subtitleSegments, {
+                font: captionConfig.font ?? "Arial",
+                fontSize: captionConfig.fontSize ?? 24,
+                fontColor: captionConfig.fontColor ?? "#FFFFFF",
+                backgroundColor: captionConfig.backgroundColor ?? "#00000080",
+                position: captionConfig.position ?? "bottom-center",
+                animationStyle: captionConfig.animationStyle,
+                highlightColor: captionConfig.highlightColor ?? "#FFD700",
+                wordsPerLine: captionConfig.wordsPerLine ?? 4,
+              });
+            }
+          }
+        }
+
         await job.updateProgress(80);
 
         // Upload final video to R2
         const outputKey = getOutputPath(userId, projectId, `final-video.${result.format}`);
-        const uploadResult = await storage.uploadFileWithRetry(outputKey, result.videoBuffer, getVideoContentType(result.format));
+        const uploadResult = await storage.uploadFileWithRetry(outputKey, finalVideoBuffer, getVideoContentType(result.format));
         const finalVideoUrl = uploadResult.url;
 
-        console.warn(`[VideoAssembly] Uploaded final video for project ${projectId}: key=${outputKey}, fileSize=${formatFileSize(result.videoBuffer.length)}, format=${result.format}`);
+        console.warn(`[VideoAssembly] Uploaded final video for project ${projectId}: key=${outputKey}, fileSize=${formatFileSize(finalVideoBuffer.length)}, format=${result.format}`);
 
         await job.updateProgress(90);
 
@@ -189,7 +268,7 @@ export function createVideoAssemblyWorker(): Worker {
         await job.updateProgress(100);
         const completedAt = new Date();
         const durationMs = completedAt.getTime() - startedAt.getTime();
-        console.warn(`[VideoAssembly] Completed for project ${projectId}: ${assemblyScenes.length} scenes assembled, resolution=${assemblyWidth}x${assemblyHeight}, outputSize=${formatFileSize(result.videoBuffer.length)}, format=${result.format}, finalVideoUrl=${finalVideoUrl.substring(0, 80)} (${durationMs}ms)`);
+        console.warn(`[VideoAssembly] Completed for project ${projectId}: ${assemblyScenes.length} scenes assembled, resolution=${assemblyWidth}x${assemblyHeight}, outputSize=${formatFileSize(finalVideoBuffer.length)}, format=${result.format}, finalVideoUrl=${finalVideoUrl.substring(0, 80)} (${durationMs}ms)`);
 
         // Mark generationJob as completed
         await db

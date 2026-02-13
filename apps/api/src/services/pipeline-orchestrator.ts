@@ -544,10 +544,28 @@ export class PipelineOrchestrator {
       status: "queued",
     });
 
+    // Read frozen config for caption settings
+    const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
+    const captionConfig = frozenConfig?.captionGeneration;
+
     await addVideoAssemblyJob({
       projectId,
       userId,
       sceneIds: activeScenesForAssembly.map((s) => s.id),
+      ...(captionConfig?.enabled && {
+        captionConfig: {
+          font: captionConfig.font,
+          fontSize: captionConfig.fontSize,
+          fontColor: captionConfig.fontColor,
+          backgroundColor: captionConfig.backgroundColor,
+          position: captionConfig.position,
+          highlightMode: captionConfig.highlightMode,
+          highlightColor: captionConfig.highlightColor,
+          wordsPerLine: captionConfig.wordsPerLine,
+          useWordLevelTiming: captionConfig.useWordLevelTiming,
+          animationStyle: captionConfig.animationStyle,
+        },
+      }),
     });
 
     await db
