@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Dna } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClonedVoiceCard } from "./cloned-voice-card";
@@ -21,7 +22,15 @@ export function ClonedVoicesTab() {
   });
 
   const retryMutation = trpc.voiceClone.retry.useMutation({
-    onSuccess: () => utils.voiceClone.list.invalidate(),
+    onSuccess: () => {
+      toast.success("Voice cloned successfully");
+      utils.voiceClone.list.invalidate();
+      utils.voice.getClonedVoices.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Voice clone retry failed");
+      utils.voiceClone.list.invalidate();
+    },
   });
 
   if (isLoading) {

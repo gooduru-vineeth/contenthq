@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { voiceCloneService } from "../../services/voice-clone.service";
 
@@ -30,13 +31,33 @@ export const voiceCloneRouter = router({
   clone: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return voiceCloneService.processClone(input.id, ctx.user.id);
+      try {
+        return await voiceCloneService.processClone(input.id, ctx.user.id);
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error ? error.message : "Voice cloning failed",
+          cause: error,
+        });
+      }
     }),
 
   retry: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return voiceCloneService.retry(input.id, ctx.user.id);
+      try {
+        return await voiceCloneService.retry(input.id, ctx.user.id);
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Voice clone retry failed",
+          cause: error,
+        });
+      }
     }),
 
   delete: protectedProcedure
