@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -153,6 +154,9 @@ export default function AdminLayout({
       </div>
 
       <div className="flex flex-1 flex-col md:ml-64">
+        <header className="sticky top-0 z-40 flex h-14 items-center justify-end border-b bg-background px-4 md:px-6">
+          <ThemeToggle />
+        </header>
         <main className="flex-1 p-6 md:p-8">{children}</main>
       </div>
     </div>
