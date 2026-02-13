@@ -330,17 +330,21 @@ export const TTS_PROVIDER_CAPABILITIES: Record<SpeechProvider, TTSProviderCapabi
   },
   sarvam: {
     provider: 'sarvam',
-    maxCharactersPerRequest: 5000,
-    supportedFormats: ['mp3'],
-    supportedLanguages: ['hi', 'en'],
+    maxCharactersPerRequest: 2500,
+    supportedFormats: ['mp3', 'wav', 'opus', 'flac', 'aac'],
+    supportedLanguages: [
+      'hi-IN', 'bn-IN', 'kn-IN', 'ml-IN', 'mr-IN', 'od-IN', 'pa-IN', 'ta-IN', 'te-IN', 'en-IN', 'gu-IN',
+      // Short codes for backward compatibility
+      'hi', 'bn', 'kn', 'ml', 'mr', 'od', 'pa', 'ta', 'te', 'en', 'gu',
+    ],
     supportsSSML: false,
     supportsVoiceCloning: false,
     supportsEmotions: false,
     supportsSpeechMarks: false,
     costPerCharacter: 0,
-    minSpeed: 0.25,
-    maxSpeed: 4,
-    defaultSampleRate: 24000,
+    minSpeed: 0.5,
+    maxSpeed: 2,
+    defaultSampleRate: 22050,
     availableQualities: ['standard'],
   },
 };
@@ -408,7 +412,7 @@ export function getDefaultTTSProviders(): TTSProviderConfig[] {
     provider: 'sarvam',
     apiKey: process.env.SARVAM_API_KEY,
     enabled: hasSarvam,
-    defaultVoiceId: 'meera',
+    defaultVoiceId: 'shubh',
     defaultFormat: 'mp3',
     defaultQuality: 'standard',
   });

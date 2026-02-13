@@ -73,6 +73,8 @@ export function getDefaultVoice(provider: TTSProvider): string {
       return "21m00Tcm4TlvDq8ikWAM";
     case "google":
       return "alloy";
+    case "sarvam":
+      return "shubh";
     default:
       return "alloy";
   }

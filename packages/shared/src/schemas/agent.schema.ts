@@ -3,10 +3,44 @@ import { z } from "zod";
 const agentTypeSchema = z.enum([
   "llm_text",
   "llm_structured",
+  "llm_web_search",
+  "llm_code_execution",
   "image_generation",
   "vision_verification",
   "custom",
 ]);
+
+const anthropicCapabilitiesSchema = z
+  .object({
+    webSearch: z
+      .union([
+        z.boolean(),
+        z.object({
+          maxUses: z.number().int().min(1).optional(),
+          allowedDomains: z.array(z.string()).optional(),
+          blockedDomains: z.array(z.string()).optional(),
+        }),
+      ])
+      .optional(),
+    webFetch: z
+      .union([
+        z.boolean(),
+        z.object({
+          maxUses: z.number().int().min(1).optional(),
+          allowedDomains: z.array(z.string()).optional(),
+          blockedDomains: z.array(z.string()).optional(),
+        }),
+      ])
+      .optional(),
+    thinking: z
+      .object({
+        type: z.enum(["enabled", "adaptive", "disabled"]),
+        budgetTokens: z.number().int().min(1024).optional(),
+      })
+      .optional(),
+    codeExecution: z.boolean().optional(),
+  })
+  .optional();
 
 const agentStatusSchema = z.enum(["active", "inactive", "draft"]);
 
@@ -46,6 +80,7 @@ export const createAgentSchema = z.object({
   personaSelections: z.record(z.string(), z.string()).optional(),
   expectedVariables: z.array(z.string()).optional(),
   isDefault: z.boolean().optional(),
+  anthropicCapabilities: anthropicCapabilitiesSchema,
 });
 
 export const updateAgentSchema = z.object({
@@ -72,6 +107,7 @@ export const updateAgentSchema = z.object({
   status: agentStatusSchema.optional(),
   isDefault: z.boolean().optional(),
   changeNote: z.string().max(500).optional(),
+  anthropicCapabilities: anthropicCapabilitiesSchema.nullable(),
 });
 
 export const executeAgentSchema = z.object({

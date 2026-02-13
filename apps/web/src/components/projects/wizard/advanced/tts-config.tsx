@@ -48,8 +48,56 @@ const VOICES_BY_PROVIDER: Record<string, { value: string; label: string }[]> = {
     { value: "default", label: "Default" },
   ],
   sarvam: [
-    { value: "hindi-female", label: "Hindi Female" },
-    { value: "hindi-male", label: "Hindi Male" },
+    // Hindi
+    { value: "meera", label: "Meera (Hindi, F)" },
+    { value: "pavithra", label: "Pavithra (Hindi, F)" },
+    { value: "maitreyi", label: "Maitreyi (Hindi, F)" },
+    { value: "arvind", label: "Arvind (Hindi, M)" },
+    { value: "arjun", label: "Arjun (Hindi, M)" },
+    { value: "shubh", label: "Shubh (Hindi, M)" },
+    // Bengali
+    { value: "neel", label: "Neel (Bengali, M)" },
+    { value: "amartya", label: "Amartya (Bengali, M)" },
+    { value: "diya", label: "Diya (Bengali, F)" },
+    // Kannada
+    { value: "amrutha", label: "Amrutha (Kannada, F)" },
+    { value: "venkatesh", label: "Venkatesh (Kannada, M)" },
+    { value: "masala_chai", label: "Masala Chai (Kannada, M)" },
+    // Malayalam
+    { value: "theertha", label: "Theertha (Malayalam, F)" },
+    { value: "maya", label: "Maya (Malayalam, F)" },
+    { value: "surya", label: "Surya (Malayalam, M)" },
+    // Marathi
+    { value: "devika", label: "Devika (Marathi, F)" },
+    { value: "kalpana", label: "Kalpana (Marathi, F)" },
+    { value: "samar", label: "Samar (Marathi, M)" },
+    // Odia
+    { value: "ananya", label: "Ananya (Odia, F)" },
+    { value: "umesh", label: "Umesh (Odia, M)" },
+    // Punjabi
+    { value: "gurpreet", label: "Gurpreet (Punjabi, M)" },
+    { value: "simran", label: "Simran (Punjabi, F)" },
+    // Tamil
+    { value: "revathi", label: "Revathi (Tamil, F)" },
+    { value: "sri", label: "Sri (Tamil, M)" },
+    { value: "tamizh", label: "Tamizh (Tamil, M)" },
+    { value: "filter_coffee", label: "Filter Coffee (Tamil, M)" },
+    // Telugu
+    { value: "lakshmi", label: "Lakshmi (Telugu, F)" },
+    { value: "vishnu", label: "Vishnu (Telugu, M)" },
+    { value: "hyderabadi_biryani", label: "Hyderabadi Biryani (Telugu, M)" },
+    // English (Indian)
+    { value: "advika", label: "Advika (English, F)" },
+    { value: "raman", label: "Raman (English, M)" },
+    { value: "vidya", label: "Vidya (English, F)" },
+    { value: "arjun_english", label: "Arjun English (English, M)" },
+    // Gujarati
+    { value: "namrata", label: "Namrata (Gujarati, F)" },
+    { value: "hiral", label: "Hiral (Gujarati, F)" },
+    { value: "dhwani", label: "Dhwani (Gujarati, F)" },
+    { value: "keshav", label: "Keshav (Gujarati, M)" },
+    { value: "jhanvi", label: "Jhanvi (Gujarati, F)" },
+    { value: "undhiyu", label: "Undhiyu (Gujarati, M)" },
   ],
   inworld: [
     { value: "narrator", label: "Narrator" },

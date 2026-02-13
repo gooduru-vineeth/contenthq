@@ -3,11 +3,12 @@ import type { z } from "zod";
 import { getModelInstance, resolveModelFromDb, ANTHROPIC_MODELS } from "../providers/model-factory";
 import type {
   GenerationOptions,
-  GenerationResult,
+  ExtendedGenerationResult,
   StructuredGenerationResult,
   StreamingGenerationResult,
 } from "../types";
 import { truncateForLog } from "../utils/log-helpers";
+import { buildAnthropicToolsAndOptions, extractSourcesFromResult } from "./anthropic-tools";
 
 async function getModel(options?: GenerationOptions) {
   // If a DB instance and model ID are provided, resolve from DB
@@ -38,10 +39,16 @@ async function getModel(options?: GenerationOptions) {
 export async function generateTextContent(
   prompt: string,
   options?: GenerationOptions
-): Promise<GenerationResult> {
+): Promise<ExtendedGenerationResult> {
   const { model, provider, modelId } = await getModel(options);
 
   console.warn(`[LLMService] generateTextContent: provider=${provider}, model=${modelId}, temperature=${options?.temperature ?? "default"}, maxTokens=${options?.maxTokens ?? "default"}, promptLength=${prompt.length}, prompt="${truncateForLog(prompt, 200)}"`);
+
+  // Build Anthropic-specific tools/options if capabilities are requested and provider is anthropic
+  const anthropicExtras =
+    options?.anthropic && provider === "anthropic"
+      ? buildAnthropicToolsAndOptions(options.anthropic)
+      : undefined;
 
   const result = await generateText({
     model,
@@ -49,11 +56,14 @@ export async function generateTextContent(
     system: options?.systemPrompt,
     temperature: options?.temperature,
     maxOutputTokens: options?.maxTokens,
+    ...(anthropicExtras?.tools && { tools: anthropicExtras.tools }),
+    ...(anthropicExtras?.maxSteps && { maxSteps: anthropicExtras.maxSteps }),
+    ...(anthropicExtras?.providerOptions && { providerOptions: anthropicExtras.providerOptions }),
   });
 
   console.warn(`[LLMService] generateTextContent complete: provider=${provider}, model=${modelId}, inputTokens=${result.usage?.inputTokens ?? 0}, outputTokens=${result.usage?.outputTokens ?? 0}, responseLength=${result.text.length}`);
 
-  return {
+  const extendedResult: ExtendedGenerationResult = {
     content: result.text,
     tokens: {
       input: result.usage?.inputTokens ?? 0,
@@ -62,6 +72,21 @@ export async function generateTextContent(
     provider,
     model: modelId,
   };
+
+  // Extract reasoning text if thinking was enabled
+  if (anthropicExtras?.providerOptions) {
+    extendedResult.reasoningText = (result as { reasoningText?: string }).reasoningText;
+  }
+
+  // Extract sources if web search/fetch tools were used
+  if (anthropicExtras?.tools) {
+    const sources = extractSourcesFromResult(result);
+    if (sources.length > 0) {
+      extendedResult.sources = sources;
+    }
+  }
+
+  return extendedResult;
 }
 
 export async function generateStructuredContent<T>(
@@ -73,14 +98,24 @@ export async function generateStructuredContent<T>(
 
   console.warn(`[LLMService] generateStructuredContent: provider=${provider}, model=${modelId}, temperature=${options?.temperature ?? "default"}, maxTokens=${options?.maxTokens ?? "default"}, promptLength=${prompt.length}, prompt="${truncateForLog(prompt, 200)}"`);
 
+  // Build Anthropic-specific options if capabilities are requested and provider is anthropic
+  const anthropicExtras =
+    options?.anthropic && provider === "anthropic"
+      ? buildAnthropicToolsAndOptions(options.anthropic)
+      : undefined;
+
+  // When thinking is enabled, omit mode: 'json' to let AI SDK auto-select
+  const hasThinking = !!anthropicExtras?.providerOptions;
+
   const result = await generateObject({
     model,
     prompt,
     schema,
-    mode: 'json',
+    ...(!hasThinking && { mode: 'json' as const }),
     system: options?.systemPrompt,
     temperature: options?.temperature,
     maxOutputTokens: options?.maxTokens,
+    ...(anthropicExtras?.providerOptions && { providerOptions: anthropicExtras.providerOptions }),
   });
 
   console.warn(`[LLMService] generateStructuredContent complete: provider=${provider}, model=${modelId}, inputTokens=${result.usage?.inputTokens ?? 0}, outputTokens=${result.usage?.outputTokens ?? 0}`);
@@ -102,12 +137,21 @@ export async function streamTextContent(
 ): Promise<StreamingGenerationResult> {
   const { model, provider, modelId } = await getModel(options);
 
+  // Build Anthropic-specific tools/options if capabilities are requested and provider is anthropic
+  const anthropicExtras =
+    options?.anthropic && provider === "anthropic"
+      ? buildAnthropicToolsAndOptions(options.anthropic)
+      : undefined;
+
   const result = streamText({
     model,
     prompt,
     system: options?.systemPrompt,
     temperature: options?.temperature,
     maxOutputTokens: options?.maxTokens,
+    ...(anthropicExtras?.tools && { tools: anthropicExtras.tools }),
+    ...(anthropicExtras?.maxSteps && { maxSteps: anthropicExtras.maxSteps }),
+    ...(anthropicExtras?.providerOptions && { providerOptions: anthropicExtras.providerOptions }),
   });
 
   return {
@@ -129,14 +173,23 @@ export async function streamStructuredContent<T>(
 ): Promise<{ partialObjectStream: AsyncIterable<T>; object: Promise<T>; provider: string; model: string }> {
   const { model, provider, modelId } = await getModel(options);
 
+  // Build Anthropic-specific options if capabilities are requested and provider is anthropic
+  const anthropicExtras =
+    options?.anthropic && provider === "anthropic"
+      ? buildAnthropicToolsAndOptions(options.anthropic)
+      : undefined;
+
+  const hasThinking = !!anthropicExtras?.providerOptions;
+
   const result = streamObject({
     model,
     prompt,
     schema,
-    mode: 'json',
+    ...(!hasThinking && { mode: 'json' as const }),
     system: options?.systemPrompt,
     temperature: options?.temperature,
     maxOutputTokens: options?.maxTokens,
+    ...(anthropicExtras?.providerOptions && { providerOptions: anthropicExtras.providerOptions }),
   });
 
   return {

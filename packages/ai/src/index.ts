@@ -38,10 +38,15 @@ export type {
   AIProviderConfig,
   GenerationOptions,
   GenerationResult,
+  ExtendedGenerationResult,
   StructuredGenerationResult,
   StreamingGenerationResult,
   ImageGenerationOptions,
   ImageGenerationResult,
+  AnthropicCapabilities,
+  WebSearchOptions,
+  WebFetchOptions,
+  ExtendedThinkingOptions,
 } from "./types";
 export { mediaProviderRegistry } from "./providers/media";
 export type {
@@ -51,6 +56,8 @@ export type {
   ImageEditOptions,
   ProviderMediaResult,
 } from "./providers/media";
+export { searchWeb, fetchAndAnalyze, type WebSearchResult, type WebSearchRequest } from "./services/search.service";
+export { buildAnthropicToolsAndOptions } from "./services/anthropic-tools";
 export { composePrompt, extractVariables } from "./prompts/composer";
 export { resolvePromptForStage } from "./prompts/resolver";
 export { truncateForLog, formatFileSize } from "./utils/log-helpers";

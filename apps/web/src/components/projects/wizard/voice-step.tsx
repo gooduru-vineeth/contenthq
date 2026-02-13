@@ -24,7 +24,7 @@ const TTS_PROVIDERS = [
   { value: "elevenlabs", label: "ElevenLabs", description: "Premium quality, voice cloning" },
   { value: "google", label: "Google Cloud", description: "100+ voices, 40+ languages" },
   { value: "gemini", label: "Google Gemini", description: "Experimental, free tier" },
-  { value: "sarvam", label: "Sarvam AI", description: "Indic languages specialist" },
+  { value: "sarvam", label: "Sarvam AI", description: "39 voices, 11 Indian languages" },
   { value: "inworld", label: "Inworld AI", description: "Character voices with emotions" },
 ];
 
@@ -53,8 +53,56 @@ const VOICES_BY_PROVIDER: Record<string, Array<{ value: string; label: string }>
     { value: "gemini-default", label: "Default" },
   ],
   sarvam: [
-    { value: "sarvam-hindi", label: "Hindi Voice" },
-    { value: "sarvam-tamil", label: "Tamil Voice" },
+    // Hindi
+    { value: "meera", label: "Meera (Hindi, Female)" },
+    { value: "pavithra", label: "Pavithra (Hindi, Female)" },
+    { value: "maitreyi", label: "Maitreyi (Hindi, Female)" },
+    { value: "arvind", label: "Arvind (Hindi, Male)" },
+    { value: "arjun", label: "Arjun (Hindi, Male)" },
+    { value: "shubh", label: "Shubh (Hindi, Male)" },
+    // Bengali
+    { value: "neel", label: "Neel (Bengali, Male)" },
+    { value: "amartya", label: "Amartya (Bengali, Male)" },
+    { value: "diya", label: "Diya (Bengali, Female)" },
+    // Kannada
+    { value: "amrutha", label: "Amrutha (Kannada, Female)" },
+    { value: "venkatesh", label: "Venkatesh (Kannada, Male)" },
+    { value: "masala_chai", label: "Masala Chai (Kannada, Male)" },
+    // Malayalam
+    { value: "theertha", label: "Theertha (Malayalam, Female)" },
+    { value: "maya", label: "Maya (Malayalam, Female)" },
+    { value: "surya", label: "Surya (Malayalam, Male)" },
+    // Marathi
+    { value: "devika", label: "Devika (Marathi, Female)" },
+    { value: "kalpana", label: "Kalpana (Marathi, Female)" },
+    { value: "samar", label: "Samar (Marathi, Male)" },
+    // Odia
+    { value: "ananya", label: "Ananya (Odia, Female)" },
+    { value: "umesh", label: "Umesh (Odia, Male)" },
+    // Punjabi
+    { value: "gurpreet", label: "Gurpreet (Punjabi, Male)" },
+    { value: "simran", label: "Simran (Punjabi, Female)" },
+    // Tamil
+    { value: "revathi", label: "Revathi (Tamil, Female)" },
+    { value: "sri", label: "Sri (Tamil, Male)" },
+    { value: "tamizh", label: "Tamizh (Tamil, Male)" },
+    { value: "filter_coffee", label: "Filter Coffee (Tamil, Male)" },
+    // Telugu
+    { value: "lakshmi", label: "Lakshmi (Telugu, Female)" },
+    { value: "vishnu", label: "Vishnu (Telugu, Male)" },
+    { value: "hyderabadi_biryani", label: "Hyderabadi Biryani (Telugu, Male)" },
+    // English (Indian)
+    { value: "advika", label: "Advika (English, Female)" },
+    { value: "raman", label: "Raman (English, Male)" },
+    { value: "vidya", label: "Vidya (English, Female)" },
+    { value: "arjun_english", label: "Arjun English (English, Male)" },
+    // Gujarati
+    { value: "namrata", label: "Namrata (Gujarati, Female)" },
+    { value: "hiral", label: "Hiral (Gujarati, Female)" },
+    { value: "dhwani", label: "Dhwani (Gujarati, Female)" },
+    { value: "keshav", label: "Keshav (Gujarati, Male)" },
+    { value: "jhanvi", label: "Jhanvi (Gujarati, Female)" },
+    { value: "undhiyu", label: "Undhiyu (Gujarati, Male)" },
   ],
   inworld: [
     { value: "narrator", label: "Narrator" },

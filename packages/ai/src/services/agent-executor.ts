@@ -4,6 +4,7 @@ import { resolveModelFromDb } from "../providers/model-factory";
 import { generateTextContent, generateStructuredContent } from "./llm.service";
 import { generateImage } from "./image.service";
 import { verifyImage } from "./vision.service";
+import { searchWeb } from "./search.service";
 import { resolvePromptForStage } from "../prompts/resolver";
 import { composePrompt } from "../prompts/composer";
 import { getSchema } from "../schemas/registry";
@@ -106,6 +107,49 @@ export const executeAgent = traceable(async function executeAgent(
     case "image_generation": {
       const result = await generateImage({ prompt, db, userId });
       data = result;
+      break;
+    }
+
+    case "llm_web_search": {
+      const searchResult = await searchWeb({
+        query: prompt,
+        model: resolved.modelId,
+        systemPrompt: config.systemPrompt ?? undefined,
+        maxSearches: config.anthropicCapabilities?.webSearch
+          ? typeof config.anthropicCapabilities.webSearch === "object"
+            ? config.anthropicCapabilities.webSearch.maxUses
+            : undefined
+          : undefined,
+        allowedDomains: config.anthropicCapabilities?.webSearch
+          ? typeof config.anthropicCapabilities.webSearch === "object"
+            ? config.anthropicCapabilities.webSearch.allowedDomains
+            : undefined
+          : undefined,
+        blockedDomains: config.anthropicCapabilities?.webSearch
+          ? typeof config.anthropicCapabilities.webSearch === "object"
+            ? config.anthropicCapabilities.webSearch.blockedDomains
+            : undefined
+          : undefined,
+        enableThinking: config.anthropicCapabilities?.thinking?.type === "enabled",
+        thinkingBudget: config.anthropicCapabilities?.thinking?.budgetTokens,
+        maxTokens: config.modelConfig?.maxTokens,
+      });
+      data = { answer: searchResult.answer, sources: searchResult.sources, reasoningText: searchResult.reasoningText };
+      tokens = searchResult.tokens;
+      break;
+    }
+
+    case "llm_code_execution": {
+      const result = await generateTextContent(prompt, {
+        provider: resolved.provider,
+        model: resolved.modelId,
+        temperature: config.modelConfig?.temperature,
+        maxTokens: config.modelConfig?.maxTokens,
+        systemPrompt: config.systemPrompt ?? undefined,
+        anthropic: { codeExecution: true },
+      });
+      data = result.content;
+      tokens = result.tokens;
       break;
     }
 
@@ -272,6 +316,8 @@ function mapAgentTypeToProviderType(agentType: string): string | undefined {
   switch (agentType) {
     case "llm_text":
     case "llm_structured":
+    case "llm_web_search":
+    case "llm_code_execution":
       return "llm";
     case "image_generation":
       return "image";

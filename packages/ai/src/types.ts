@@ -20,6 +20,8 @@ export interface GenerationOptions {
   dbModelId?: string;
   /** User ID for resolving user-specific model preferences from DB */
   userId?: string;
+  /** Anthropic-specific capabilities (web search, web fetch, thinking, code execution) */
+  anthropic?: AnthropicCapabilities;
 }
 
 export interface GenerationResult {
@@ -55,4 +57,41 @@ export interface StreamingGenerationResult {
   tokens: Promise<{ input: number; output: number }>;
   provider: string;
   model: string;
+}
+
+// Anthropic capability options
+export interface WebSearchOptions {
+  maxUses?: number;
+  allowedDomains?: string[];
+  blockedDomains?: string[];
+  userLocation?: {
+    type: "approximate";
+    country?: string;
+    region?: string;
+    city?: string;
+    timezone?: string;
+  };
+}
+
+export interface WebFetchOptions {
+  maxUses?: number;
+  allowedDomains?: string[];
+  blockedDomains?: string[];
+}
+
+export interface ExtendedThinkingOptions {
+  type: "enabled" | "adaptive" | "disabled";
+  budgetTokens?: number;
+}
+
+export interface AnthropicCapabilities {
+  webSearch?: WebSearchOptions | boolean;
+  webFetch?: WebFetchOptions | boolean;
+  thinking?: ExtendedThinkingOptions;
+  codeExecution?: boolean;
+}
+
+export interface ExtendedGenerationResult extends GenerationResult {
+  reasoningText?: string;
+  sources?: Array<{ url: string; title: string | null; snippet?: string }>;
 }
