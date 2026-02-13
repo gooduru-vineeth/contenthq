@@ -18,6 +18,8 @@ export interface GenerationOptions {
   db?: any;
   /** DB model ID — used with `db` to resolve a specific model */
   dbModelId?: string;
+  /** User ID for resolving user-specific model preferences from DB */
+  userId?: string;
 }
 
 export interface GenerationResult {

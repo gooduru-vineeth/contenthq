@@ -47,5 +47,19 @@ export const updateModelSchema = createModelSchema.partial().extend({
 
 export type CreateProviderInput = z.infer<typeof createProviderSchema>;
 export type UpdateProviderInput = z.infer<typeof updateProviderSchema>;
+export const purposeTypeSchema = z.enum(["llm", "image", "vision", "video", "tts"]);
+export type PurposeType = z.infer<typeof purposeTypeSchema>;
+
+export const setUserModelPreferenceSchema = z.object({
+  purposeType: purposeTypeSchema,
+  aiModelId: z.string().min(1),
+});
+
+export const removeUserModelPreferenceSchema = z.object({
+  purposeType: purposeTypeSchema,
+});
+
 export type CreateModelInput = z.infer<typeof createModelSchema>;
 export type UpdateModelInput = z.infer<typeof updateModelSchema>;
+export type SetUserModelPreferenceInput = z.infer<typeof setUserModelPreferenceSchema>;
+export type RemoveUserModelPreferenceInput = z.infer<typeof removeUserModelPreferenceSchema>;

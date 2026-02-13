@@ -88,8 +88,34 @@ export const pipelineConfigRouter = router({
     }),
 
   getDefaults: protectedProcedure.query(async () => {
+    // Query admin-default models from DB
+    const defaultModelsResult = await db
+      .select({
+        modelId: aiModels.modelId,
+        modelName: aiModels.name,
+        type: aiModels.type,
+        providerSlug: aiProviders.slug,
+        providerName: aiProviders.name,
+      })
+      .from(aiModels)
+      .innerJoin(aiProviders, eq(aiModels.providerId, aiProviders.id))
+      .where(and(eq(aiModels.isDefault, true), eq(aiProviders.isEnabled, true)));
+
+    const defaultModels: Record<string, { provider: string; model: string; name: string; providerName: string }> = {};
+    for (const row of defaultModelsResult) {
+      if (row.type) {
+        defaultModels[row.type] = {
+          provider: row.providerSlug,
+          model: row.modelId,
+          name: row.modelName,
+          providerName: row.providerName,
+        };
+      }
+    }
+
     return {
       mode: "simple" as const,
+      defaultModels,
       stageConfigs: {
         ingestion: {
           enabled: true,

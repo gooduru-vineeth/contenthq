@@ -1,7 +1,10 @@
 import { generateObject } from "ai";
-import { getModelInstance, ANTHROPIC_MODELS } from "../providers/model-factory";
+import { getModelInstance, resolveModelFromDb, ANTHROPIC_MODELS } from "../providers/model-factory";
 import { z } from "zod";
 import { truncateForLog } from "../utils/log-helpers";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DrizzleDb = any;
 
 const verificationSchema = z.object({
   relevance: z.number().min(0).max(30).describe("How relevant the image is to the description (0-30)"),
@@ -22,10 +25,29 @@ export async function verifyImage(
   customPrompt?: string,
   provider = "anthropic",
   modelId?: string,
+  db?: DrizzleDb,
+  userId?: string,
 ): Promise<VerificationResult> {
-  const model = getModelInstance(provider, modelId ?? ANTHROPIC_MODELS.CLAUDE_SONNET_4_5);
+  let resolvedProvider = provider;
+  let resolvedModelId = modelId ?? ANTHROPIC_MODELS.CLAUDE_SONNET_4_5;
 
-  console.warn(`[VisionService] Verifying image: provider=${provider}, model=${modelId ?? "claude-sonnet-4-5"}, threshold=${threshold}, imageUrl="${imageUrl.substring(0, 80)}", sceneDescription="${truncateForLog(sceneDescription, 150)}", hasCustomPrompt=${!!customPrompt}`);
+  // Resolve model from DB if available and no explicit provider/model given
+  if (db && provider === "anthropic" && !modelId) {
+    try {
+      const resolved = await resolveModelFromDb(db, {
+        type: "vision",
+        userId,
+      });
+      resolvedProvider = resolved.provider;
+      resolvedModelId = resolved.modelId;
+    } catch {
+      console.warn("[VisionService] DB model resolution failed, using hardcoded default");
+    }
+  }
+
+  const model = getModelInstance(resolvedProvider, resolvedModelId);
+
+  console.warn(`[VisionService] Verifying image: provider=${resolvedProvider}, model=${resolvedModelId}, threshold=${threshold}, imageUrl="${imageUrl.substring(0, 80)}", sceneDescription="${truncateForLog(sceneDescription, 150)}", hasCustomPrompt=${!!customPrompt}`);
 
   const result = await generateObject({
     model,
@@ -51,7 +73,7 @@ Total score = sum of all criteria (0-100). Approved if total >= ${threshold}.`,
     ],
   });
 
-  console.warn(`[VisionService] Verification result: provider=${provider}, model=${modelId ?? "claude-sonnet-4-5"}, approved=${result.object.approved}, totalScore=${result.object.totalScore}, relevance=${result.object.relevance}, quality=${result.object.quality}`);
+  console.warn(`[VisionService] Verification result: provider=${resolvedProvider}, model=${resolvedModelId}, approved=${result.object.approved}, totalScore=${result.object.totalScore}, relevance=${result.object.relevance}, quality=${result.object.quality}`);
 
   return result.object;
 }

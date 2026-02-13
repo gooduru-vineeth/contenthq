@@ -69,7 +69,7 @@ export function createVisualVerificationWorker(): Worker {
             // If no template exists yet, verifyImage falls back to its built-in prompt
           }
 
-          result = await verifyImage(imageUrl, visualDescription, verificationThreshold, customPrompt);
+          result = await verifyImage(imageUrl, visualDescription, verificationThreshold, customPrompt, undefined, undefined, db, userId);
         }
 
         console.warn(`[VisualVerification] Verification result for scene ${sceneId}: approved=${result.approved}, totalScore=${result.totalScore}, relevance=${result.relevance}, quality=${result.quality}, consistency=${result.consistency}, safety=${result.safety}`);

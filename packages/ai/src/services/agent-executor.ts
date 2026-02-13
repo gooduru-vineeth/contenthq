@@ -49,10 +49,10 @@ export async function executeAgent(
 
   console.warn(`[AgentExecutor] Step 1 - Config resolved: agentId=${options.agentId ?? "inline"}, agentType=${config.agentType}, aiModelId=${config.aiModelId ?? "default"}, promptTemplateId=${config.promptTemplateId ?? "none"}, hasSystemPrompt=${!!config.systemPrompt}`);
 
-  // Step 2: Resolve model
+  // Step 2: Resolve model (with userId for user preference tier)
   const resolved = config.aiModelId
-    ? await resolveModelFromDb(db, { modelId: config.aiModelId })
-    : await resolveModelFromDb(db, { type: mapAgentTypeToProviderType(config.agentType) });
+    ? await resolveModelFromDb(db, { modelId: config.aiModelId, userId })
+    : await resolveModelFromDb(db, { type: mapAgentTypeToProviderType(config.agentType), userId });
 
   console.warn(`[AgentExecutor] Step 2 - Model resolved: provider=${resolved.provider}, modelId=${resolved.modelId}`);
 
@@ -102,7 +102,7 @@ export async function executeAgent(
     }
 
     case "image_generation": {
-      const result = await generateImage({ prompt });
+      const result = await generateImage({ prompt, db, userId });
       data = result;
       break;
     }

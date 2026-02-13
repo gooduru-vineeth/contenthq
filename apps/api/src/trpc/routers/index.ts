@@ -22,6 +22,7 @@ import { voiceCloneRouter } from "./voice-clone";
 import { pipelineConfigRouter } from "./pipeline-config";
 import { mediaOverrideRouter } from "./media-override";
 import { variationRouter } from "./variation";
+import { userModelPreferenceRouter } from "./user-model-preferences";
 
 export const appRouter = router({
   health: healthRouter,
@@ -47,6 +48,7 @@ export const appRouter = router({
   pipelineConfig: pipelineConfigRouter,
   mediaOverride: mediaOverrideRouter,
   variation: variationRouter,
+  userModelPreference: userModelPreferenceRouter,
 });
 
 export type AppRouter = typeof appRouter;

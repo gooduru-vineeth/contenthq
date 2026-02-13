@@ -121,6 +121,8 @@ export function createStoryWritingWorker(): Worker {
           const result = await generateStructuredContent(composedPrompt, storyOutputSchema, {
             temperature: effectiveTemperature,
             maxTokens: effectiveMaxTokens,
+            db,
+            userId,
           });
           storyData = result.data;
           usedModel = result.model;

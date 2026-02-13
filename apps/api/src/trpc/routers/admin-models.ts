@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, adminProcedure } from "../trpc";
 import { db } from "@contenthq/db/client";
 import { aiModels, aiProviders } from "@contenthq/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import { createModelSchema, updateModelSchema } from "@contenthq/shared";
 
 export const adminModelRouter = router({
@@ -116,17 +116,53 @@ export const adminModelRouter = router({
   toggleDefault: adminProcedure
     .input(z.object({ id: z.string().min(1), isDefault: z.boolean() }))
     .mutation(async ({ input }) => {
-      const [updated] = await db
-        .update(aiModels)
-        .set({ isDefault: input.isDefault, updatedAt: new Date() })
-        .where(eq(aiModels.id, input.id))
-        .returning();
-      if (!updated) {
+      const [model] = await db
+        .select()
+        .from(aiModels)
+        .where(eq(aiModels.id, input.id));
+      if (!model) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Model not found",
         });
       }
-      return updated;
+
+      if (input.isDefault && !model.type) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Cannot set as default: model has no type assigned. Set a type first.",
+        });
+      }
+
+      if (input.isDefault && model.type) {
+        await db
+          .update(aiModels)
+          .set({ isDefault: false, updatedAt: new Date() })
+          .where(and(eq(aiModels.type, model.type), eq(aiModels.isDefault, true)));
+      }
+
+      const [updated] = await db
+        .update(aiModels)
+        .set({ isDefault: input.isDefault, updatedAt: new Date() })
+        .where(eq(aiModels.id, input.id))
+        .returning();
+      return updated!;
     }),
+
+  getDefaults: adminProcedure.query(async () => {
+    return db
+      .select({
+        id: aiModels.id,
+        name: aiModels.name,
+        modelId: aiModels.modelId,
+        type: aiModels.type,
+        providerName: aiProviders.name,
+        providerSlug: aiProviders.slug,
+      })
+      .from(aiModels)
+      .leftJoin(aiProviders, eq(aiModels.providerId, aiProviders.id))
+      .where(eq(aiModels.isDefault, true))
+      .orderBy(asc(aiModels.type));
+  }),
 });

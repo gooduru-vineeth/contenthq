@@ -91,6 +91,8 @@ export function createSceneGenerationWorker(): Worker {
             const result = await generateTextContent(composedPrompt, {
               temperature: 0.7,
               maxTokens: 500,
+              db,
+              userId,
             });
             imagePrompt = result.content;
             console.warn(`[SceneGeneration] LLM generated prompt for scene ${scene.id}: provider=${result.provider}, model=${result.model}, inputTokens=${result.tokens.input}, outputTokens=${result.tokens.output}, imagePrompt="${truncateForLog(imagePrompt, 200)}"`);

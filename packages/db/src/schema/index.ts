@@ -40,3 +40,4 @@ export * from "./cloned-voice-samples";
 export * from "./pipeline-configs";
 export * from "./pipeline-media-overrides";
 export * from "./project-variations";
+export * from "./user-model-preferences";

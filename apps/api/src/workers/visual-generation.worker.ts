@@ -94,6 +94,8 @@ export function createVisualGenerationWorker(): Worker {
             prompt: imagePrompt,
             size: imageSize,
             quality: imageQuality,
+            db,
+            userId,
           });
           imageUrl = result.url;
           console.warn(`[VisualGeneration] Image generated for scene ${sceneId}: url=${imageUrl?.substring(0, 80)}`);

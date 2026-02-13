@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Bot, Box, FileText, GitBranch, LogOut, Server, User, Users } from "lucide-react";
+import { ArrowLeft, Bot, Box, FileText, GitBranch, LogOut, Server, Settings, User, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ const adminNavigation: AdminNavItem[] = [
   { label: "Flows", href: "/admin/flows", icon: GitBranch },
   { label: "Models", href: "/admin/models", icon: Box },
   { label: "Providers", href: "/admin/providers", icon: Server },
+  { label: "Defaults", href: "/admin/default-models", icon: Settings },
 ];
 
 export default function AdminLayout({

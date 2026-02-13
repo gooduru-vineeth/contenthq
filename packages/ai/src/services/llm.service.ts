@@ -14,14 +14,16 @@ async function getModel(options?: GenerationOptions) {
   if (options?.db && options?.dbModelId) {
     const resolved = await resolveModelFromDb(options.db, {
       modelId: options.dbModelId,
+      userId: options.userId,
     });
     return { model: resolved.model, provider: resolved.provider, modelId: resolved.modelId };
   }
 
-  // If a DB instance is provided with provider/type, resolve from DB
+  // If a DB instance is provided, resolve from DB with 4-tier resolution
   if (options?.db) {
     const resolved = await resolveModelFromDb(options.db, {
-      type: options.provider,
+      type: options.provider ?? "llm",
+      userId: options.userId,
     });
     return { model: resolved.model, provider: resolved.provider, modelId: resolved.modelId };
   }
