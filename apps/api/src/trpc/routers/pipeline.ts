@@ -10,6 +10,7 @@ import {
   sceneVisuals,
   sceneVideos,
   ingestedContent,
+  voiceProfiles,
 } from "@contenthq/db/schema";
 import { eq, and, desc, asc, inArray } from "drizzle-orm";
 import {
@@ -324,6 +325,22 @@ export const pipelineRouter = router({
             .where(eq(scenes.projectId, input.projectId))
             .orderBy(asc(scenes.index));
           const ttsConfig = stageConfigs.tts as Record<string, unknown> | undefined;
+
+          // Resolve TTS provider: voice profile → pipeline config → default
+          let ttsProvider = (ttsConfig?.provider as string) || "openai";
+          let ttsVoiceId = (ttsConfig?.voiceId as string) || "alloy";
+          if (project.voiceProfileId) {
+            const [vp] = await db
+              .select()
+              .from(voiceProfiles)
+              .where(eq(voiceProfiles.id, project.voiceProfileId))
+              .limit(1);
+            if (vp) {
+              ttsProvider = vp.provider;
+              ttsVoiceId = vp.providerVoiceId;
+            }
+          }
+
           for (const scene of scenesForTts) {
             if (scene.narrationScript) {
               await addTTSGenerationJob({
@@ -331,8 +348,8 @@ export const pipelineRouter = router({
                 sceneId: scene.id,
                 userId: ctx.user.id,
                 narrationScript: scene.narrationScript,
-                voiceId: (ttsConfig?.voiceId as string) || project.voiceProfileId || "alloy",
-                provider: (ttsConfig?.provider as string) || "openai",
+                voiceId: ttsVoiceId,
+                provider: ttsProvider,
                 stageConfig: ttsConfig ? {
                   model: ttsConfig.model as string | undefined,
                   quality: ttsConfig.quality as string | undefined,

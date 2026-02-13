@@ -1,5 +1,5 @@
 import { db } from "@contenthq/db/client";
-import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals, sceneVideos } from "@contenthq/db/schema";
+import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals, sceneVideos, voiceProfiles } from "@contenthq/db/schema";
 import { eq, asc, inArray } from "drizzle-orm";
 import {
   addIngestionJob,
@@ -401,9 +401,37 @@ export class PipelineOrchestrator {
     activeScenes: { id: string; narrationScript: string | null }[],
     voiceProfileId: string | null
   ): Promise<void> {
+    // Resolve TTS provider and voice: voice profile → frozen config → system default
+    let resolvedProvider = "openai";
+    let resolvedVoiceId = "alloy";
+
+    if (voiceProfileId) {
+      const [profile] = await db
+        .select()
+        .from(voiceProfiles)
+        .where(eq(voiceProfiles.id, voiceProfileId))
+        .limit(1);
+      if (profile) {
+        resolvedProvider = profile.provider;
+        resolvedVoiceId = profile.providerVoiceId;
+      }
+    }
+
+    if (!voiceProfileId || resolvedProvider === "openai") {
+      // Check frozen pipeline config for TTS settings as fallback
+      const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
+      const ttsConfig = frozenConfig?.tts;
+      if (ttsConfig?.provider) {
+        resolvedProvider = ttsConfig.provider;
+      }
+      if (ttsConfig?.voiceId) {
+        resolvedVoiceId = ttsConfig.voiceId;
+      }
+    }
+
     const scenesWithNarration = activeScenes.filter((s) => s.narrationScript);
     const scenesWithoutNarration = activeScenes.length - scenesWithNarration.length;
-    console.warn(`[Pipeline] Queuing TTS for project ${projectId}: ${scenesWithNarration.length} scene(s) with narration, ${scenesWithoutNarration} without, voiceId=${voiceProfileId ?? "alloy"}, provider=openai`);
+    console.warn(`[Pipeline] Queuing TTS for project ${projectId}: ${scenesWithNarration.length} scene(s) with narration, ${scenesWithoutNarration} without, voiceId=${resolvedVoiceId}, provider=${resolvedProvider}`);
 
     await Promise.all(
       activeScenes
@@ -421,8 +449,8 @@ export class PipelineOrchestrator {
             sceneId: scene.id,
             userId,
             narrationScript: scene.narrationScript!,
-            voiceId: voiceProfileId ?? "alloy",
-            provider: "openai",
+            voiceId: resolvedVoiceId,
+            provider: resolvedProvider,
           });
 
           console.warn(`[Pipeline] TTS_GENERATION job queued for scene ${scene.id} (scriptLength=${scene.narrationScript!.length} chars)`);

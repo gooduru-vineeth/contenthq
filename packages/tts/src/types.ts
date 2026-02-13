@@ -15,7 +15,7 @@ export interface TTSResult {
   format: string;
 }
 
-export type TTSProvider = "openai" | "elevenlabs" | "google";
+export type TTSProvider = "openai" | "elevenlabs" | "google" | "google-gemini" | "inworld" | "sarvam";
 
 export interface TTSProviderConfig {
   name: TTSProvider;

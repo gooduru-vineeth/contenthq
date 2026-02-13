@@ -7,6 +7,7 @@ import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { storage, getSceneAudioPath, getAudioContentType } from "@contenthq/storage";
 import { formatFileSize } from "@contenthq/ai";
+import type { TTSProvider } from "@contenthq/tts";
 
 export function createTTSGenerationWorker(): Worker {
   return new Worker<TTSGenerationJobData>(
@@ -74,7 +75,7 @@ export function createTTSGenerationWorker(): Worker {
         const result = await generateSpeech({
           text: narrationScript,
           voiceId,
-          provider: provider as "openai" | "elevenlabs" | "google",
+          provider: provider as TTSProvider,
         });
 
         console.warn(`[TTS] Speech generated for scene ${sceneId}: duration=${result.duration}s, format=${result.format}, audioFileSize=${formatFileSize(result.audioBuffer.length)}`);

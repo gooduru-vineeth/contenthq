@@ -3,6 +3,23 @@ import { getModelInstance, resolveModelFromDb, ANTHROPIC_MODELS } from "../provi
 import { z } from "zod";
 import { truncateForLog } from "../utils/log-helpers";
 
+async function downloadImageToBuffer(imageUrl: string): Promise<{ buffer: Buffer; mimeType: string }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(imageUrl, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`Image download failed: ${response.status} ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const contentType = response.headers.get("content-type") ?? "image/png";
+    const mimeType = contentType.split(";")[0].trim();
+    return { buffer: Buffer.from(arrayBuffer), mimeType };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DrizzleDb = any;
 
@@ -49,6 +66,24 @@ export async function verifyImage(
 
   console.warn(`[VisionService] Verifying image: provider=${resolvedProvider}, model=${resolvedModelId}, threshold=${threshold}, imageUrl="${imageUrl.substring(0, 80)}", sceneDescription="${truncateForLog(sceneDescription, 150)}", hasCustomPrompt=${!!customPrompt}`);
 
+  // Download image locally to avoid ephemeral URL timeout issues with AI providers
+  let imageData: { buffer: Buffer; mimeType: string };
+  try {
+    imageData = await downloadImageToBuffer(imageUrl);
+    console.warn(`[VisionService] Downloaded image: ${imageData.buffer.length} bytes, mimeType=${imageData.mimeType}`);
+  } catch (downloadError) {
+    console.error(`[VisionService] Failed to download image from ${imageUrl.substring(0, 80)}: ${downloadError instanceof Error ? downloadError.message : String(downloadError)}`);
+    return {
+      relevance: 0,
+      quality: 0,
+      consistency: 0,
+      safety: 0,
+      totalScore: 0,
+      feedback: `Image download failed: ${downloadError instanceof Error ? downloadError.message : String(downloadError)}`,
+      approved: false,
+    };
+  }
+
   const result = await generateObject({
     model,
     schema: verificationSchema,
@@ -67,7 +102,7 @@ Total score = sum of all criteria (0-100). Approved if total >= ${threshold}.`,
         role: "user",
         content: [
           { type: "text", text: `Scene description: ${sceneDescription}\n\nPlease evaluate this image against the scene description.` },
-          { type: "image", image: new URL(imageUrl) },
+          { type: "image", image: imageData.buffer, mediaType: imageData.mimeType },
         ],
       },
     ],
