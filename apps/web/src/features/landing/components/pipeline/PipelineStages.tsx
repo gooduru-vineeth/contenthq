@@ -3,24 +3,24 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { pipelineStages } from "../../lib/constants";
 
-interface PipelineMobileFallbackProps {
+interface PipelineStagesProps {
   activeStage: number;
   onSelectStage: (index: number) => void;
   reducedMotion: boolean;
 }
 
-export function PipelineMobileFallback({
+export function PipelineStages({
   activeStage,
   onSelectStage,
   reducedMotion,
-}: PipelineMobileFallbackProps) {
+}: PipelineStagesProps) {
   const stage = pipelineStages[activeStage];
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-card/80 to-card/40 p-6 backdrop-blur-sm">
-      {/* Scrollable glass-card stage buttons */}
+    <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-card/80 to-card/40 p-6 backdrop-blur-sm sm:p-8">
+      {/* Stage buttons */}
       <div
-        className="relative flex items-center gap-1 overflow-x-auto pb-4 scrollbar-none"
+        className="relative flex items-center justify-center gap-1 overflow-x-auto pb-4 scrollbar-none sm:gap-2 lg:gap-3 lg:overflow-x-visible"
         role="tablist"
         aria-label="Pipeline stages"
       >
@@ -46,21 +46,21 @@ export function PipelineMobileFallback({
                 }}
               >
                 <div
-                  className="flex h-10 w-10 items-center justify-center rounded-lg backdrop-blur-sm transition-all duration-300"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg backdrop-blur-sm transition-all duration-300 sm:h-11 sm:w-11 lg:h-12 lg:w-12"
                   style={{
                     backgroundColor: `${s.color}${isActive ? "25" : "15"}`,
                     opacity: isActive ? 1 : isPast ? 0.7 : 0.4,
                   }}
                 >
                   <Icon
-                    className="h-5 w-5"
+                    className="h-5 w-5 lg:h-6 lg:w-6"
                     style={{
                       color: isActive || isPast ? s.color : "var(--muted-foreground)",
                     }}
                   />
                 </div>
                 <span
-                  className="whitespace-nowrap text-[10px] font-medium transition-colors"
+                  className="whitespace-nowrap text-[10px] font-medium transition-colors sm:text-xs lg:text-sm"
                   style={{
                     color: isActive
                       ? "var(--foreground)"
@@ -80,7 +80,7 @@ export function PipelineMobileFallback({
               {/* Connector line */}
               {i < pipelineStages.length - 1 && (
                 <div
-                  className="h-px w-4 shrink-0"
+                  className="h-px w-4 shrink-0 sm:w-6 lg:w-8"
                   style={{
                     backgroundColor:
                       i < activeStage
@@ -106,15 +106,20 @@ export function PipelineMobileFallback({
             transition={{ duration: 0.2 }}
           >
             <span
-              className="mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
+              className="mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold text-white sm:text-xs"
               style={{ backgroundColor: stage.color }}
             >
               Stage {activeStage + 1}
             </span>
-            <h3 className="text-base font-bold text-foreground">
+            <h3 className="text-base font-bold text-foreground sm:text-lg lg:text-xl">
               {stage.name}
             </h3>
-            <p className="text-xs text-muted-foreground">{stage.tagline}</p>
+            <p className="text-xs text-muted-foreground sm:text-sm">
+              {stage.tagline}
+            </p>
+            <p className="mx-auto mt-1 hidden max-w-lg text-sm text-muted-foreground lg:block">
+              {stage.detail}
+            </p>
           </motion.div>
         </AnimatePresence>
       </div>

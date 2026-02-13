@@ -1,24 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { pipelineStages } from "../lib/constants";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
-import { PipelineOverlay } from "./pipeline/PipelineOverlay";
-import { PipelineMobileFallback } from "./pipeline/PipelineMobileFallback";
-
-const PipelineCanvas3D = dynamic(
-  () =>
-    import("./pipeline/PipelineCanvas3D").then((mod) => ({
-      default: mod.PipelineCanvas3D,
-    })),
-  { ssr: false }
-);
+import { PipelineStages } from "./pipeline/PipelineStages";
 
 export function PipelineSection() {
   const [activeStage, setActiveStage] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const hasInteracted = useRef(false);
   const prefersReducedMotion = usePrefersReducedMotion();
 
   const advance = useCallback(() => {
@@ -26,14 +16,14 @@ export function PipelineSection() {
   }, []);
 
   useEffect(() => {
-    if (isPaused || prefersReducedMotion) return;
+    if (hasInteracted.current || prefersReducedMotion) return;
     const timer = setInterval(advance, 4000);
     return () => clearInterval(timer);
-  }, [isPaused, prefersReducedMotion, advance]);
+  }, [prefersReducedMotion, advance]);
 
   const handleSelectStage = useCallback((index: number) => {
     setActiveStage(index);
-    setIsPaused(true);
+    hasInteracted.current = true;
   }, []);
 
   return (
@@ -59,37 +49,12 @@ export function PipelineSection() {
           </p>
         </motion.div>
 
-        {/* Desktop: 3D Canvas + Overlay */}
-        <div
-          className="relative hidden lg:block"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-          onFocus={() => setIsPaused(true)}
-          onBlur={() => setIsPaused(false)}
-        >
-          <div aria-hidden="true">
-            <PipelineCanvas3D
-              activeStage={activeStage}
-              isPaused={isPaused}
-              onSelectStage={handleSelectStage}
-              reducedMotion={prefersReducedMotion}
-            />
-          </div>
-          <PipelineOverlay
-            activeStage={activeStage}
-            onSelectStage={handleSelectStage}
-            reducedMotion={prefersReducedMotion}
-          />
-        </div>
-
-        {/* Mobile: 2D Fallback */}
-        <div className="lg:hidden">
-          <PipelineMobileFallback
-            activeStage={activeStage}
-            onSelectStage={handleSelectStage}
-            reducedMotion={prefersReducedMotion}
-          />
-        </div>
+        {/* Pipeline visualization */}
+        <PipelineStages
+          activeStage={activeStage}
+          onSelectStage={handleSelectStage}
+          reducedMotion={prefersReducedMotion}
+        />
       </div>
     </section>
   );
