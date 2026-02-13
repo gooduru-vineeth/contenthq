@@ -681,6 +681,7 @@ export const mediaStudioVideos: MediaStudioVideo[] = [
     thumbnailGradient: "linear-gradient(135deg, #F68048, #FB9158, #FFA36B)",
     thumbnailGradientDark: "linear-gradient(135deg, #B84D20, #DC6530, #943B18)",
     accentColor: "#F68048",
+    videoSrc: "https://assets.mixkit.co/videos/4132/4132-720.mp4",
   },
   {
     id: "ocean-waves",
@@ -690,6 +691,7 @@ export const mediaStudioVideos: MediaStudioVideo[] = [
     thumbnailGradient: "linear-gradient(135deg, #2845D6, #4F6FE4, #8199ED)",
     thumbnailGradientDark: "linear-gradient(135deg, #0D1A63, #1A2CA3, #142383)",
     accentColor: "#2845D6",
+    videoSrc: "https://assets.mixkit.co/videos/48525/48525-720.mp4",
   },
   {
     id: "city-timelapse",
@@ -699,6 +701,7 @@ export const mediaStudioVideos: MediaStudioVideo[] = [
     thumbnailGradient: "linear-gradient(135deg, #6C5CE7, #A78BFA, #C4B5FD)",
     thumbnailGradientDark: "linear-gradient(135deg, #4C1D95, #6D28D9, #5B21B6)",
     accentColor: "#6C5CE7",
+    videoSrc: "https://assets.mixkit.co/videos/4341/4341-720.mp4",
   },
   {
     id: "nature-macro",
@@ -708,5 +711,6 @@ export const mediaStudioVideos: MediaStudioVideo[] = [
     thumbnailGradient: "linear-gradient(135deg, #10B981, #34D399, #6EE7B7)",
     thumbnailGradientDark: "linear-gradient(135deg, #064E3B, #065F46, #047857)",
     accentColor: "#10B981",
+    videoSrc: "https://assets.mixkit.co/videos/1899/1899-720.mp4",
   },
 ];
