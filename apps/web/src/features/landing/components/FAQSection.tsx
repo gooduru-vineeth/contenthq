@@ -57,3 +57,5 @@ export function FAQSection() {
     </section>
   );
 }
+
+export default FAQSection;

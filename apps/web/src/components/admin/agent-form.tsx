@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { X } from "lucide-react";
@@ -94,14 +94,6 @@ export function AgentForm({ defaultValues, onSubmit, isSubmitting }: AgentFormPr
       .replace(/^-+|-+$/g, "");
   };
 
-  const watchedName = useWatch({ control: form.control, name: "name" });
-
-  useEffect(() => {
-    if (!defaultValues?.slug && watchedName) {
-      form.setValue("slug", slugify(watchedName));
-    }
-  }, [watchedName, form, defaultValues?.slug]);
-
   const addVariable = () => {
     if (variableInput.trim()) {
       const currentVariables = form.getValues("expectedVariables");
@@ -134,7 +126,16 @@ export function AgentForm({ defaultValues, onSubmit, isSubmitting }: AgentFormPr
               <FormItem>
                 <FormLabel>Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="My Agent" {...field} />
+                  <Input
+                    placeholder="My Agent"
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      if (!defaultValues?.slug) {
+                        form.setValue("slug", slugify(e.target.value));
+                      }
+                    }}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

@@ -72,9 +72,15 @@ export function PipelineLog({ jobs }: PipelineLogProps) {
     <div className="space-y-1.5">
       {Array.from(grouped.entries()).map(([jobType, groupJobs]) => {
         const isMultiple = groupJobs.length > 1;
-        const completedCount = groupJobs.filter((j) => j.status === "completed").length;
-        const failedCount = groupJobs.filter((j) => j.status === "failed").length;
-        const processingCount = groupJobs.filter((j) => j.status === "processing").length;
+        const { completedCount, failedCount, processingCount } = groupJobs.reduce(
+          (acc, j) => {
+            if (j.status === "completed") acc.completedCount++;
+            else if (j.status === "failed") acc.failedCount++;
+            else if (j.status === "processing") acc.processingCount++;
+            return acc;
+          },
+          { completedCount: 0, failedCount: 0, processingCount: 0 }
+        );
         const label =
           PIPELINE_STAGE_LABELS[jobType] ?? jobType.replace(/_/g, " ").toLowerCase();
 

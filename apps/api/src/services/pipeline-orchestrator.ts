@@ -1,6 +1,6 @@
 import { db } from "@contenthq/db/client";
 import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals, sceneVideos } from "@contenthq/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, inArray } from "drizzle-orm";
 import {
   addIngestionJob,
   addStoryWritingJob,
@@ -193,25 +193,27 @@ export class PipelineOrchestrator {
     console.warn(`[Pipeline] Found ${sceneList.length} scene(s) for project ${projectId}: ${scenesWithPrompts.length} with image prompts, ${scenesWithoutPrompts} without`);
 
     // Queue visual generation for all scenes in parallel
-    for (const scene of sceneList) {
-      if (scene.imagePrompt) {
-        await db.insert(generationJobs).values({
-          userId,
-          projectId,
-          jobType: "VISUAL_GENERATION",
-          status: "queued",
-        });
+    await Promise.all(
+      sceneList
+        .filter((scene) => scene.imagePrompt)
+        .map(async (scene) => {
+          await db.insert(generationJobs).values({
+            userId,
+            projectId,
+            jobType: "VISUAL_GENERATION",
+            status: "queued",
+          });
 
-        await addVisualGenerationJob({
-          projectId,
-          sceneId: scene.id,
-          userId,
-          imagePrompt: scene.imagePrompt,
-        });
+          await addVisualGenerationJob({
+            projectId,
+            sceneId: scene.id,
+            userId,
+            imagePrompt: scene.imagePrompt!,
+          });
 
-        console.warn(`[Pipeline] VISUAL_GENERATION job queued for scene ${scene.id} (index=${scene.index})`);
-      }
-    }
+          console.warn(`[Pipeline] VISUAL_GENERATION job queued for scene ${scene.id} (index=${scene.index})`);
+        })
+    );
 
     await db
       .update(projects)
@@ -274,53 +276,62 @@ export class PipelineOrchestrator {
     if (videoEnabled) {
       console.warn(`[Pipeline] Video generation enabled for project ${projectId}, queuing VIDEO_GENERATION for ${activeScenes.length} scene(s)`);
       const videoStageConfig = frozenConfig?.videoGeneration;
-      // Queue VIDEO_GENERATION jobs for each non-failed scene
-      for (const scene of activeScenes) {
-        // Check for media overrides on this scene
-        const overrides = await pipelineConfigService.getMediaOverrides(
-          projectId,
-          "VIDEO_GENERATION",
-          scene.index
-        );
-        const mediaOverrideUrl = overrides.length > 0 ? overrides[0].url ?? undefined : undefined;
 
-        // Fetch the verified image URL from sceneVisuals
-        const [visual] = await db
-          .select()
-          .from(sceneVisuals)
-          .where(eq(sceneVisuals.sceneId, scene.id));
+      // Batch fetch all scene visuals and media overrides upfront
+      const activeSceneIds = activeScenes.map((s) => s.id);
+      const [allVisuals, allOverrides] = await Promise.all([
+        activeSceneIds.length > 0
+          ? db.select().from(sceneVisuals).where(inArray(sceneVisuals.sceneId, activeSceneIds))
+          : Promise.resolve([]),
+        pipelineConfigService.getMediaOverrides(projectId, "VIDEO_GENERATION"),
+      ]);
 
-        const imageUrl = visual?.imageUrl ?? "";
-
-        await db.insert(generationJobs).values({
-          userId,
-          projectId,
-          jobType: "VIDEO_GENERATION",
-          status: "queued",
-        });
-
-        await addVideoGenerationJob({
-          projectId,
-          sceneId: scene.id,
-          userId,
-          imageUrl,
-          motionSpec: (scene.motionSpec as Record<string, unknown>) ?? {},
-          scenePrompt: scene.imagePrompt || scene.visualDescription || scene.narrationScript || "",
-          ...(videoStageConfig && {
-            stageConfig: {
-              provider: videoStageConfig.provider,
-              model: videoStageConfig.model,
-              motionType: videoStageConfig.motionType,
-              durationPerScene: videoStageConfig.durationPerScene,
-              motionAssignment: videoStageConfig.motionAssignment,
-              motionSpeed: videoStageConfig.motionSpeed,
-            },
-          }),
-          ...(mediaOverrideUrl && { mediaOverrideUrl }),
-        });
-
-        console.warn(`[Pipeline] VIDEO_GENERATION job queued for scene ${scene.id} (index=${scene.index}), imageUrl=${imageUrl ? "present" : "missing"}${mediaOverrideUrl ? ", mediaOverride=present" : ""}`);
+      // Build Maps for O(1) lookup
+      const visualsBySceneId = new Map(allVisuals.map((v) => [v.sceneId, v]));
+      const overridesBySceneIndex = new Map<number, string | undefined>();
+      for (const override of allOverrides) {
+        if (override.sceneIndex !== null && !overridesBySceneIndex.has(override.sceneIndex)) {
+          overridesBySceneIndex.set(override.sceneIndex, override.url ?? undefined);
+        }
       }
+
+      // Queue VIDEO_GENERATION jobs for each non-failed scene in parallel
+      await Promise.all(
+        activeScenes.map(async (scene) => {
+          const mediaOverrideUrl = overridesBySceneIndex.get(scene.index);
+          const visual = visualsBySceneId.get(scene.id);
+          const imageUrl = visual?.imageUrl ?? "";
+
+          await db.insert(generationJobs).values({
+            userId,
+            projectId,
+            jobType: "VIDEO_GENERATION",
+            status: "queued",
+          });
+
+          await addVideoGenerationJob({
+            projectId,
+            sceneId: scene.id,
+            userId,
+            imageUrl,
+            motionSpec: (scene.motionSpec as Record<string, unknown>) ?? {},
+            scenePrompt: scene.imagePrompt || scene.visualDescription || scene.narrationScript || "",
+            ...(videoStageConfig && {
+              stageConfig: {
+                provider: videoStageConfig.provider,
+                model: videoStageConfig.model,
+                motionType: videoStageConfig.motionType,
+                durationPerScene: videoStageConfig.durationPerScene,
+                motionAssignment: videoStageConfig.motionAssignment,
+                motionSpeed: videoStageConfig.motionSpeed,
+              },
+            }),
+            ...(mediaOverrideUrl && { mediaOverrideUrl }),
+          });
+
+          console.warn(`[Pipeline] VIDEO_GENERATION job queued for scene ${scene.id} (index=${scene.index}), imageUrl=${imageUrl ? "present" : "missing"}${mediaOverrideUrl ? ", mediaOverride=present" : ""}`);
+        })
+      );
 
       await db
         .update(projects)
@@ -394,27 +405,29 @@ export class PipelineOrchestrator {
     const scenesWithoutNarration = activeScenes.length - scenesWithNarration.length;
     console.warn(`[Pipeline] Queuing TTS for project ${projectId}: ${scenesWithNarration.length} scene(s) with narration, ${scenesWithoutNarration} without, voiceId=${voiceProfileId ?? "alloy"}, provider=openai`);
 
-    for (const scene of activeScenes) {
-      if (scene.narrationScript) {
-        await db.insert(generationJobs).values({
-          userId,
-          projectId,
-          jobType: "TTS_GENERATION",
-          status: "queued",
-        });
+    await Promise.all(
+      activeScenes
+        .filter((scene) => scene.narrationScript)
+        .map(async (scene) => {
+          await db.insert(generationJobs).values({
+            userId,
+            projectId,
+            jobType: "TTS_GENERATION",
+            status: "queued",
+          });
 
-        await addTTSGenerationJob({
-          projectId,
-          sceneId: scene.id,
-          userId,
-          narrationScript: scene.narrationScript,
-          voiceId: voiceProfileId ?? "alloy",
-          provider: "openai",
-        });
+          await addTTSGenerationJob({
+            projectId,
+            sceneId: scene.id,
+            userId,
+            narrationScript: scene.narrationScript!,
+            voiceId: voiceProfileId ?? "alloy",
+            provider: "openai",
+          });
 
-        console.warn(`[Pipeline] TTS_GENERATION job queued for scene ${scene.id} (scriptLength=${scene.narrationScript.length} chars)`);
-      }
-    }
+          console.warn(`[Pipeline] TTS_GENERATION job queued for scene ${scene.id} (scriptLength=${scene.narrationScript!.length} chars)`);
+        })
+    );
 
     await db
       .update(projects)
@@ -461,40 +474,45 @@ export class PipelineOrchestrator {
     const audioMixingConfig = frozenConfig?.audioMixing;
     const musicTrackId = audioMixingConfig?.musicTrackId ?? null;
 
-    for (const scene of activeScenesForMixing) {
-      // Look up actual voiceover URL from sceneVideos (stored by TTS worker)
-      const [sceneVideo] = await db
-        .select()
-        .from(sceneVideos)
-        .where(eq(sceneVideos.sceneId, scene.id));
+    // Batch fetch all sceneVideos upfront
+    const activeSceneIds = activeScenesForMixing.map((s) => s.id);
+    const allSceneVideos = activeSceneIds.length > 0
+      ? await db.select().from(sceneVideos).where(inArray(sceneVideos.sceneId, activeSceneIds))
+      : [];
+    const sceneVideosBySceneId = new Map(allSceneVideos.map((sv) => [sv.sceneId, sv]));
 
-      await db.insert(generationJobs).values({
-        userId,
-        projectId,
-        jobType: "AUDIO_MIXING",
-        status: "queued",
-      });
+    await Promise.all(
+      activeScenesForMixing.map(async (scene) => {
+        const sceneVideo = sceneVideosBySceneId.get(scene.id);
 
-      await addAudioMixingJob({
-        projectId,
-        sceneId: scene.id,
-        userId,
-        voiceoverUrl: sceneVideo?.voiceoverUrl ?? "",
-        musicTrackId,
-        ...(audioMixingConfig && {
-          stageConfig: {
-            musicVolume: audioMixingConfig.musicVolume,
-            voiceoverVolume: audioMixingConfig.voiceoverVolume,
-            fadeInMs: audioMixingConfig.fadeInMs,
-            fadeOutMs: audioMixingConfig.fadeOutMs,
-            musicLoop: audioMixingConfig.musicLoop,
-            musicDuckingEnabled: audioMixingConfig.musicDuckingEnabled,
-          },
-        }),
-      });
+        await db.insert(generationJobs).values({
+          userId,
+          projectId,
+          jobType: "AUDIO_MIXING",
+          status: "queued",
+        });
 
-      console.warn(`[Pipeline] AUDIO_MIXING job queued for scene ${scene.id} (index=${scene.index}), voiceoverUrl=${sceneVideo?.voiceoverUrl ? "present" : "missing"}, musicTrackId=${musicTrackId ?? "none"}`);
-    }
+        await addAudioMixingJob({
+          projectId,
+          sceneId: scene.id,
+          userId,
+          voiceoverUrl: sceneVideo?.voiceoverUrl ?? "",
+          musicTrackId,
+          ...(audioMixingConfig && {
+            stageConfig: {
+              musicVolume: audioMixingConfig.musicVolume,
+              voiceoverVolume: audioMixingConfig.voiceoverVolume,
+              fadeInMs: audioMixingConfig.fadeInMs,
+              fadeOutMs: audioMixingConfig.fadeOutMs,
+              musicLoop: audioMixingConfig.musicLoop,
+              musicDuckingEnabled: audioMixingConfig.musicDuckingEnabled,
+            },
+          }),
+        });
+
+        console.warn(`[Pipeline] AUDIO_MIXING job queued for scene ${scene.id} (index=${scene.index}), voiceoverUrl=${sceneVideo?.voiceoverUrl ? "present" : "missing"}, musicTrackId=${musicTrackId ?? "none"}`);
+      })
+    );
 
     await db
       .update(projects)

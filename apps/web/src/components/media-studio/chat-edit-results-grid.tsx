@@ -1,6 +1,6 @@
 "use client";
 
-import type { FC } from "react";
+import { type FC, useMemo } from "react";
 import Image from "next/image";
 import { ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +32,7 @@ export const ChatEditResultsGrid: FC<ChatEditResultsGridProps> = ({
   onUseAsSource,
   onZoom,
 }) => {
-  const groupedResults = results.reduce(
+  const groupedResults = useMemo(() => results.reduce(
     (acc, result) => {
       const key = result.modelName;
       if (!acc[key]) {
@@ -53,7 +53,7 @@ export const ChatEditResultsGrid: FC<ChatEditResultsGridProps> = ({
         results: typeof results;
       }
     >
-  );
+  ), [results]);
 
   const formatGenerationTime = (ms: number) => {
     if (ms < 1000) return `${ms}ms`;

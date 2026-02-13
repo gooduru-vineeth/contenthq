@@ -144,3 +144,5 @@ export function MediaStudioShowcase() {
     </section>
   );
 }
+
+export default MediaStudioShowcase;

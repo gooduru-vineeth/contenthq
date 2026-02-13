@@ -20,6 +20,11 @@ export const storyOutputSchema = z.object({
       visualDescription: z.string(),
       narrationScript: z.string(),
       duration: z.number(),
+      motionSpec: z.object({
+        type: z.string(),
+        speed: z.number(),
+      }).optional(),
+      transition: z.string().optional(),
     })
   ),
 });

@@ -80,7 +80,6 @@ export const ChatEditModal: FC<ChatEditModalProps> = ({
     "standard",
   ]);
   const [strength, setStrength] = useState([0.5]);
-  const [showStrength, setShowStrength] = useState(false);
 
   // Reference image
   const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(
@@ -126,13 +125,12 @@ export const ChatEditModal: FC<ChatEditModalProps> = ({
   }, [editableModels, selectedModels.length]);
 
   // Check if any Replicate model is selected (for strength slider)
-  useEffect(() => {
-    if (!editableModels) return;
-    const hasReplicate = selectedModels.some((modelId) => {
+  const showStrength = useMemo(() => {
+    if (!editableModels) return false;
+    return selectedModels.some((modelId) => {
       const model = editableModels.find((m) => m.id === modelId);
       return model?.provider === "replicate";
     });
-    setShowStrength(hasReplicate);
   }, [selectedModels, editableModels]);
 
   // Mutation

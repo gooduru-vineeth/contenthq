@@ -66,3 +66,5 @@ export function FeaturesGrid() {
     </section>
   );
 }
+
+export default FeaturesGrid;

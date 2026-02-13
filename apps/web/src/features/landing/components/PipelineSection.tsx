@@ -59,3 +59,5 @@ export function PipelineSection() {
     </section>
   );
 }
+
+export default PipelineSection;

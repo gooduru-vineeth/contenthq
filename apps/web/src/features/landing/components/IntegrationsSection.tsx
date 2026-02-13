@@ -104,3 +104,5 @@ export function IntegrationsSection() {
     </section>
   );
 }
+
+export default IntegrationsSection;

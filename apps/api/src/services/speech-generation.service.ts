@@ -74,41 +74,42 @@ class SpeechGenerationService {
 
   async createBatch(input: BatchInput, userId: string) {
     const batchId = crypto.randomUUID();
-    const results = [];
 
-    for (const gen of input.generations) {
-      const [generation] = await db
-        .insert(speechGenerations)
-        .values({
+    const results = await Promise.all(
+      input.generations.map(async (gen) => {
+        const [generation] = await db
+          .insert(speechGenerations)
+          .values({
+            userId,
+            projectId: input.projectId ?? null,
+            title: input.title ?? null,
+            inputText: input.text,
+            provider: gen.provider,
+            model: gen.model ?? null,
+            voiceId: gen.voiceId,
+            voiceSettings: gen.voiceSettings ?? null,
+            audioFormat: "mp3",
+            status: "pending",
+            progress: 0,
+            batchId,
+          })
+          .returning();
+
+        const jobData: SpeechGenerationJobData = {
+          speechGenerationId: generation.id,
           userId,
-          projectId: input.projectId ?? null,
-          title: input.title ?? null,
-          inputText: input.text,
+          projectId: input.projectId,
+          text: input.text,
           provider: gen.provider,
-          model: gen.model ?? null,
+          model: gen.model,
           voiceId: gen.voiceId,
-          voiceSettings: gen.voiceSettings ?? null,
-          audioFormat: "mp3",
-          status: "pending",
-          progress: 0,
-          batchId,
-        })
-        .returning();
+          voiceSettings: gen.voiceSettings,
+        };
 
-      const jobData: SpeechGenerationJobData = {
-        speechGenerationId: generation.id,
-        userId,
-        projectId: input.projectId,
-        text: input.text,
-        provider: gen.provider,
-        model: gen.model,
-        voiceId: gen.voiceId,
-        voiceSettings: gen.voiceSettings,
-      };
-
-      await addSpeechGenerationJob(jobData);
-      results.push(generation);
-    }
+        await addSpeechGenerationJob(jobData);
+        return generation;
+      })
+    );
 
     return { batchId, generations: results };
   }

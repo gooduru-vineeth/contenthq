@@ -105,3 +105,5 @@ export function PricingSection() {
     </section>
   );
 }
+
+export default PricingSection;

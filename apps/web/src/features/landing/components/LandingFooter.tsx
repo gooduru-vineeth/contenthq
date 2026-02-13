@@ -122,3 +122,5 @@ export function LandingFooter() {
     </footer>
   );
 }
+
+export default LandingFooter;

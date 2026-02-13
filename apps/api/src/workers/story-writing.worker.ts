@@ -1,37 +1,12 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { StoryWritingJobData } from "@contenthq/queue";
-import { generateStructuredContent, resolvePromptForStage, executeAgent } from "@contenthq/ai";
+import { generateStructuredContent, resolvePromptForStage, executeAgent, storyOutputSchema } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
 import { stories, scenes, ingestedContent, projects, aiGenerations, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
-import { z } from "zod";
+import type { z } from "zod";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
-
-const storyOutputSchema = z.object({
-  title: z.string(),
-  hook: z.string(),
-  synopsis: z.string(),
-  narrativeArc: z.object({
-    setup: z.string(),
-    risingAction: z.string(),
-    climax: z.string(),
-    resolution: z.string(),
-  }),
-  scenes: z.array(
-    z.object({
-      index: z.number(),
-      visualDescription: z.string(),
-      narrationScript: z.string(),
-      duration: z.number(),
-      motionSpec: z.object({
-        type: z.string(),
-        speed: z.number().optional(),
-      }).optional(),
-      transition: z.string().optional(),
-    })
-  ),
-});
 
 export function createStoryWritingWorker(): Worker {
   return new Worker<StoryWritingJobData>(

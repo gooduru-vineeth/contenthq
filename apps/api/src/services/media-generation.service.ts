@@ -4,7 +4,7 @@ import {
   mediaConversations,
   mediaConversationMessages,
 } from "@contenthq/db/schema";
-import { eq, and, desc, like, count as countFn, sql } from "drizzle-orm";
+import { eq, and, desc, like, count as countFn, sql, inArray } from "drizzle-orm";
 import { addMediaGenerationJob } from "@contenthq/queue";
 import { mediaProviderRegistry } from "@contenthq/ai";
 import { storage } from "@contenthq/storage";
@@ -724,19 +724,22 @@ async function getConversation(userId: string, conversationId: string) {
     .where(eq(mediaConversationMessages.conversationId, conversationId))
     .orderBy(mediaConversationMessages.position);
 
-  // For assistant messages, include linked generatedMedia
-  const messagesWithMedia = await Promise.all(
-    messages.map(async (msg) => {
-      if (msg.role === "assistant" && msg.generatedMediaId) {
-        const [media] = await db
-          .select()
-          .from(generatedMedia)
-          .where(eq(generatedMedia.id, msg.generatedMediaId));
-        return { ...msg, generatedMedia: media ?? null };
-      }
-      return { ...msg, generatedMedia: null };
-    })
-  );
+  // Batch fetch all linked generatedMedia in a single query
+  const mediaIds = messages
+    .filter((msg) => msg.role === "assistant" && msg.generatedMediaId)
+    .map((msg) => msg.generatedMediaId!);
+
+  const mediaRecords = mediaIds.length > 0
+    ? await db.select().from(generatedMedia).where(inArray(generatedMedia.id, mediaIds))
+    : [];
+  const mediaById = new Map(mediaRecords.map((m) => [m.id, m]));
+
+  const messagesWithMedia = messages.map((msg) => {
+    if (msg.role === "assistant" && msg.generatedMediaId) {
+      return { ...msg, generatedMedia: mediaById.get(msg.generatedMediaId) ?? null };
+    }
+    return { ...msg, generatedMedia: null };
+  });
 
   return { ...conversation, messages: messagesWithMedia };
 }

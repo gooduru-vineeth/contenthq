@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -66,12 +66,12 @@ export function PromptTemplateForm({
     [contentValue]
   );
 
-  useEffect(() => {
-    setValue("variables", detectedVariables);
-  }, [detectedVariables, setValue]);
+  const onSubmitWithVariables = (data: CreatePromptTemplateInput & { changeNote?: string }) => {
+    onSubmit({ ...data, variables: detectedVariables });
+  };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmitWithVariables)} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="type">Type</Label>
         <Select

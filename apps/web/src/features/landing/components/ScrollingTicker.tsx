@@ -29,3 +29,5 @@ export function ScrollingTicker() {
     </section>
   );
 }
+
+export default ScrollingTicker;

@@ -1,20 +1,22 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { ScrollProgress } from "./ScrollProgress";
 import { LandingHeader } from "./LandingHeader";
 import { HeroSection } from "./HeroSection";
-import { ScrollingTicker } from "./ScrollingTicker";
-import { TrustedBySection } from "./TrustedBySection";
-import { PipelineSection } from "./PipelineSection";
-import { FeaturesGrid } from "./FeaturesGrid";
-import { MediaStudioShowcase } from "./MediaStudioShowcase";
-import { HowItWorksSection } from "./HowItWorksSection";
-import { IntegrationsSection } from "./IntegrationsSection";
-import { TestimonialsSection } from "./TestimonialsSection";
-import { PricingSection } from "./PricingSection";
-import { FAQSection } from "./FAQSection";
-import { CTASection } from "./CTASection";
-import { LandingFooter } from "./LandingFooter";
+
+const ScrollingTicker = dynamic(() => import("./ScrollingTicker"));
+const TrustedBySection = dynamic(() => import("./TrustedBySection"));
+const PipelineSection = dynamic(() => import("./PipelineSection"));
+const FeaturesGrid = dynamic(() => import("./FeaturesGrid"));
+const MediaStudioShowcase = dynamic(() => import("./MediaStudioShowcase"));
+const HowItWorksSection = dynamic(() => import("./HowItWorksSection"));
+const IntegrationsSection = dynamic(() => import("./IntegrationsSection"));
+const TestimonialsSection = dynamic(() => import("./TestimonialsSection"));
+const PricingSection = dynamic(() => import("./PricingSection"));
+const FAQSection = dynamic(() => import("./FAQSection"));
+const CTASection = dynamic(() => import("./CTASection"));
+const LandingFooter = dynamic(() => import("./LandingFooter"));
 
 export function LandingPage() {
   return (
