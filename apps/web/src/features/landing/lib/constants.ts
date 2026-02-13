@@ -454,6 +454,67 @@ export const integrations: Integration[] = [
   { name: "ElevenLabs", category: "ai", abbreviation: "EL" },
 ];
 
+// --- AI Provider 3D Cards ---
+export interface AIProvider {
+  name: string;
+  abbreviation: string;
+  description: string;
+  accentColor: string;
+  floatDuration: number;
+  floatDelay: number;
+}
+
+export const aiProviders: AIProvider[] = [
+  {
+    name: "OpenAI",
+    abbreviation: "OA",
+    description: "Language & Vision",
+    accentColor: "#10A37F",
+    floatDuration: 5,
+    floatDelay: 0,
+  },
+  {
+    name: "Anthropic",
+    abbreviation: "An",
+    description: "Advanced Reasoning",
+    accentColor: "#D4A574",
+    floatDuration: 5.5,
+    floatDelay: 0.5,
+  },
+  {
+    name: "Google AI",
+    abbreviation: "Go",
+    description: "Multimodal AI",
+    accentColor: "#4285F4",
+    floatDuration: 6,
+    floatDelay: 1.0,
+  },
+  {
+    name: "ElevenLabs",
+    abbreviation: "EL",
+    description: "Voice Synthesis",
+    accentColor: "#6C5CE7",
+    floatDuration: 4.5,
+    floatDelay: 1.5,
+  },
+  {
+    name: "Fal.ai",
+    abbreviation: "Fa",
+    description: "Image Generation",
+    accentColor: "#FF6B6B",
+    floatDuration: 5.2,
+    floatDelay: 0.8,
+  },
+  {
+    name: "Replicate",
+    abbreviation: "Re",
+    description: "Open Models",
+    accentColor: "#0EA5E9",
+    floatDuration: 5.8,
+    floatDelay: 1.2,
+  },
+];
+
 // --- Media Studio bullets ---
 export interface MediaStudioBullet {
   title: string;

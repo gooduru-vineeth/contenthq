@@ -1,10 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { integrations } from "../lib/constants";
+import { integrations, aiProviders } from "../lib/constants";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
+import { Provider3DCard } from "./Provider3DCard";
 
-const categories = [
+const flatCategories = [
   {
     key: "source" as const,
     label: "Import From",
@@ -14,11 +15,6 @@ const categories = [
     key: "publish" as const,
     label: "Publish To",
     gradient: "from-brand-400 to-brand-500",
-  },
-  {
-    key: "ai" as const,
-    label: "Powered By",
-    gradient: "from-brand-600 to-brand-700",
   },
 ];
 
@@ -48,7 +44,8 @@ export function IntegrationsSection() {
         </motion.div>
 
         <div className="space-y-10">
-          {categories.map((cat) => (
+          {/* Import From + Publish To — flat badges */}
+          {flatCategories.map((cat) => (
             <div key={cat.key}>
               <h3 className="mb-4 text-sm font-semibold text-muted-foreground">
                 {cat.label}
@@ -85,6 +82,23 @@ export function IntegrationsSection() {
               </div>
             </div>
           ))}
+
+          {/* Powered By — 3D floating cards */}
+          <div>
+            <h3 className="mb-6 text-sm font-semibold text-muted-foreground">
+              Powered By
+            </h3>
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+              {aiProviders.map((provider, idx) => (
+                <Provider3DCard
+                  key={provider.name}
+                  provider={provider}
+                  index={idx}
+                  prefersReducedMotion={prefersReducedMotion}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>
