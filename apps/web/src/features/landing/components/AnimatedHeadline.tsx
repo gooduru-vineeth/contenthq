@@ -38,54 +38,66 @@ export function AnimatedHeadline({
 
   return (
     <motion.h1
-      className="text-6xl font-black tracking-tight leading-[1.08] sm:text-7xl md:text-8xl"
+      className="text-4xl font-black tracking-tight leading-[1.12] sm:text-5xl md:text-6xl lg:text-7xl"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
       {/* Line 1: "Transform Raw Content" */}
       <span className="block">
-        {["Transform", "Raw", "Content"].map((word, i) => (
-          <motion.span
-            key={`l1-${i}`}
-            variants={wordVariants}
-            className="mr-[0.22em] inline-block text-gradient-landing-modern"
-          >
-            {word}
-          </motion.span>
-        ))}
+        <motion.span
+          variants={wordVariants}
+          className="mr-[0.22em] inline-block hero-word-transform"
+        >
+          Transform
+        </motion.span>
+        <motion.span
+          variants={wordVariants}
+          className="mr-[0.22em] inline-block hero-word-raw"
+        >
+          Raw
+        </motion.span>
+        <motion.span
+          variants={wordVariants}
+          className="inline-block hero-word-content"
+        >
+          Content
+        </motion.span>
       </span>
 
       {/* Line 2: "Into Polished Videos" */}
       <span className="block mt-1">
         <motion.span
           variants={wordVariants}
-          className="mr-[0.22em] inline-block text-gradient-landing-modern"
+          className="mr-[0.22em] inline-block hero-word-into"
         >
           Into
         </motion.span>
-        {["Polished", "Videos"].map((word, i) => (
-          <motion.span
-            key={`l2-${i}`}
-            variants={wordVariants}
-            className="mr-[0.22em] inline-block hero-headline-accent-modern hero-headline-shimmer"
-          >
-            {word}
-          </motion.span>
-        ))}
+        <motion.span
+          variants={wordVariants}
+          className="mr-[0.22em] inline-block hero-word-polished hero-headline-shimmer"
+        >
+          Polished
+        </motion.span>
+        <motion.span
+          variants={wordVariants}
+          className="inline-block hero-word-videos hero-headline-shimmer"
+        >
+          Videos
+        </motion.span>
       </span>
 
       {/* Line 3: "with AI" */}
       <span className="block mt-1">
         <motion.span
           variants={wordVariants}
-          className="mr-[0.22em] inline-block text-gradient-landing-modern"
+          className="mr-[0.22em] inline-block hero-word-with"
         >
           with
         </motion.span>
         <motion.span
           variants={wordVariants}
-          className="inline-block hero-headline-ai-modern hero-headline-shimmer"
+          className="inline-block hero-word-ai hero-headline-shimmer"
         >
           AI
         </motion.span>
