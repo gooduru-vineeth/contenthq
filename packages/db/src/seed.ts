@@ -1,5 +1,6 @@
 import { db } from "./client";
 import { aiProviders, aiModels } from "./schema";
+import { sql } from "drizzle-orm";
 
 // ── Providers ──────────────────────────────────────────────────────────
 
@@ -1251,8 +1252,22 @@ const visionModels = [
     name: "GPT-4o Vision",
     modelId: "gpt-4o",
     type: "vision",
-    isDefault: true,
+    isDefault: false,
     costs: { inputPerMillion: 2.5, outputPerMillion: 10.0, currency: "USD" },
+    capabilities: {
+      maxImageSize: "20MB",
+      supportedFormats: ["png", "jpeg", "gif", "webp"],
+      detailLevels: ["auto", "low", "high"],
+    },
+  },
+  {
+    id: "model_claude-sonnet-4-5-vision",
+    providerId: "provider_anthropic",
+    name: "Claude Sonnet 4.5 Vision",
+    modelId: "claude-sonnet-4-5-20250929",
+    type: "vision",
+    isDefault: true,
+    costs: { inputPerMillion: 3.0, outputPerMillion: 15.0, currency: "USD" },
     capabilities: {
       maxImageSize: "20MB",
       supportedFormats: ["png", "jpeg", "gif", "webp"],
@@ -1664,9 +1679,17 @@ async function seedModels() {
   await db
     .insert(aiModels)
     .values(allModels)
-    .onConflictDoNothing({ target: aiModels.id });
+    .onConflictDoUpdate({
+      target: aiModels.id,
+      set: {
+        isDefault: sql`excluded.is_default`,
+        costs: sql`excluded.costs`,
+        capabilities: sql`excluded.capabilities`,
+        updatedAt: sql`now()`,
+      },
+    });
 
-  console.warn(`  Inserted up to ${allModels.length} models`);
+  console.warn(`  Upserted ${allModels.length} models`);
 }
 
 // ── Main ───────────────────────────────────────────────────────────────
