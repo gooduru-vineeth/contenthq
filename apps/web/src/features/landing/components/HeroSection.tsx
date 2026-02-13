@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { heroStats } from "../lib/constants";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { AnimatedHeadline } from "./AnimatedHeadline";
-import { VideoFrame3D } from "./VideoFrame3D";
+import { FloatingCard } from "./FloatingCard";
 
 const pills = [
   { label: "Paste Any Link", icon: LinkIcon },
@@ -108,7 +108,12 @@ export function HeroSection() {
           animate="visible"
           className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16"
         >
-          {/* Left Column — Text Content */}
+          {/* Left Column — 3D Floating Pipeline Card */}
+          <motion.div variants={itemVariants}>
+            <FloatingCard />
+          </motion.div>
+
+          {/* Right Column — Text Content */}
           <div className="text-center lg:text-left">
             {/* Badge */}
             <motion.div variants={itemVariants} className="mb-8 inline-flex">
@@ -201,11 +206,6 @@ export function HeroSection() {
               </Button>
             </motion.div>
           </div>
-
-          {/* Right Column — 3D Video Frame */}
-          <motion.div variants={itemVariants}>
-            <VideoFrame3D prefersReducedMotion={prefersReducedMotion} />
-          </motion.div>
         </motion.div>
 
         {/* Stats Row */}
