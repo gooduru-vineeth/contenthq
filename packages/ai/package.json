@@ -15,6 +15,7 @@
     "@contenthq/db": "workspace:*",
     "@contenthq/shared": "workspace:*",
     "ai": "^6.0.81",
+    "langsmith": "^0.3.0",
     "drizzle-orm": "^0.39.0",
     "openai": "^4.0.0",
     "replicate": "^1.0.0",

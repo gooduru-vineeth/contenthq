@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateObject } from "../tracing";
 import { getModelInstance, resolveModelFromDb, ANTHROPIC_MODELS } from "../providers/model-factory";
 import { z } from "zod";
 import { truncateForLog } from "../utils/log-helpers";

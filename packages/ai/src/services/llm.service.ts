@@ -1,4 +1,4 @@
-import { generateText, generateObject, streamText, streamObject } from "ai";
+import { generateText, generateObject, streamText, streamObject } from "../tracing";
 import type { z } from "zod";
 import { getModelInstance, resolveModelFromDb, ANTHROPIC_MODELS } from "../providers/model-factory";
 import type {

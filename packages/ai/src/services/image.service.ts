@@ -1,3 +1,4 @@
+import { traceable } from "langsmith/traceable";
 import type { ImageGenerationOptions, ImageGenerationResult } from "../types";
 import { OPENAI_MODELS } from "../providers/openai";
 import { resolveModelFromDb } from "../providers/model-factory";
@@ -7,7 +8,7 @@ import { truncateForLog } from "../utils/log-helpers";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DrizzleDb = any;
 
-export async function generateImage(
+export const generateImage = traceable(async function generateImage(
   options: ImageGenerationOptions & { model?: string; db?: DrizzleDb; userId?: string }
 ): Promise<ImageGenerationResult> {
   let model = options.model || OPENAI_MODELS.DALLE3;
@@ -71,7 +72,7 @@ export async function generateImage(
     revisedPrompt: data.data[0].revised_prompt,
     provider,
   };
-}
+}, { name: "generateImage", run_type: "chain" });
 
 /**
  * Generate image via media provider registry (fal.ai, replicate, etc.)

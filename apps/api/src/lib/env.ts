@@ -22,6 +22,7 @@ const envSchema = z.object({
   UNSPLASH_ACCESS_KEY: z.string().optional(),
   PIXABAY_API_KEY: z.string().optional(),
   STORYBLOCKS_API_KEY: z.string().optional(),
+  SENTRY_DSN: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

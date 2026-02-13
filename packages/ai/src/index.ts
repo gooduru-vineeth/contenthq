@@ -1,3 +1,4 @@
+export { langsmithClient } from "./tracing";
 export { registry } from "./registry";
 export { getOpenAIProvider, OPENAI_MODELS } from "./providers/openai";
 export { getAnthropicProvider, ANTHROPIC_MODELS } from "./providers/anthropic";

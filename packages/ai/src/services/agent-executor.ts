@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { traceable } from "langsmith/traceable";
 import { resolveModelFromDb } from "../providers/model-factory";
 import { generateTextContent, generateStructuredContent } from "./llm.service";
 import { generateImage } from "./image.service";
@@ -37,8 +38,9 @@ export interface AgentExecutionResult {
 /**
  * Core agent execution service.
  * Resolves agent config, model, prompt, output schema, then executes.
+ * Wrapped with LangSmith traceable for distributed tracing.
  */
-export async function executeAgent(
+export const executeAgent = traceable(async function executeAgent(
   options: ExecuteAgentOptions
 ): Promise<AgentExecutionResult> {
   const startTime = Date.now();
@@ -164,7 +166,7 @@ export async function executeAgent(
     promptTemplateId: config.promptTemplateId ?? undefined,
     durationMs,
   };
-}
+}, { name: "executeAgent", run_type: "chain" });
 
 async function resolveAgentConfig(
   options: ExecuteAgentOptions
