@@ -231,7 +231,7 @@ export default function ProjectDetailPage({
       </div>
 
       {/* Pipeline Progress */}
-      <Card className="overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm">
+      <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
         <CardHeader className="pb-0">
           <div className="flex items-center justify-between">
             <div>
@@ -242,7 +242,7 @@ export default function ProjectDetailPage({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0 overflow-hidden">
+        <CardContent className="p-0">
           <PipelineProgress3D
             currentStage={currentStage}
             projectStatus={project.status}

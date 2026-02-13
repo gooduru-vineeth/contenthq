@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import { useThree } from "@react-three/fiber";
 import { ContactShadows } from "@react-three/drei";
+import * as THREE from "three";
 import { pipelineStages } from "../../lib/constants";
 import { StageNode } from "./StageNode";
 import { ConnectionLine } from "./ConnectionLine";
@@ -13,26 +15,31 @@ interface PipelineSceneProps {
   reducedMotion: boolean;
 }
 
-const TOTAL_SPREAD = 9.6;
-const X_MIN = -TOTAL_SPREAD / 2;
-
 export function PipelineScene({
   activeStage,
   isPaused: _isPaused,
   onSelectStage,
   reducedMotion,
 }: PipelineSceneProps) {
+  const { viewport } = useThree();
+
+  const totalSpread = useMemo(() => {
+    const maxSpread = viewport.width - 1.4 * 2; // Leave card-width padding on each side
+    return THREE.MathUtils.clamp(maxSpread, 5.5, 10);
+  }, [viewport.width]);
+
   const positions = useMemo(() => {
     const count = pipelineStages.length;
-    const spacing = TOTAL_SPREAD / (count - 1);
+    const spacing = totalSpread / (count - 1);
+    const xMin = -totalSpread / 2;
     const result: [number, number, number][] = [];
     for (let i = 0; i < count; i++) {
-      const x = X_MIN + i * spacing;
+      const x = xMin + i * spacing;
       const y = i % 2 === 0 ? 0.06 : -0.06;
       result.push([x, y, 0]);
     }
     return result;
-  }, []);
+  }, [totalSpread]);
 
   return (
     <>

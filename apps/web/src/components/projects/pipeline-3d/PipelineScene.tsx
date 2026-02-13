@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import { useThree } from "@react-three/fiber";
 import { ContactShadows } from "@react-three/drei";
+import * as THREE from "three";
 import type { PipelineStage } from "@contenthq/shared";
 import type { ConsolidatedStageWithStatus } from "./types";
 import { StageNode3D } from "./StageNode3D";
@@ -13,15 +15,15 @@ interface PipelineSceneProps {
   reducedMotion: boolean;
 }
 
-const TOTAL_SPREAD = 10.8;
 const Y_WAVE_AMPLITUDE = 0.18;
 
 function getNodePosition(
   index: number,
   total: number,
+  spread: number,
 ): [number, number, number] {
-  const spacing = TOTAL_SPREAD / (total - 1);
-  const x = -TOTAL_SPREAD / 2 + index * spacing;
+  const spacing = spread / (total - 1);
+  const x = -spread / 2 + index * spacing;
   // Gentle arc: stages form a shallow inverted parabola
   const t = index / (total - 1);
   const y = Math.sin(t * Math.PI) * Y_WAVE_AMPLITUDE;
@@ -33,9 +35,16 @@ export function PipelineScene({
   onStageSelect,
   reducedMotion,
 }: PipelineSceneProps) {
+  const { viewport } = useThree();
+
+  const totalSpread = useMemo(() => {
+    const maxSpread = viewport.width - 1.42 * 2; // Leave card-width padding on each side
+    return THREE.MathUtils.clamp(maxSpread, 6, 12);
+  }, [viewport.width]);
+
   const positions = useMemo(
-    () => stages.map((_, i) => getNodePosition(i, stages.length)),
-    [stages],
+    () => stages.map((_, i) => getNodePosition(i, stages.length, totalSpread)),
+    [stages, totalSpread],
   );
 
   return (

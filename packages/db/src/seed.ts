@@ -205,7 +205,7 @@ const llmModels = [
     name: "GPT-4o",
     modelId: "gpt-4o",
     type: "llm",
-    isDefault: true,
+    isDefault: false,
     costs: { inputPerMillion: 2.5, outputPerMillion: 10.0, currency: "USD" },
     capabilities: {
       contextWindow: 128_000,
@@ -256,7 +256,7 @@ const llmModels = [
     name: "Claude Sonnet 4.5",
     modelId: "claude-sonnet-4-5-20250929",
     type: "llm",
-    isDefault: false,
+    isDefault: true,
     costs: { inputPerMillion: 3.0, outputPerMillion: 15.0, currency: "USD" },
     capabilities: {
       contextWindow: 200_000,

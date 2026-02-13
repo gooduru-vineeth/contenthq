@@ -71,7 +71,7 @@ export function PipelineProgress3D({
               )}
               style={{
                 width: `${Math.min(percent, 100)}%`,
-                background:
+                backgroundImage:
                   projectStatus === "failed"
                     ? undefined
                     : projectStatus === "completed"
