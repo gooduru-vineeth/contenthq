@@ -171,6 +171,70 @@ body {
   background-clip: text;
 }
 
+/* Hero headline accent — bright blue gradient with extrusion depth */
+.hero-headline-accent {
+  background: linear-gradient(135deg, #1A2CA3, #2845D6, #4F6FE4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter:
+    drop-shadow(0 1px 0 rgba(13, 26, 99, 0.15))
+    drop-shadow(0 2px 0 rgba(13, 26, 99, 0.10))
+    drop-shadow(0 4px 8px rgba(13, 26, 99, 0.08));
+}
+
+.dark .hero-headline-accent {
+  background: linear-gradient(135deg, #4F6FE4, #8199ED, #B3C3F5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter:
+    drop-shadow(0 1px 0 rgba(79, 111, 228, 0.2))
+    drop-shadow(0 2px 0 rgba(79, 111, 228, 0.12))
+    drop-shadow(0 4px 8px rgba(79, 111, 228, 0.08));
+}
+
+/* Hero headline "AI" accent — CTA orange gradient with glow */
+.hero-headline-ai {
+  background: linear-gradient(135deg, #F68048, #DC6530, #FB9158);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter:
+    drop-shadow(0 1px 0 rgba(246, 128, 72, 0.2))
+    drop-shadow(0 2px 0 rgba(246, 128, 72, 0.12))
+    drop-shadow(0 4px 12px rgba(246, 128, 72, 0.15));
+}
+
+.dark .hero-headline-ai {
+  background: linear-gradient(135deg, #FB9158, #FFA36B, #FFC59E);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter:
+    drop-shadow(0 1px 0 rgba(251, 145, 88, 0.25))
+    drop-shadow(0 2px 0 rgba(251, 145, 88, 0.15))
+    drop-shadow(0 4px 12px rgba(251, 145, 88, 0.12));
+}
+
+/* Animated gradient shimmer for headline */
+@keyframes hero-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.hero-headline-shimmer {
+  background-size: 200% 200%;
+  animation: hero-gradient-shift 8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-headline-shimmer {
+    animation: none;
+  }
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-20px); }
