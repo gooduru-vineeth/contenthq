@@ -586,3 +586,59 @@ export const mediaStudioBullets: MediaStudioBullet[] = [
     icon: Lightbulb,
   },
 ];
+
+// --- Media Studio Video Cards ---
+export interface MediaStudioVideo {
+  id: string;
+  title: string;
+  description: string;
+  /** Duration label displayed on card, e.g. "0:30" */
+  duration: string;
+  /** CSS gradient for the thumbnail/poster state (light mode) */
+  thumbnailGradient: string;
+  /** CSS gradient for the thumbnail/poster state (dark mode) */
+  thumbnailGradientDark: string;
+  /** Accent color for glow and top bar (hex) */
+  accentColor: string;
+  /** Optional video source URL — graceful fallback to gradient when absent */
+  videoSrc?: string;
+}
+
+export const mediaStudioVideos: MediaStudioVideo[] = [
+  {
+    id: "landscape-sunset",
+    title: "Mountain Landscape",
+    description: "Cinematic sunset with golden light",
+    duration: "0:30",
+    thumbnailGradient: "linear-gradient(135deg, #F68048, #FB9158, #FFA36B)",
+    thumbnailGradientDark: "linear-gradient(135deg, #B84D20, #DC6530, #943B18)",
+    accentColor: "#F68048",
+  },
+  {
+    id: "ocean-waves",
+    title: "Ocean Waves",
+    description: "Aerial shot of turquoise waters",
+    duration: "0:45",
+    thumbnailGradient: "linear-gradient(135deg, #2845D6, #4F6FE4, #8199ED)",
+    thumbnailGradientDark: "linear-gradient(135deg, #0D1A63, #1A2CA3, #142383)",
+    accentColor: "#2845D6",
+  },
+  {
+    id: "city-timelapse",
+    title: "City Timelapse",
+    description: "Urban skyline from day to night",
+    duration: "1:00",
+    thumbnailGradient: "linear-gradient(135deg, #6C5CE7, #A78BFA, #C4B5FD)",
+    thumbnailGradientDark: "linear-gradient(135deg, #4C1D95, #6D28D9, #5B21B6)",
+    accentColor: "#6C5CE7",
+  },
+  {
+    id: "nature-macro",
+    title: "Nature Close-Up",
+    description: "Macro photography of morning dew",
+    duration: "0:20",
+    thumbnailGradient: "linear-gradient(135deg, #10B981, #34D399, #6EE7B7)",
+    thumbnailGradientDark: "linear-gradient(135deg, #064E3B, #065F46, #047857)",
+    accentColor: "#10B981",
+  },
+];
