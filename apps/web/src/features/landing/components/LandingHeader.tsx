@@ -44,7 +44,7 @@ export function LandingHeader() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-brand-500">
             <Zap className="h-4 w-4 text-white" />
           </div>
-          <span className="text-lg font-bold tracking-tight">ContentHQ</span>
+          <span className="text-lg font-bold tracking-tight text-gradient-logo">ContentHQ</span>
         </Link>
 
         {/* Desktop Nav */}
@@ -89,7 +89,7 @@ export function LandingHeader() {
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-brand-500">
                   <Zap className="h-3.5 w-3.5 text-white" />
                 </div>
-                ContentHQ
+                <span className="text-gradient-logo">ContentHQ</span>
               </SheetTitle>
             </SheetHeader>
             <div className="mt-6 flex flex-col gap-1">

@@ -19,7 +19,7 @@ export function ScrollingTicker() {
       >
         {items.map((stat, i) => (
           <div key={`${stat.label}-${i}`} className="flex items-center gap-3 whitespace-nowrap">
-            <span className="text-lg font-bold text-gradient-landing">
+            <span className="text-lg font-bold text-gradient-ticker">
               {stat.value}
             </span>
             <span className="text-sm text-muted-foreground">{stat.label}</span>

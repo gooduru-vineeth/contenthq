@@ -41,10 +41,10 @@ export function PipelineSection() {
           </span>
           <h2 className="mb-3 text-3xl font-bold tracking-tight sm:text-4xl">
             Your AI Video Team,{" "}
-            <span className="text-gradient-landing">Working for You</span>
+            <span className="text-gradient-pipeline">Working for You</span>
           </h2>
           <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
-            From a simple idea to a finished video — our AI handles every step
+            From a simple idea to a <span className="text-highlight-keyword">finished video</span> — our AI handles every step
             so you can focus on what matters.
           </p>
         </motion.div>

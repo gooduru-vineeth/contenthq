@@ -4,6 +4,17 @@ import { motion } from "framer-motion";
 import { features } from "../lib/constants";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
+const featureAccents = [
+  "text-feature-accent-1",
+  "text-feature-accent-2",
+  "text-feature-accent-3",
+  "text-feature-accent-4",
+  "text-feature-accent-5",
+  "text-feature-accent-6",
+  "text-feature-accent-7",
+  "text-feature-accent-8",
+];
+
 export function FeaturesGrid() {
   const prefersReducedMotion = usePrefersReducedMotion();
 
@@ -21,10 +32,10 @@ export function FeaturesGrid() {
           </span>
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
             Everything You Need to{" "}
-            <span className="text-gradient-landing">Create Amazing Videos</span>
+            <span className="text-gradient-features">Create Amazing Videos</span>
           </h2>
           <p className="mx-auto max-w-2xl text-muted-foreground">
-            Powerful tools that are simple to use. No video editing experience
+            Powerful tools that are <span className="text-highlight-keyword">simple to use</span>. No video editing experience
             required.
           </p>
         </motion.div>
@@ -53,7 +64,7 @@ export function FeaturesGrid() {
                   <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-brand-100 to-brand-200 dark:from-brand-900/50 dark:to-brand-800/50">
                     <Icon className="h-5 w-5 text-brand-600 dark:text-brand-400" />
                   </div>
-                  <h3 className="mb-2 font-semibold">{feature.title}</h3>
+                  <h3 className={`mb-2 font-semibold ${featureAccents[i] ?? ""}`}>{feature.title}</h3>
                   <p className="text-sm text-muted-foreground">
                     {feature.description}
                   </p>
