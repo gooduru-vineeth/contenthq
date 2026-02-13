@@ -13,8 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ANIMATION_STYLES } from "@contenthq/video";
-import type { AnimationStyleMeta } from "@contenthq/video";
+import { ANIMATION_STYLES } from "@contenthq/video/client";
+import type { AnimationStyleMeta } from "@contenthq/video/client";
 import { Slider } from "@/components/ui/slider";
 
 const POSITIONS = [
