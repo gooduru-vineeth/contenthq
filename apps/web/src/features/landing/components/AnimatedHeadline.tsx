@@ -38,7 +38,7 @@ export function AnimatedHeadline({
 
   return (
     <motion.h1
-      className="text-5xl font-extrabold tracking-tighter sm:text-6xl md:text-7xl"
+      className="text-6xl font-black tracking-tight leading-[1.08] sm:text-7xl md:text-8xl"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -49,7 +49,7 @@ export function AnimatedHeadline({
           <motion.span
             key={`l1-${i}`}
             variants={wordVariants}
-            className="mr-[0.25em] inline-block text-gradient-landing"
+            className="mr-[0.22em] inline-block text-gradient-landing-modern"
           >
             {word}
           </motion.span>
@@ -57,10 +57,10 @@ export function AnimatedHeadline({
       </span>
 
       {/* Line 2: "Into Polished Videos" */}
-      <span className="block">
+      <span className="block mt-1">
         <motion.span
           variants={wordVariants}
-          className="mr-[0.25em] inline-block text-gradient-landing"
+          className="mr-[0.22em] inline-block text-gradient-landing-modern"
         >
           Into
         </motion.span>
@@ -68,7 +68,7 @@ export function AnimatedHeadline({
           <motion.span
             key={`l2-${i}`}
             variants={wordVariants}
-            className="mr-[0.25em] inline-block hero-headline-accent hero-headline-shimmer"
+            className="mr-[0.22em] inline-block hero-headline-accent-modern hero-headline-shimmer"
           >
             {word}
           </motion.span>
@@ -76,16 +76,16 @@ export function AnimatedHeadline({
       </span>
 
       {/* Line 3: "with AI" */}
-      <span className="block">
+      <span className="block mt-1">
         <motion.span
           variants={wordVariants}
-          className="mr-[0.25em] inline-block text-gradient-landing"
+          className="mr-[0.22em] inline-block text-gradient-landing-modern"
         >
           with
         </motion.span>
         <motion.span
           variants={wordVariants}
-          className="inline-block hero-headline-ai hero-headline-shimmer"
+          className="inline-block hero-headline-ai-modern hero-headline-shimmer"
         >
           AI
         </motion.span>

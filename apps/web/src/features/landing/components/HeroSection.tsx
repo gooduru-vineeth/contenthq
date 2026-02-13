@@ -111,11 +111,11 @@ export function HeroSection() {
           {/* Left Column — Text Content */}
           <div className="text-center lg:text-left">
             {/* Badge */}
-            <motion.div variants={itemVariants} className="mb-8 inline-flex">
-              <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-4 py-1.5 text-sm font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-500" />
+            <motion.div variants={itemVariants} className="mb-10 inline-flex">
+              <span className="hero-badge-modern inline-flex items-center gap-2.5 rounded-full px-5 py-2 text-sm font-semibold">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
                 </span>
                 Trusted by 500+ Creators
               </span>
@@ -124,7 +124,7 @@ export function HeroSection() {
             {/* Animated Headline */}
             <motion.div
               variants={itemVariants}
-              className="mb-8"
+              className="mb-10"
               animate={
                 prefersReducedMotion
                   ? undefined
@@ -150,24 +150,25 @@ export function HeroSection() {
             {/* Subtitle */}
             <motion.p
               variants={itemVariants}
-              className="mx-auto mb-8 max-w-xl text-lg text-muted-foreground sm:text-xl lg:mx-0"
+              className="mx-auto mb-10 max-w-xl text-xl leading-relaxed text-muted-foreground sm:text-2xl lg:mx-0"
             >
               Paste a link, type a topic, or upload your content. ContentHQ
               writes the script, creates the visuals, adds a natural voiceover,
-              and delivers a ready-to-publish video — in minutes, not days.
+              and delivers a ready-to-publish video —{" "}
+              <span className="font-semibold text-foreground">in minutes, not days.</span>
             </motion.p>
 
             {/* Feature pills */}
             <motion.div
               variants={itemVariants}
-              className="mb-10 flex flex-wrap items-center justify-center gap-3 lg:justify-start"
+              className="mb-12 flex flex-wrap items-center justify-center gap-3 lg:justify-start"
             >
               {pills.map((pill) => (
                 <span
                   key={pill.label}
-                  className="inline-flex items-center gap-1.5 rounded-full border bg-background/50 px-3 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:border-brand-200 hover:text-brand-600 dark:hover:border-brand-700 dark:hover:text-brand-400"
+                  className="hero-pill-modern inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium backdrop-blur-sm transition-all duration-200"
                 >
-                  <pill.icon className="h-3.5 w-3.5" />
+                  <pill.icon className="h-4 w-4" />
                   {pill.label}
                 </span>
               ))}
@@ -180,22 +181,22 @@ export function HeroSection() {
             >
               <Button
                 size="lg"
-                className="bg-gradient-to-r from-cta-500 to-cta-600 text-white shadow-lg shadow-cta-500/25 hover:from-cta-600 hover:to-cta-700"
+                className="hero-cta-primary h-13 rounded-xl bg-gradient-to-r from-violet-600 via-brand-500 to-cyan-500 px-8 text-base font-bold text-white shadow-xl shadow-brand-500/30 transition-all duration-200 hover:shadow-2xl hover:shadow-brand-500/40 hover:brightness-110"
                 asChild
               >
                 <Link href="/register">
-                  <Zap className="mr-2 h-4 w-4" />
+                  <Zap className="mr-2 h-5 w-5" />
                   Start Creating for Free
                 </Link>
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="border-foreground/20 text-foreground hover:bg-accent"
+                className="h-13 rounded-xl border-2 border-brand-300/40 px-8 text-base font-bold text-foreground backdrop-blur-sm transition-all duration-200 hover:border-brand-400/60 hover:bg-brand-50/50 dark:border-brand-600/40 dark:hover:border-brand-500/60 dark:hover:bg-brand-950/30"
                 asChild
               >
                 <Link href="#pipeline">
-                  <Play className="mr-2 h-4 w-4" />
+                  <Play className="mr-2 h-5 w-5" />
                   See It in Action
                 </Link>
               </Button>
@@ -222,7 +223,7 @@ export function HeroSection() {
               variants={itemVariants}
               className="text-center"
             >
-              <div className="text-2xl font-bold text-gradient-landing sm:text-3xl">
+              <div className="text-2xl font-bold text-gradient-landing-modern sm:text-3xl">
                 {stat.value}
               </div>
               <div className="mt-1.5 text-xs text-muted-foreground sm:text-sm">
