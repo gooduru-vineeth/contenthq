@@ -43,6 +43,8 @@ export interface PipelineStage {
   tagline: string;
   icon: LucideIcon;
   color: string;
+  /** Brighter variant used in dark mode for visibility */
+  darkColor: string;
 }
 
 export const pipelineStages: PipelineStage[] = [
@@ -54,6 +56,7 @@ export const pipelineStages: PipelineStage[] = [
     tagline: "Start with anything",
     icon: Download,
     color: "#0D1A63",
+    darkColor: "#6B8CFF",
   },
   {
     name: "Write Script",
@@ -63,6 +66,7 @@ export const pipelineStages: PipelineStage[] = [
     tagline: "Words that connect",
     icon: Pencil,
     color: "#1A2CA3",
+    darkColor: "#7B9AFF",
   },
   {
     name: "Storyboard",
@@ -72,6 +76,7 @@ export const pipelineStages: PipelineStage[] = [
     tagline: "Scenes take shape",
     icon: Layers,
     color: "#2845D6",
+    darkColor: "#8AABFF",
   },
   {
     name: "Create Visuals",
@@ -81,6 +86,7 @@ export const pipelineStages: PipelineStage[] = [
     tagline: "Visuals come alive",
     icon: Image,
     color: "#4F6FE4",
+    darkColor: "#95B5FF",
   },
   {
     name: "Quality Check",
@@ -90,6 +96,7 @@ export const pipelineStages: PipelineStage[] = [
     tagline: "Quality guaranteed",
     icon: ShieldCheck,
     color: "#3A5ADC",
+    darkColor: "#8DA8FF",
   },
   {
     name: "Add Voice & Music",
@@ -99,6 +106,7 @@ export const pipelineStages: PipelineStage[] = [
     tagline: "Voice meets music",
     icon: Music,
     color: "#6585E8",
+    darkColor: "#A5C0FF",
   },
   {
     name: "Final Video",
@@ -108,6 +116,7 @@ export const pipelineStages: PipelineStage[] = [
     tagline: "Ready to share",
     icon: Film,
     color: "#8199ED",
+    darkColor: "#B8CFFF",
   },
 ];
 
