@@ -7,11 +7,11 @@ import { truncateForLog } from "../utils/log-helpers";
 type DrizzleDb = any;
 
 const verificationSchema = z.object({
-  relevance: z.number().min(0).max(30).describe("How relevant the image is to the description (0-30)"),
-  quality: z.number().min(0).max(25).describe("Image quality and clarity (0-25)"),
-  consistency: z.number().min(0).max(25).describe("Visual consistency and coherence (0-25)"),
-  safety: z.number().min(0).max(20).describe("Content safety score (0-20)"),
-  totalScore: z.number().min(0).max(100),
+  relevance: z.number().describe("How relevant the image is to the description (0-30)"),
+  quality: z.number().describe("Image quality and clarity (0-25)"),
+  consistency: z.number().describe("Visual consistency and coherence (0-25)"),
+  safety: z.number().describe("Content safety score (0-20)"),
+  totalScore: z.number().describe("Total score (0-100), sum of all criteria"),
   feedback: z.string().describe("Brief feedback on the image"),
   approved: z.boolean().describe("Whether the image passes verification"),
 });
