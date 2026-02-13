@@ -11,9 +11,9 @@ export function createVisualGenerationWorker(): Worker {
   return new Worker<VisualGenerationJobData>(
     QUEUE_NAMES.VISUAL_GENERATION,
     async (job) => {
-      const { projectId, sceneId, userId, imagePrompt, agentId } = job.data;
+      const { projectId, sceneId, userId, imagePrompt, agentId, mediaOverrideUrl, stageConfig } = job.data;
       const startedAt = new Date();
-      console.warn(`[VisualGeneration] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, promptLength=${imagePrompt?.length ?? 0} chars, agentId=${agentId ?? "none"}`);
+      console.warn(`[VisualGeneration] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, promptLength=${imagePrompt?.length ?? 0} chars, agentId=${agentId ?? "none"}, hasOverride=${!!mediaOverrideUrl}, hasStageConfig=${!!stageConfig}`);
 
       try {
         // Mark generationJob as processing
@@ -29,6 +29,48 @@ export function createVisualGenerationWorker(): Worker {
           );
 
         await job.updateProgress(10);
+
+        // Check for media override - skip AI generation if user provided media
+        if (mediaOverrideUrl) {
+          console.warn(`[VisualGeneration] Using media override for scene ${sceneId}: ${mediaOverrideUrl.substring(0, 80)}`);
+          const overrideResponse = await fetch(mediaOverrideUrl);
+          if (!overrideResponse.ok) throw new Error(`Failed to fetch media override: ${overrideResponse.statusText}`);
+          const overrideBuffer = Buffer.from(await overrideResponse.arrayBuffer());
+          const overrideContentType = overrideResponse.headers.get("content-type") ?? "image/png";
+          const overrideExt = overrideContentType.includes("png") ? "png" : overrideContentType.includes("webp") ? "webp" : "jpg";
+          const overrideKey = getSceneVisualPath(userId, projectId, sceneId, `visual-override.${overrideExt}`);
+          const overrideUpload = await storage.uploadFileWithRetry(overrideKey, overrideBuffer, overrideContentType);
+
+          await db.insert(sceneVisuals).values({
+            sceneId,
+            imageUrl: overrideUpload.url,
+            storageKey: overrideKey,
+            prompt: imagePrompt,
+          });
+
+          await db.update(scenes).set({ status: "visual_generated", updatedAt: new Date() }).where(eq(scenes.id, sceneId));
+
+          // Create verification job and queue it
+          await db.insert(generationJobs).values({ userId, projectId, jobType: "VISUAL_VERIFICATION", status: "queued" });
+          await addVisualVerificationJob({
+            projectId, sceneId, userId,
+            imageUrl: overrideUpload.url,
+            visualDescription: imagePrompt,
+          });
+
+          const completedAt = new Date();
+          await db.update(generationJobs).set({
+            status: "completed", progressPercent: 100,
+            result: { imageUrl: overrideUpload.url, override: true, log: { stage: "VISUAL_GENERATION", status: "completed", startedAt: startedAt.toISOString(), completedAt: completedAt.toISOString(), durationMs: completedAt.getTime() - startedAt.getTime(), details: `Used media override for scene ${sceneId}` } },
+            updatedAt: new Date(),
+          }).where(and(eq(generationJobs.projectId, projectId), eq(generationJobs.jobType, "VISUAL_GENERATION"), eq(generationJobs.status, "processing")));
+
+          return { success: true, imageUrl: overrideUpload.url, override: true };
+        }
+
+        // Read stageConfig for provider/model/quality overrides
+        const imageSize = (stageConfig?.imageSize ?? "1024x1024") as "1024x1024" | "1792x1024" | "1024x1792";
+        const imageQuality = (stageConfig?.quality ?? "standard") as "standard" | "hd";
 
         let imageUrl: string;
 
@@ -47,11 +89,11 @@ export function createVisualGenerationWorker(): Worker {
           console.warn(`[VisualGeneration] Agent generated image for scene ${sceneId}: url=${imageUrl?.substring(0, 80)}`);
         } else {
           // Existing path: generate image directly
-          console.warn(`[VisualGeneration] Generating image directly for scene ${sceneId} (1024x1024, standard)`);
+          console.warn(`[VisualGeneration] Generating image directly for scene ${sceneId} (${imageSize}, ${imageQuality})`);
           const result = await generateImage({
             prompt: imagePrompt,
-            size: "1024x1024",
-            quality: "standard",
+            size: imageSize,
+            quality: imageQuality,
           });
           imageUrl = result.url;
           console.warn(`[VisualGeneration] Image generated for scene ${sceneId}: url=${imageUrl?.substring(0, 80)}`);

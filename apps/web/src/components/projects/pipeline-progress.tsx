@@ -10,6 +10,7 @@ import {
   Mic,
   Music,
   Clapperboard,
+  Captions,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,8 @@ interface PipelineProgressProps {
   currentStage: PipelineStage | null;
   projectStatus: string;
   progressPercent?: number;
+  selectedStage?: PipelineStage | null;
+  onStageSelect?: (stage: PipelineStage) => void;
 }
 
 const stageIcons: Record<string, LucideIcon> = {
@@ -37,10 +40,11 @@ const stageIcons: Record<string, LucideIcon> = {
   VIDEO_GENERATION: Film,
   TTS_GENERATION: Mic,
   AUDIO_MIXING: Music,
+  CAPTION_GENERATION: Captions,
   VIDEO_ASSEMBLY: Clapperboard,
 };
 
-function getStageStatus(
+export function getStageStatus(
   stage: PipelineStage,
   currentStage: PipelineStage | null,
   projectStatus: string,
@@ -82,6 +86,8 @@ export function PipelineProgress({
   currentStage,
   projectStatus,
   progressPercent,
+  selectedStage,
+  onStageSelect,
 }: PipelineProgressProps) {
   const percent = progressPercent ?? 0;
 
@@ -111,22 +117,32 @@ export function PipelineProgress({
         {PIPELINE_STAGE_ORDER.map((stage, index) => {
           const status = getStageStatus(stage, currentStage, projectStatus);
           const Icon = stageIcons[stage] ?? Clapperboard;
+          const isSelected = selectedStage === stage;
           return (
             <div key={stage} className="flex items-center">
-              <div className="flex flex-col items-center gap-1">
+              <button
+                type="button"
+                className="flex flex-col items-center gap-1 cursor-pointer group"
+                onClick={() => onStageSelect?.(stage)}
+              >
                 <div
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
+                    "flex h-8 w-8 items-center justify-center rounded-full transition-all",
                     statusColors[status],
                     status === "active" && "animate-pulse",
+                    isSelected && "ring-2 ring-primary ring-offset-2",
+                    !isSelected && "group-hover:ring-2 group-hover:ring-muted-foreground/30 group-hover:ring-offset-1",
                   )}
                 >
                   <Icon className="h-4 w-4" />
                 </div>
-                <span className="text-[10px] text-center leading-tight max-w-[72px] text-muted-foreground">
+                <span className={cn(
+                  "text-[10px] text-center leading-tight max-w-[72px] transition-colors",
+                  isSelected ? "text-foreground font-medium" : "text-muted-foreground",
+                )}>
                   {PIPELINE_STAGE_LABELS[stage]}
                 </span>
-              </div>
+              </button>
               {index < PIPELINE_STAGE_ORDER.length - 1 && (
                 <div
                   className={cn(
@@ -145,13 +161,18 @@ export function PipelineProgress({
         {PIPELINE_STAGE_ORDER.map((stage) => {
           const status = getStageStatus(stage, currentStage, projectStatus);
           const Icon = stageIcons[stage] ?? Clapperboard;
+          const isSelected = selectedStage === stage;
           return (
-            <div
+            <button
+              type="button"
               key={stage}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2",
+                "flex items-center gap-3 rounded-md px-3 py-2 cursor-pointer transition-colors text-left",
                 status === "active" && "bg-muted",
+                isSelected && "ring-2 ring-primary ring-offset-1 bg-muted/50",
+                !isSelected && "hover:bg-muted/30",
               )}
+              onClick={() => onStageSelect?.(stage)}
             >
               <div
                 className={cn(
@@ -162,13 +183,16 @@ export function PipelineProgress({
               >
                 <Icon className="h-3 w-3" />
               </div>
-              <span className="flex-1 text-sm">
+              <span className={cn(
+                "flex-1 text-sm",
+                isSelected && "font-medium",
+              )}>
                 {PIPELINE_STAGE_LABELS[stage]}
               </span>
               <Badge variant={badgeVariantMap[status]} className="text-[10px]">
                 {status}
               </Badge>
-            </div>
+            </button>
           );
         })}
       </div>

@@ -18,6 +18,10 @@ import { flowRouter } from "./flow";
 import { flowExecutionRouter } from "./flow-execution";
 import { speechGenerationRouter } from "./speech-generation";
 import { mediaGenerationRouter } from "./media-generation";
+import { voiceCloneRouter } from "./voice-clone";
+import { pipelineConfigRouter } from "./pipeline-config";
+import { mediaOverrideRouter } from "./media-override";
+import { variationRouter } from "./variation";
 
 export const appRouter = router({
   health: healthRouter,
@@ -39,6 +43,10 @@ export const appRouter = router({
   flowExecution: flowExecutionRouter,
   speechGeneration: speechGenerationRouter,
   mediaGeneration: mediaGenerationRouter,
+  voiceClone: voiceCloneRouter,
+  pipelineConfig: pipelineConfigRouter,
+  mediaOverride: mediaOverrideRouter,
+  variation: variationRouter,
 });
 
 export type AppRouter = typeof appRouter;

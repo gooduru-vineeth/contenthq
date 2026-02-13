@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { trustedCompanies } from "../lib/constants";
-import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 export function TrustedBySection() {
   const prefersReducedMotion = usePrefersReducedMotion();

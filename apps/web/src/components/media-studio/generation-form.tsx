@@ -17,7 +17,11 @@ type MediaType = "image" | "video";
 type AspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
 type Quality = "standard" | "hd";
 
-export function GenerationForm() {
+interface GenerationFormProps {
+  onConversationCreated?: (conversationId: string) => void;
+}
+
+export function GenerationForm({ onConversationCreated }: GenerationFormProps) {
   const [mediaType, setMediaType] = useState<MediaType>("image");
   const [prompt, setPrompt] = useState("");
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
@@ -30,10 +34,20 @@ export function GenerationForm() {
   const utils = trpc.useUtils();
 
   const generateMutation = trpc.mediaGeneration.generate.useMutation({
-    onSuccess: () => {
-      toast.success("Generation started successfully");
+    onSuccess: (data) => {
       setPrompt("");
       void utils.mediaGeneration.list.invalidate();
+      void utils.mediaGeneration.listConversations.invalidate();
+      if (data.conversationId && onConversationCreated) {
+        toast.success("Generation started", {
+          action: {
+            label: "View conversation",
+            onClick: () => onConversationCreated(data.conversationId!),
+          },
+        });
+      } else {
+        toast.success("Generation started successfully");
+      }
     },
     onError: (error) => {
       toast.error(error.message || "Failed to start generation");

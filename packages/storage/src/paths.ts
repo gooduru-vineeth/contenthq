@@ -71,3 +71,11 @@ export function getSpeechGenerationPath(
 ): string {
   return `users/${sanitizePathSegment(userId)}/speech-generations/${sanitizePathSegment(speechGenerationId)}/${sanitizeFilename(filename)}`;
 }
+
+export function getVoiceCloneSamplePath(
+  userId: string,
+  clonedVoiceId: string,
+  filename: string
+): string {
+  return `users/${sanitizePathSegment(userId)}/voice-clones/${sanitizePathSegment(clonedVoiceId)}/samples/${sanitizeFilename(filename)}`;
+}

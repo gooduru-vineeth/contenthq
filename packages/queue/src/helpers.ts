@@ -12,6 +12,7 @@ import type {
   VideoAssemblyJobData,
   SpeechGenerationJobData,
   MediaGenerationJobData,
+  CaptionGenerationJobData,
 } from "./types";
 
 export async function addIngestionJob(data: IngestionJobData, priority?: number): Promise<Job> {
@@ -67,6 +68,11 @@ export async function addSpeechGenerationJob(data: SpeechGenerationJobData, prio
 export async function addMediaGenerationJob(data: MediaGenerationJobData, priority?: number): Promise<Job> {
   const queue = getQueue(QUEUE_NAMES.MEDIA_GENERATION);
   return queue.add("generate-media", data, { priority });
+}
+
+export async function addCaptionGenerationJob(data: CaptionGenerationJobData, priority?: number): Promise<Job> {
+  const queue = getQueue(QUEUE_NAMES.CAPTION_GENERATION);
+  return queue.add("generate-caption", data, { priority });
 }
 
 export async function getQueueStats(queueName: string) {

@@ -102,6 +102,17 @@ export interface ChatEditCombinationResult {
   quality: MediaQuality;
   status: "pending" | "generating" | "completed" | "failed";
   generatedMediaId?: string;
+  mediaUrl?: string;
   error?: string;
   generationTimeMs?: number;
+}
+
+export interface ChatEditResponse {
+  results: ChatEditCombinationResult[];
+  conversationId: string;
+  summary: {
+    totalCombinations: number;
+    succeeded: number;
+    failed: number;
+  };
 }

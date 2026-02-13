@@ -21,12 +21,28 @@ export interface StoryWritingJobData extends BaseFlowJobData {
   ingestedContentIds: string[];
   tone: string;
   targetDuration: number;
+  stageConfig?: {
+    provider?: string;
+    model?: string;
+    narrativeStructure?: string;
+    temperature?: number;
+    maxTokens?: number;
+    agentId?: string;
+    customInstructions?: string;
+  };
 }
 
 export interface SceneGenerationJobData extends BaseFlowJobData {
   projectId: string;
   storyId: string;
   userId: string;
+  stageConfig?: {
+    provider?: string;
+    model?: string;
+    visualStyle?: string;
+    imagePromptStyle?: string;
+    agentId?: string;
+  };
 }
 
 export interface VisualGenerationJobData extends BaseFlowJobData {
@@ -34,6 +50,14 @@ export interface VisualGenerationJobData extends BaseFlowJobData {
   sceneId: string;
   userId: string;
   imagePrompt: string;
+  mediaOverrideUrl?: string;
+  stageConfig?: {
+    provider?: string;
+    model?: string;
+    imageSize?: string;
+    quality?: string;
+    stylePreset?: string;
+  };
 }
 
 export interface VisualVerificationJobData extends BaseFlowJobData {
@@ -50,6 +74,14 @@ export interface VideoGenerationJobData extends BaseFlowJobData {
   userId: string;
   imageUrl: string;
   motionSpec: Record<string, unknown>;
+  mediaOverrideUrl?: string;
+  scenePrompt?: string;
+  stageConfig?: {
+    provider?: string;
+    model?: string;
+    motionType?: string;
+    durationPerScene?: number;
+  };
 }
 
 export interface TTSGenerationJobData extends BaseFlowJobData {
@@ -59,6 +91,14 @@ export interface TTSGenerationJobData extends BaseFlowJobData {
   narrationScript: string;
   voiceId: string;
   provider: string;
+  mediaOverrideUrl?: string;
+  stageConfig?: {
+    model?: string;
+    quality?: string;
+    speed?: number;
+    pitch?: number;
+    format?: string;
+  };
 }
 
 export interface AudioMixingJobData extends BaseFlowJobData {
@@ -67,12 +107,41 @@ export interface AudioMixingJobData extends BaseFlowJobData {
   userId: string;
   voiceoverUrl: string;
   musicTrackId: string | null;
+  stageConfig?: {
+    musicVolume?: number;
+    voiceoverVolume?: number;
+    fadeInMs?: number;
+    fadeOutMs?: number;
+    musicLoop?: boolean;
+    musicDuckingEnabled?: boolean;
+  };
 }
 
 export interface VideoAssemblyJobData extends BaseFlowJobData {
   projectId: string;
   userId: string;
   sceneIds: string[];
+  stageConfig?: {
+    transitions?: string;
+    outputFormat?: string;
+    resolution?: string;
+    fps?: number;
+    watermarkEnabled?: boolean;
+    watermarkText?: string;
+    brandingIntroUrl?: string;
+    brandingOutroUrl?: string;
+  };
+  captionConfig?: {
+    font?: string;
+    fontSize?: number;
+    fontColor?: string;
+    backgroundColor?: string;
+    position?: string;
+    highlightMode?: string;
+    highlightColor?: string;
+    wordsPerLine?: number;
+    useWordLevelTiming?: boolean;
+  };
 }
 
 export interface SpeechGenerationJobData extends BaseFlowJobData {
@@ -107,6 +176,25 @@ export interface MediaGenerationJobData extends BaseFlowJobData {
   };
 }
 
+export interface CaptionGenerationJobData extends BaseFlowJobData {
+  projectId: string;
+  sceneId: string;
+  userId: string;
+  narrationScript: string;
+  audioUrl: string;
+  stageConfig?: {
+    font?: string;
+    fontSize?: number;
+    fontColor?: string;
+    backgroundColor?: string;
+    position?: string;
+    highlightMode?: string;
+    highlightColor?: string;
+    wordsPerLine?: number;
+    useWordLevelTiming?: boolean;
+  };
+}
+
 export type JobData =
   | IngestionJobData
   | StoryWritingJobData
@@ -118,4 +206,5 @@ export type JobData =
   | AudioMixingJobData
   | VideoAssemblyJobData
   | SpeechGenerationJobData
-  | MediaGenerationJobData;
+  | MediaGenerationJobData
+  | CaptionGenerationJobData;

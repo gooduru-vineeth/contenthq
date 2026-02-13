@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, User } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 import { navigation } from "@/lib/navigation";
 import { NavLink } from "./nav-link";
@@ -103,6 +104,8 @@ export function Header() {
           {currentPage?.label ?? "Dashboard"}
         </h1>
       </div>
+
+      <ThemeToggle />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

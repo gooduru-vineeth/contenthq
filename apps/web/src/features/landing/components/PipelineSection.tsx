@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { pipelineStages } from "../lib/constants";
-import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import { PipelineOverlay } from "./pipeline/PipelineOverlay";
 import { PipelineMobileFallback } from "./pipeline/PipelineMobileFallback";
 

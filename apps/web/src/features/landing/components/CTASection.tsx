@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Sparkles, CreditCard, Zap, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 const trustBadges = [
   { icon: X, label: "No credit card" },

@@ -10,6 +10,7 @@ export const projectStatusEnum = pgEnum("project_status", [
   "generating_tts",
   "generating_video",
   "mixing_audio",
+  "generating_captions",
   "assembling",
   "completed",
   "failed",
@@ -23,6 +24,7 @@ export const sceneStatusEnum = pgEnum("scene_status", [
   "visual_verified",
   "video_generated",
   "audio_mixed",
+  "caption_generated",
   "completed",
   "failed",
 ]);

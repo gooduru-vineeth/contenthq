@@ -1,7 +1,7 @@
 "use client";
 
 import { tickerStats } from "../lib/constants";
-import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 export function ScrollingTicker() {
   const prefersReducedMotion = usePrefersReducedMotion();

@@ -8,14 +8,15 @@ import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { videoService } from "@contenthq/video";
 import type { MotionSpec } from "@contenthq/video";
 import { storage, getSceneVideoPath, getVideoContentType } from "@contenthq/storage";
+import { mediaProviderRegistry } from "@contenthq/ai";
 
 export function createVideoGenerationWorker(): Worker {
   return new Worker<VideoGenerationJobData>(
     QUEUE_NAMES.VIDEO_GENERATION,
     async (job) => {
-      const { projectId, sceneId, userId, imageUrl, motionSpec } = job.data;
+      const { projectId, sceneId, userId, imageUrl, motionSpec, mediaOverrideUrl, stageConfig } = job.data;
       const startedAt = new Date();
-      console.warn(`[VideoGeneration] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, imageUrl=${imageUrl ? "present" : "missing"}, hasMotionSpec=${!!motionSpec}`);
+      console.warn(`[VideoGeneration] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, imageUrl=${imageUrl ? "present" : "missing"}, hasMotionSpec=${!!motionSpec}, hasOverride=${!!mediaOverrideUrl}, hasStageConfig=${!!stageConfig}`);
 
       try {
         // Mark generationJob as processing
@@ -38,12 +39,110 @@ export function createVideoGenerationWorker(): Worker {
 
         await job.updateProgress(10);
 
-        // Get scene for duration info
-        const [scene] = await db.select().from(scenes).where(eq(scenes.id, sceneId));
-        const duration = scene?.duration ?? 5;
+        // Check for media override - skip video generation if user provided video
+        if (mediaOverrideUrl) {
+          console.warn(`[VideoGeneration] Using media override for scene ${sceneId}: ${mediaOverrideUrl.substring(0, 80)}`);
+          const overrideResponse = await fetch(mediaOverrideUrl);
+          if (!overrideResponse.ok) throw new Error(`Failed to fetch video override: ${overrideResponse.statusText}`);
+          const overrideBuffer = Buffer.from(await overrideResponse.arrayBuffer());
+          const overrideKey = getSceneVideoPath(userId, projectId, sceneId, "video-override.mp4");
+          const overrideUpload = await storage.uploadFileWithRetry(overrideKey, overrideBuffer, "video/mp4");
 
-        // Generate video from image using FFmpeg
-        console.warn(`[VideoGeneration] Generating scene video for ${sceneId}: duration=${duration}s, imageUrl=${imageUrl?.substring(0, 80)}`);
+          await db.insert(sceneVideos).values({ sceneId, videoUrl: overrideUpload.url, storageKey: overrideKey, duration: stageConfig?.durationPerScene ?? 5 });
+          await db.update(scenes).set({ status: "video_generated", updatedAt: new Date() }).where(eq(scenes.id, sceneId));
+
+          const completedAt = new Date();
+          await db.update(generationJobs).set({
+            status: "completed", progressPercent: 100,
+            result: { videoUrl: overrideUpload.url, override: true, log: { stage: "VIDEO_GENERATION", status: "completed", startedAt: startedAt.toISOString(), completedAt: completedAt.toISOString(), durationMs: completedAt.getTime() - startedAt.getTime(), details: `Used video override for scene ${sceneId}` } },
+            updatedAt: new Date(),
+          }).where(and(eq(generationJobs.projectId, projectId), eq(generationJobs.jobType, "VIDEO_GENERATION"), eq(generationJobs.status, "processing")));
+
+          await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "VIDEO_GENERATION");
+          return { success: true, videoUrl: overrideUpload.url, override: true };
+        }
+
+        // Get scene for duration info, apply stageConfig override
+        const [scene] = await db.select().from(scenes).where(eq(scenes.id, sceneId));
+        const duration = stageConfig?.durationPerScene ?? scene?.duration ?? 5;
+
+        // AI video provider branch: use configured provider/model if set
+        if (stageConfig?.provider && stageConfig?.model) {
+          const aiProvider = mediaProviderRegistry.getProviderForModel(stageConfig.model);
+          if (!aiProvider) {
+            throw new Error(`No media provider found for model: ${stageConfig.model}`);
+          }
+          if (!aiProvider.generateVideo) {
+            throw new Error(`Provider ${aiProvider.name} does not support video generation`);
+          }
+
+          const prompt = job.data.scenePrompt
+            || scene?.imagePrompt
+            || scene?.visualDescription
+            || scene?.narrationScript
+            || `Generate a cinematic video for this scene`;
+
+          console.warn(`[VideoGeneration] Using AI provider "${aiProvider.name}" model="${stageConfig.model}" for scene ${sceneId}: duration=${duration}s, prompt=${prompt.substring(0, 100)}`);
+
+          const aiResult = await aiProvider.generateVideo({
+            prompt,
+            model: stageConfig.model,
+            aspectRatio: "16:9",
+            duration,
+            referenceImageUrl: imageUrl || undefined,
+          });
+
+          await job.updateProgress(60);
+
+          if (!aiResult.videoUrl) {
+            throw new Error("AI video provider returned no video URL");
+          }
+
+          // Fetch and upload to R2
+          const videoResponse = await fetch(aiResult.videoUrl);
+          if (!videoResponse.ok) {
+            throw new Error(`Failed to fetch AI-generated video: ${videoResponse.statusText}`);
+          }
+          const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+          const videoKey = getSceneVideoPath(userId, projectId, sceneId, "video.mp4");
+          const uploadResult = await storage.uploadFileWithRetry(videoKey, videoBuffer, "video/mp4");
+          const videoUrl = uploadResult.url;
+
+          console.warn(`[VideoGeneration] Uploaded AI video for scene ${sceneId}: key=${videoKey} (${aiResult.generationTimeMs}ms generation)`);
+
+          await db.insert(sceneVideos).values({ sceneId, videoUrl, storageKey: videoKey, duration });
+          await db.update(scenes).set({ status: "video_generated", updatedAt: new Date() }).where(eq(scenes.id, sceneId));
+
+          await job.updateProgress(80);
+
+          const completedAt = new Date();
+          await db.update(generationJobs).set({
+            status: "completed",
+            progressPercent: 100,
+            result: {
+              videoUrl,
+              provider: aiProvider.name,
+              model: stageConfig.model,
+              log: {
+                stage: "VIDEO_GENERATION",
+                status: "completed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs: completedAt.getTime() - startedAt.getTime(),
+                details: `AI video generated for scene ${sceneId} via ${aiProvider.name}/${stageConfig.model}`,
+              },
+            },
+            updatedAt: new Date(),
+          }).where(and(eq(generationJobs.projectId, projectId), eq(generationJobs.jobType, "VIDEO_GENERATION"), eq(generationJobs.status, "processing")));
+
+          await job.updateProgress(100);
+          console.warn(`[VideoGeneration] Advancing pipeline after AI video generation for scene ${sceneId}`);
+          await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "VIDEO_GENERATION");
+          return { success: true, videoUrl, provider: aiProvider.name };
+        }
+
+        // FFmpeg fallback: generate video from static image
+        console.warn(`[VideoGeneration] Generating scene video via FFmpeg for ${sceneId}: duration=${duration}s, imageUrl=${imageUrl?.substring(0, 80)}`);
         const videoResult = await videoService.generateSceneVideo({
           imageUrl,
           duration,

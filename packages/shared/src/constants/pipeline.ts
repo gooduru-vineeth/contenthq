@@ -9,6 +9,7 @@ export const PIPELINE_STAGE_ORDER: PipelineStage[] = [
   PipelineStage.VIDEO_GENERATION,
   PipelineStage.TTS_GENERATION,
   PipelineStage.AUDIO_MIXING,
+  PipelineStage.CAPTION_GENERATION,
   PipelineStage.VIDEO_ASSEMBLY,
 ];
 
@@ -21,6 +22,7 @@ export const PIPELINE_STAGE_LABELS: Record<string, string> = {
   [PipelineStage.VIDEO_GENERATION]: "Video Generation",
   [PipelineStage.TTS_GENERATION]: "Voice Generation",
   [PipelineStage.AUDIO_MIXING]: "Audio Mixing",
+  [PipelineStage.CAPTION_GENERATION]: "Caption Generation",
   [PipelineStage.VIDEO_ASSEMBLY]: "Final Assembly",
 };
 
@@ -35,6 +37,7 @@ export const PROJECT_STATUS_TO_STAGE: Record<string, PipelineStage | null> = {
   [ProjectStatus.GENERATING_TTS]: PipelineStage.TTS_GENERATION,
   [ProjectStatus.GENERATING_VIDEO]: PipelineStage.VIDEO_GENERATION,
   [ProjectStatus.MIXING_AUDIO]: PipelineStage.AUDIO_MIXING,
+  [ProjectStatus.GENERATING_CAPTIONS]: PipelineStage.CAPTION_GENERATION,
   [ProjectStatus.ASSEMBLING]: PipelineStage.VIDEO_ASSEMBLY,
   [ProjectStatus.COMPLETED]: PipelineStage.VIDEO_ASSEMBLY,
   [ProjectStatus.FAILED]: null,
@@ -44,14 +47,15 @@ export const PROJECT_STATUS_TO_STAGE: Record<string, PipelineStage | null> = {
 /** Progress percentage for each stage start */
 export const STAGE_PROGRESS_PERCENT: Record<string, number> = {
   [PipelineStage.INGESTION]: 0,
-  [PipelineStage.STORY_WRITING]: 11,
-  [PipelineStage.SCENE_GENERATION]: 22,
-  [PipelineStage.VISUAL_GENERATION]: 33,
-  [PipelineStage.VISUAL_VERIFICATION]: 44,
-  [PipelineStage.VIDEO_GENERATION]: 55,
-  [PipelineStage.TTS_GENERATION]: 66,
-  [PipelineStage.AUDIO_MIXING]: 77,
-  [PipelineStage.VIDEO_ASSEMBLY]: 88,
+  [PipelineStage.STORY_WRITING]: 10,
+  [PipelineStage.SCENE_GENERATION]: 20,
+  [PipelineStage.VISUAL_GENERATION]: 30,
+  [PipelineStage.VISUAL_VERIFICATION]: 40,
+  [PipelineStage.VIDEO_GENERATION]: 50,
+  [PipelineStage.TTS_GENERATION]: 60,
+  [PipelineStage.AUDIO_MIXING]: 70,
+  [PipelineStage.CAPTION_GENERATION]: 80,
+  [PipelineStage.VIDEO_ASSEMBLY]: 90,
 };
 
 /** Structured log stored in job result JSONB */
@@ -74,6 +78,7 @@ export const QUEUE_CONFIG = {
   VIDEO_GENERATION: { concurrency: 3, retries: 2 },
   TTS_GENERATION: { concurrency: 5, retries: 3 },
   AUDIO_MIXING: { concurrency: 5, retries: 2 },
+  CAPTION_GENERATION: { concurrency: 5, retries: 2 },
   VIDEO_ASSEMBLY: { concurrency: 2, retries: 2 },
 } as const;
 

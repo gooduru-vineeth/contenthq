@@ -35,3 +35,8 @@ export * from "./speech-generations";
 export * from "./generated-media";
 export * from "./media-conversations";
 export * from "./media-conversation-messages";
+export * from "./cloned-voices";
+export * from "./cloned-voice-samples";
+export * from "./pipeline-configs";
+export * from "./pipeline-media-overrides";
+export * from "./project-variations";

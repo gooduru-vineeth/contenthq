@@ -15,6 +15,7 @@ export const retryStageSchema = z.object({
     "VIDEO_GENERATION",
     "TTS_GENERATION",
     "AUDIO_MIXING",
+    "CAPTION_GENERATION",
     "VIDEO_ASSEMBLY",
   ]),
 });

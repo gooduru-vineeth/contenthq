@@ -7,6 +7,7 @@ export const PipelineStage = {
   VIDEO_GENERATION: "VIDEO_GENERATION",
   TTS_GENERATION: "TTS_GENERATION",
   AUDIO_MIXING: "AUDIO_MIXING",
+  CAPTION_GENERATION: "CAPTION_GENERATION",
   VIDEO_ASSEMBLY: "VIDEO_ASSEMBLY",
 } as const;
 export type PipelineStage = (typeof PipelineStage)[keyof typeof PipelineStage];
@@ -21,6 +22,7 @@ export const ProjectStatus = {
   GENERATING_TTS: "generating_tts",
   GENERATING_VIDEO: "generating_video",
   MIXING_AUDIO: "mixing_audio",
+  GENERATING_CAPTIONS: "generating_captions",
   ASSEMBLING: "assembling",
   COMPLETED: "completed",
   FAILED: "failed",
@@ -35,6 +37,7 @@ export const SceneStatus = {
   VISUAL_VERIFIED: "visual_verified",
   VIDEO_GENERATED: "video_generated",
   AUDIO_MIXED: "audio_mixed",
+  CAPTION_GENERATED: "caption_generated",
   COMPLETED: "completed",
   FAILED: "failed",
 } as const;

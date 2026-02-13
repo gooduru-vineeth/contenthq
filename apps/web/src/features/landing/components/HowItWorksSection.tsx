@@ -3,7 +3,7 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { howItWorksSteps } from "../lib/constants";
-import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 export function HowItWorksSection() {
   const prefersReducedMotion = usePrefersReducedMotion();

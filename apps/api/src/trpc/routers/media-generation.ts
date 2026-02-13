@@ -125,6 +125,34 @@ export const mediaGenerationRouter = router({
       return { success: true };
     }),
 
+  getEditableModels: protectedProcedure.query(async () => {
+    return mediaGenerationService.getEditableModels();
+  }),
+
+  chatEdit: protectedProcedure
+    .input(
+      z.object({
+        sourceMediaId: z.string(),
+        editPrompt: z.string().min(1).max(4000),
+        models: z.array(z.string()).min(1).max(5),
+        aspectRatios: z
+          .array(z.enum(["1:1", "16:9", "9:16", "4:3", "3:4", "21:9"]))
+          .min(1),
+        qualities: z.array(z.enum(["standard", "hd"])).min(1),
+        strength: z.number().min(0).max(1).optional(),
+        referenceImageUrl: z.string().url().optional(),
+        conversationId: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { sourceMediaId, ...request } = input;
+      return mediaGenerationService.chatEditMultiCombination(
+        ctx.user.id,
+        sourceMediaId,
+        request
+      );
+    }),
+
   listConversations: protectedProcedure.query(async ({ ctx }) => {
     return mediaGenerationService.listConversations(ctx.user.id);
   }),
@@ -153,5 +181,45 @@ export const mediaGenerationRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       return { success: true };
+    }),
+
+  sendMessage: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.string(),
+        prompt: z.string().min(1).max(4000),
+        model: z.string().optional(),
+        mediaType: z.enum(["image", "video"]).optional(),
+        aspectRatio: z
+          .enum(["1:1", "16:9", "9:16", "4:3", "3:4", "21:9"])
+          .optional(),
+        quality: z.enum(["standard", "hd"]).optional(),
+        style: z.enum(["natural", "vivid"]).optional(),
+        duration: z.number().int().min(1).max(30).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { conversationId, ...request } = input;
+      return mediaGenerationService.sendConversationMessage(
+        ctx.user.id,
+        conversationId,
+        request
+      );
+    }),
+
+  updateConversation: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        title: z.string().min(1).max(200).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...updates } = input;
+      return mediaGenerationService.updateConversation(
+        ctx.user.id,
+        id,
+        updates
+      );
     }),
 });

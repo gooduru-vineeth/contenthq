@@ -12,9 +12,14 @@ export function createAudioMixingWorker(): Worker {
   return new Worker<AudioMixingJobData>(
     QUEUE_NAMES.AUDIO_MIXING,
     async (job) => {
-      const { projectId, sceneId, userId, musicTrackId } = job.data;
+      const { projectId, sceneId, userId, musicTrackId, stageConfig } = job.data;
       const startedAt = new Date();
-      console.warn(`[AudioMix] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, musicTrackId=${musicTrackId ?? "none"}`);
+      console.warn(`[AudioMix] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, musicTrackId=${musicTrackId ?? "none"}, hasStageConfig=${!!stageConfig}`);
+
+      // Apply stageConfig overrides for volume and mixing
+      const cfgVoiceoverVolume = stageConfig?.voiceoverVolume ?? 100;
+      const cfgMusicVolume = stageConfig?.musicVolume ?? (musicTrackId ? 30 : 0);
+      const cfgMusicDucking = stageConfig?.musicDuckingEnabled ?? true;
 
       try {
         // Mark generationJob as processing
@@ -74,8 +79,8 @@ export function createAudioMixingWorker(): Worker {
         const mixResult = await videoService.mixSceneAudio({
           voiceoverBuffer,
           musicBuffer,
-          voiceoverVolume: 100,
-          musicVolume: musicTrackId ? 30 : 0,
+          voiceoverVolume: cfgVoiceoverVolume,
+          musicVolume: cfgMusicVolume,
         });
 
         await job.updateProgress(70);
@@ -99,9 +104,9 @@ export function createAudioMixingWorker(): Worker {
             .set({
               mixedAudioUrl,
               storageKey: uploadResult.key,
-              voiceoverVolume: 100,
-              musicVolume: musicTrackId ? 30 : 0,
-              musicDuckingEnabled: true,
+              voiceoverVolume: cfgVoiceoverVolume,
+              musicVolume: cfgMusicVolume,
+              musicDuckingEnabled: cfgMusicDucking,
               updatedAt: new Date(),
             })
             .where(eq(sceneAudioMixes.id, existing[0].id));
@@ -110,9 +115,9 @@ export function createAudioMixingWorker(): Worker {
             sceneId,
             mixedAudioUrl,
             storageKey: uploadResult.key,
-            voiceoverVolume: 100,
-            musicVolume: musicTrackId ? 30 : 0,
-            musicDuckingEnabled: true,
+            voiceoverVolume: cfgVoiceoverVolume,
+            musicVolume: cfgMusicVolume,
+            musicDuckingEnabled: cfgMusicDucking,
           });
         }
 

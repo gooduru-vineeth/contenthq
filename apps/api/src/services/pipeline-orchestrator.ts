@@ -11,10 +11,24 @@ import {
   addAudioMixingJob,
   addVideoAssemblyJob,
 } from "@contenthq/queue";
+import type { PipelineStage, FullStageConfigs } from "@contenthq/shared";
+import { STAGE_PROGRESS_PERCENT } from "@contenthq/shared";
 import { FlowEngine } from "./flow-engine";
+import { pipelineConfigService } from "./pipeline-config.service";
 
 export class PipelineOrchestrator {
   private flowEngine = new FlowEngine();
+
+  /**
+   * Walk PIPELINE_STAGE_ORDER from the current stage and return the
+   * next stage whose config.enabled !== false. Returns null if done.
+   */
+  private getNextEnabledStage(
+    currentStage: PipelineStage,
+    frozenConfig: FullStageConfigs | null
+  ): PipelineStage | null {
+    return pipelineConfigService.getNextEnabledStage(currentStage, frozenConfig);
+  }
 
   /**
    * Start pipeline via the flow engine (opt-in).
@@ -75,6 +89,12 @@ export class PipelineOrchestrator {
     }
 
     console.warn(`[Pipeline] Starting pipeline for project ${projectId}, userId=${userId}, inputType=${project.inputType ?? "url"}, sourceUrl=${project.inputContent?.substring(0, 100) ?? "none"}`);
+
+    // Freeze the pipeline config so it stays immutable during this run
+    const frozenResult = await pipelineConfigService.freezeConfig(projectId);
+    if (frozenResult) {
+      console.warn(`[Pipeline] Froze pipeline config for project ${projectId} (mode=${frozenResult.mode})`);
+    }
 
     await db
       .update(projects)
@@ -247,10 +267,23 @@ export class PipelineOrchestrator {
     const activeScenes = sceneList.filter(s => s.status !== "failed");
     console.warn(`[Pipeline] All scenes verified for project ${projectId}: ${activeScenes.length} active, ${failedCount} failed`);
 
-    if (project.enableVideoGeneration) {
+    // Check frozen config for video generation enablement (fall back to project flag)
+    const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
+    const videoEnabled = frozenConfig?.videoGeneration?.enabled ?? project.enableVideoGeneration;
+
+    if (videoEnabled) {
       console.warn(`[Pipeline] Video generation enabled for project ${projectId}, queuing VIDEO_GENERATION for ${activeScenes.length} scene(s)`);
+      const videoStageConfig = frozenConfig?.videoGeneration;
       // Queue VIDEO_GENERATION jobs for each non-failed scene
       for (const scene of activeScenes) {
+        // Check for media overrides on this scene
+        const overrides = await pipelineConfigService.getMediaOverrides(
+          projectId,
+          "VIDEO_GENERATION",
+          scene.index
+        );
+        const mediaOverrideUrl = overrides.length > 0 ? overrides[0].url ?? undefined : undefined;
+
         // Fetch the verified image URL from sceneVisuals
         const [visual] = await db
           .select()
@@ -272,24 +305,35 @@ export class PipelineOrchestrator {
           userId,
           imageUrl,
           motionSpec: (scene.motionSpec as Record<string, unknown>) ?? {},
+          scenePrompt: scene.imagePrompt || scene.visualDescription || scene.narrationScript || "",
+          ...(videoStageConfig && {
+            stageConfig: {
+              provider: videoStageConfig.provider,
+              model: videoStageConfig.model,
+              motionType: videoStageConfig.motionType,
+              durationPerScene: videoStageConfig.durationPerScene,
+            },
+          }),
+          ...(mediaOverrideUrl && { mediaOverrideUrl }),
         });
 
-        console.warn(`[Pipeline] VIDEO_GENERATION job queued for scene ${scene.id} (index=${scene.index}), imageUrl=${imageUrl ? "present" : "missing"}`);
+        console.warn(`[Pipeline] VIDEO_GENERATION job queued for scene ${scene.id} (index=${scene.index}), imageUrl=${imageUrl ? "present" : "missing"}${mediaOverrideUrl ? ", mediaOverride=present" : ""}`);
       }
 
       await db
         .update(projects)
         .set({
           status: "generating_video",
-          progressPercent: 55,
+          progressPercent: STAGE_PROGRESS_PERCENT["VIDEO_GENERATION"] ?? 55,
           updatedAt: new Date(),
         })
         .where(eq(projects.id, projectId));
 
-      console.warn(`[Pipeline] Project ${projectId} status set to "generating_video" (55%)`);
+      console.warn(`[Pipeline] Project ${projectId} status set to "generating_video"`);
     } else {
-      // Skip video generation — go straight to TTS
-      console.warn(`[Pipeline] Video generation disabled for project ${projectId}, skipping to TTS for ${activeScenes.length} scene(s)`);
+      // Skip video generation — use frozen config to find next enabled stage
+      const nextStage = this.getNextEnabledStage("VIDEO_GENERATION" as PipelineStage, frozenConfig);
+      console.warn(`[Pipeline] Video generation disabled for project ${projectId}, next enabled stage: ${nextStage ?? "none"}`);
       await this.queueTTSForScenes(projectId, userId, activeScenes, project.voiceProfileId);
     }
   }
@@ -410,6 +454,11 @@ export class PipelineOrchestrator {
     const activeScenesForMixing = sceneList.filter(s => s.status !== "failed");
     console.warn(`[Pipeline] All TTS done for project ${projectId}: ${activeScenesForMixing.length} active, ${failedCount} failed. Queuing AUDIO_MIXING.`);
 
+    // Read frozen config for audio mixing settings
+    const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
+    const audioMixingConfig = frozenConfig?.audioMixing;
+    const musicTrackId = audioMixingConfig?.musicTrackId ?? null;
+
     for (const scene of activeScenesForMixing) {
       // Look up actual voiceover URL from sceneVideos (stored by TTS worker)
       const [sceneVideo] = await db
@@ -429,22 +478,32 @@ export class PipelineOrchestrator {
         sceneId: scene.id,
         userId,
         voiceoverUrl: sceneVideo?.voiceoverUrl ?? "",
-        musicTrackId: null,
+        musicTrackId,
+        ...(audioMixingConfig && {
+          stageConfig: {
+            musicVolume: audioMixingConfig.musicVolume,
+            voiceoverVolume: audioMixingConfig.voiceoverVolume,
+            fadeInMs: audioMixingConfig.fadeInMs,
+            fadeOutMs: audioMixingConfig.fadeOutMs,
+            musicLoop: audioMixingConfig.musicLoop,
+            musicDuckingEnabled: audioMixingConfig.musicDuckingEnabled,
+          },
+        }),
       });
 
-      console.warn(`[Pipeline] AUDIO_MIXING job queued for scene ${scene.id} (index=${scene.index}), voiceoverUrl=${sceneVideo?.voiceoverUrl ? "present" : "missing"}`);
+      console.warn(`[Pipeline] AUDIO_MIXING job queued for scene ${scene.id} (index=${scene.index}), voiceoverUrl=${sceneVideo?.voiceoverUrl ? "present" : "missing"}, musicTrackId=${musicTrackId ?? "none"}`);
     }
 
     await db
       .update(projects)
       .set({
         status: "mixing_audio",
-        progressPercent: 77,
+        progressPercent: STAGE_PROGRESS_PERCENT["AUDIO_MIXING"] ?? 77,
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
 
-    console.warn(`[Pipeline] Project ${projectId} status set to "mixing_audio" (77%)`);
+    console.warn(`[Pipeline] Project ${projectId} status set to "mixing_audio"`);
   }
 
   async advanceAfterAudioMixing(
@@ -544,6 +603,12 @@ export class PipelineOrchestrator {
         await this.advanceAfterTTS(projectId, userId);
         break;
       case "AUDIO_MIXING":
+        await this.advanceAfterAudioMixing(projectId, userId);
+        break;
+      case "CAPTION_GENERATION":
+        // Caption generation completes before final assembly
+        // The caption worker advances to VIDEO_ASSEMBLY
+        console.warn(`[Pipeline] CAPTION_GENERATION completed for project ${projectId}, advancing to assembly`);
         await this.advanceAfterAudioMixing(projectId, userId);
         break;
       default:

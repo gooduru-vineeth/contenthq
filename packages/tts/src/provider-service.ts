@@ -300,7 +300,7 @@ export const TTS_PROVIDER_CAPABILITIES: Record<SpeechProvider, TTSProviderCapabi
     supportedFormats: ['wav', 'mp3', 'opus'],
     supportedLanguages: ['en','es','fr','ko','nl','zh','de','it','ja','pl','pt','ru'],
     supportsSSML: false,
-    supportsVoiceCloning: false,
+    supportsVoiceCloning: true,
     supportsEmotions: true,
     supportsSpeechMarks: false,
     costPerCharacter: 0,

@@ -12,6 +12,7 @@ export {
   addVideoAssemblyJob,
   addSpeechGenerationJob,
   addMediaGenerationJob,
+  addCaptionGenerationJob,
   getQueueStats,
 } from "./helpers";
 export { createQueueEvents, closeAllQueueEvents } from "./events";
@@ -32,5 +33,6 @@ export type {
   VideoAssemblyJobData,
   SpeechGenerationJobData,
   MediaGenerationJobData,
+  CaptionGenerationJobData,
   JobData,
 } from "./types";

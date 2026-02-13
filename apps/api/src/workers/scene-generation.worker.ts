@@ -11,9 +11,14 @@ export function createSceneGenerationWorker(): Worker {
   return new Worker<SceneGenerationJobData>(
     QUEUE_NAMES.SCENE_GENERATION,
     async (job) => {
-      const { projectId, storyId, userId, agentId } = job.data;
+      const { projectId, storyId, userId, agentId, stageConfig } = job.data;
       const startedAt = new Date();
-      console.warn(`[SceneGeneration] Processing job ${job.id} for project ${projectId}, storyId=${storyId}, agentId=${agentId ?? "none"}`);
+      console.warn(`[SceneGeneration] Processing job ${job.id} for project ${projectId}, storyId=${storyId}, agentId=${agentId ?? "none"}, hasStageConfig=${!!stageConfig}`);
+
+      // Apply stageConfig overrides if provided
+      const effectiveAgentId = stageConfig?.agentId ?? agentId;
+      const visualStyle = stageConfig?.visualStyle;
+      const imagePromptStyle = stageConfig?.imagePromptStyle;
 
       try {
         // Mark generationJob as processing
@@ -62,11 +67,11 @@ export function createSceneGenerationWorker(): Worker {
 
           let imagePrompt: string;
 
-          if (agentId) {
+          if (effectiveAgentId) {
             // New path: use agent executor
             const result = await executeAgent({
-              agentId,
-              variables: { visualDescription: scene.visualDescription },
+              agentId: effectiveAgentId,
+              variables: { visualDescription: scene.visualDescription, visualStyle: visualStyle ?? "", imagePromptStyle: imagePromptStyle ?? "" },
               projectId,
               userId,
               db,

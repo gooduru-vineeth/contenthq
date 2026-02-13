@@ -67,6 +67,40 @@ export function ReviewStep({ error }: ReviewStepProps) {
                 ?.label ?? form.watch("language")}
             </dd>
           </div>
+          {form.watch("visualStyle") && (
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Visual Style</dt>
+              <dd className="font-medium capitalize">
+                {form.watch("visualStyle")?.replace(/_/g, " ")}
+              </dd>
+            </div>
+          )}
+          {form.watch("ttsProvider") && (
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">TTS Provider</dt>
+              <dd className="font-medium capitalize">
+                {form.watch("ttsProvider")}
+              </dd>
+            </div>
+          )}
+          {form.watch("ttsVoiceId") && (
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Voice</dt>
+              <dd className="font-medium">{form.watch("ttsVoiceId")}</dd>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">Captions</dt>
+            <dd className="font-medium">
+              {form.watch("enableCaptions") ? "Enabled" : "Disabled"}
+            </dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">Mode</dt>
+            <dd className="font-medium capitalize">
+              {form.watch("pipelineMode") ?? "simple"}
+            </dd>
+          </div>
         </dl>
 
         {error && (

@@ -11,9 +11,9 @@ export function createTTSGenerationWorker(): Worker {
   return new Worker<TTSGenerationJobData>(
     QUEUE_NAMES.TTS_GENERATION,
     async (job) => {
-      const { projectId, sceneId, userId, narrationScript, voiceId, provider } = job.data;
+      const { projectId, sceneId, userId, narrationScript, voiceId, provider, mediaOverrideUrl, stageConfig } = job.data;
       const startedAt = new Date();
-      console.warn(`[TTS] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, provider=${provider}, voiceId=${voiceId}, scriptLength=${narrationScript?.length ?? 0} chars`);
+      console.warn(`[TTS] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, provider=${provider}, voiceId=${voiceId}, scriptLength=${narrationScript?.length ?? 0} chars, hasOverride=${!!mediaOverrideUrl}, hasStageConfig=${!!stageConfig}`);
 
       try {
         // Mark generationJob as processing
@@ -29,6 +29,42 @@ export function createTTSGenerationWorker(): Worker {
           );
 
         await job.updateProgress(10);
+
+        // Check for media override - skip TTS generation if user provided voiceover
+        if (mediaOverrideUrl) {
+          console.warn(`[TTS] Using media override for scene ${sceneId}: ${mediaOverrideUrl.substring(0, 80)}`);
+          const overrideResponse = await fetch(mediaOverrideUrl);
+          if (!overrideResponse.ok) throw new Error(`Failed to fetch TTS override: ${overrideResponse.statusText}`);
+          const overrideBuffer = Buffer.from(await overrideResponse.arrayBuffer());
+          const overrideFormat = stageConfig?.format ?? "mp3";
+          const overrideKey = getSceneAudioPath(userId, projectId, sceneId, `voiceover-override.${overrideFormat}`);
+          const overrideUpload = await storage.uploadFileWithRetry(overrideKey, overrideBuffer, getAudioContentType(overrideFormat));
+
+          await db.transaction(async (tx) => {
+            const existing = await tx.select().from(sceneVideos).where(eq(sceneVideos.sceneId, sceneId));
+            if (existing.length > 0) {
+              await tx.update(sceneVideos).set({ voiceoverUrl: overrideUpload.url, storageKey: overrideKey, ttsProvider: "override", updatedAt: new Date() }).where(eq(sceneVideos.sceneId, sceneId));
+            } else {
+              await tx.insert(sceneVideos).values({ sceneId, voiceoverUrl: overrideUpload.url, storageKey: overrideKey, ttsProvider: "override" });
+            }
+          });
+
+          await db.update(scenes).set({ status: "video_generated", updatedAt: new Date() }).where(eq(scenes.id, sceneId));
+
+          const completedAt = new Date();
+          await db.update(generationJobs).set({
+            status: "completed", progressPercent: 100,
+            result: { override: true, log: { stage: "TTS_GENERATION", status: "completed", startedAt: startedAt.toISOString(), completedAt: completedAt.toISOString(), durationMs: completedAt.getTime() - startedAt.getTime(), details: `Used voiceover override for scene ${sceneId}` } },
+            updatedAt: new Date(),
+          }).where(and(eq(generationJobs.projectId, projectId), eq(generationJobs.jobType, "TTS_GENERATION"), eq(generationJobs.status, "processing")));
+
+          await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "TTS_GENERATION");
+          return { success: true, override: true };
+        }
+
+        // Apply stageConfig overrides for TTS quality/speed/format
+        const _ttsSpeed = stageConfig?.speed;
+        const _ttsPitch = stageConfig?.pitch;
 
         // Dynamic import to avoid requiring TTS package at startup
         const { generateSpeech } = await import("@contenthq/tts");
