@@ -1,12 +1,22 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "next-themes";
 import { pipelineStages } from "../../lib/constants";
+import type { PipelineStage } from "../../lib/constants";
+
+const emptySubscribe = () => () => {};
 
 interface PipelineStagesProps {
   activeStage: number;
   onSelectStage: (index: number) => void;
   reducedMotion: boolean;
+}
+
+/** Returns the theme-appropriate color for a pipeline stage. */
+function stageColor(stage: PipelineStage, isDark: boolean) {
+  return isDark ? stage.darkColor : stage.color;
 }
 
 export function PipelineStages({
@@ -15,9 +25,12 @@ export function PipelineStages({
   reducedMotion,
 }: PipelineStagesProps) {
   const stage = pipelineStages[activeStage];
+  const { resolvedTheme } = useTheme();
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const isDark = mounted && resolvedTheme === "dark";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-card/80 to-card/40 p-6 backdrop-blur-sm sm:p-8">
+    <div className="relative overflow-hidden rounded-2xl border border-border/40 bg-gradient-to-br from-card/80 to-card/40 p-6 backdrop-blur-sm dark:border-white/10 dark:from-card/90 dark:to-card/60 sm:p-8">
       {/* Stage buttons */}
       <div
         className="relative flex items-center justify-center gap-1 overflow-x-auto pb-4 scrollbar-none sm:gap-2 lg:gap-3 lg:overflow-x-visible"
@@ -28,6 +41,7 @@ export function PipelineStages({
           const isActive = i === activeStage;
           const isPast = i < activeStage;
           const Icon = s.icon;
+          const c = stageColor(s, isDark);
           return (
             <div key={s.name} className="flex shrink-0 items-center">
               <button
@@ -38,24 +52,24 @@ export function PipelineStages({
                 className="flex flex-col items-center gap-1.5 rounded-xl p-3 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                 style={{
                   background: isActive
-                    ? `linear-gradient(135deg, ${s.color}20, ${s.color}10)`
+                    ? `linear-gradient(135deg, ${c}20, ${c}10)`
                     : "transparent",
                   borderWidth: 1,
                   borderStyle: "solid",
-                  borderColor: isActive ? `${s.color}30` : "transparent",
+                  borderColor: isActive ? `${c}40` : "transparent",
                 }}
               >
                 <div
                   className="flex h-10 w-10 items-center justify-center rounded-lg backdrop-blur-sm transition-all duration-300 sm:h-11 sm:w-11 lg:h-12 lg:w-12"
                   style={{
-                    backgroundColor: `${s.color}${isActive ? "25" : "15"}`,
-                    opacity: isActive ? 1 : isPast ? 0.7 : 0.4,
+                    backgroundColor: `${c}${isActive ? "30" : "18"}`,
+                    opacity: isActive ? 1 : isPast ? 0.8 : 0.5,
                   }}
                 >
                   <Icon
                     className="h-5 w-5 lg:h-6 lg:w-6"
                     style={{
-                      color: isActive || isPast ? s.color : "var(--muted-foreground)",
+                      color: isActive || isPast ? c : "var(--muted-foreground)",
                     }}
                   />
                 </div>
@@ -73,7 +87,7 @@ export function PipelineStages({
                 <div
                   className="h-1 w-1 rounded-full transition-all duration-300"
                   style={{
-                    backgroundColor: isActive ? s.color : "transparent",
+                    backgroundColor: isActive ? c : "transparent",
                   }}
                 />
               </button>
@@ -84,9 +98,9 @@ export function PipelineStages({
                   style={{
                     backgroundColor:
                       i < activeStage
-                        ? `${pipelineStages[i].color}40`
+                        ? `${stageColor(pipelineStages[i], isDark)}50`
                         : "var(--border)",
-                    opacity: i < activeStage ? 0.6 : 0.2,
+                    opacity: i < activeStage ? 0.8 : 0.3,
                   }}
                 />
               )}
@@ -107,7 +121,7 @@ export function PipelineStages({
           >
             <span
               className="mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold text-white sm:text-xs"
-              style={{ backgroundColor: stage.color }}
+              style={{ backgroundColor: stageColor(stage, isDark) }}
             >
               Stage {activeStage + 1}
             </span>
