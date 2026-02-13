@@ -202,3 +202,13 @@ body {
   50% { transform: translateY(-8px) rotateX(-0.5deg) rotateY(1deg); }
   75% { transform: translateY(-4px) rotateX(0.5deg) rotateY(-0.5deg); }
 }
+
+@keyframes connector-pulse {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes connector-pulse-vertical {
+  0% { background-position: center -200%; }
+  100% { background-position: center 200%; }
+}

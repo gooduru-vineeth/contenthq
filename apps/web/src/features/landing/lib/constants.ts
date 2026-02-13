@@ -208,6 +208,74 @@ export const howItWorksSteps: HowItWorksStep[] = [
   },
 ];
 
+export interface StepAccent {
+  /** Tailwind gradient classes for the icon background */
+  iconGradient: string;
+  /** CSS hex color for the glow radial-gradient */
+  glowColor: string;
+  /** Tailwind gradient classes for the accent bar */
+  accentGradient: string;
+  /** Idle float config — varied per card so they never sync */
+  float: {
+    y: [number, number, number];
+    rotateX: [number, number, number];
+    rotateY: [number, number, number];
+    duration: number;
+    delay: number;
+  };
+}
+
+export const STEP_ACCENTS: StepAccent[] = [
+  {
+    iconGradient: "from-brand-600 to-brand-400",
+    glowColor: "#2845D6",
+    accentGradient: "from-brand-600 via-brand-500 to-brand-400",
+    float: {
+      y: [0, -7, 0],
+      rotateX: [0, 1.2, 0],
+      rotateY: [0, -0.8, 0],
+      duration: 5.5,
+      delay: 0,
+    },
+  },
+  {
+    iconGradient: "from-violet-600 to-violet-400",
+    glowColor: "#7C3AED",
+    accentGradient: "from-violet-600 via-violet-500 to-violet-400",
+    float: {
+      y: [0, -9, 0],
+      rotateX: [0, -1, 0],
+      rotateY: [0, 1.3, 0],
+      duration: 6.2,
+      delay: 0.4,
+    },
+  },
+  {
+    iconGradient: "from-orange-500 to-amber-400",
+    glowColor: "#F68048",
+    accentGradient: "from-orange-500 via-amber-400 to-amber-300",
+    float: {
+      y: [0, -6, 0],
+      rotateX: [0, 0.8, 0],
+      rotateY: [0, -1.1, 0],
+      duration: 5.0,
+      delay: 0.9,
+    },
+  },
+  {
+    iconGradient: "from-emerald-600 to-emerald-400",
+    glowColor: "#10B981",
+    accentGradient: "from-emerald-600 via-emerald-500 to-emerald-400",
+    float: {
+      y: [0, -8, 0],
+      rotateX: [0, -1.3, 0],
+      rotateY: [0, 0.7, 0],
+      duration: 6.8,
+      delay: 1.3,
+    },
+  },
+];
+
 // --- Pricing ---
 export interface PricingTier {
   name: string;
