@@ -407,17 +407,6 @@ export const heroStats: Stat[] = [
   { value: "500+", label: "Happy Creators" },
 ];
 
-export const tickerStats: Stat[] = [
-  { value: "10K+", label: "Videos Created" },
-  { value: "500+", label: "Happy Creators" },
-  { value: "99.9%", label: "Uptime" },
-  { value: "50+", label: "Natural AI Voices" },
-  { value: "<5 min", label: "Average Video Time" },
-  { value: "24/7", label: "Always Available" },
-  { value: "4K", label: "Max Resolution" },
-  { value: "40+", label: "Languages" },
-];
-
 // --- Trusted By ---
 export interface TrustedCompany {
   name: string;

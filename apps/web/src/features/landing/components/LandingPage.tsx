@@ -3,7 +3,6 @@
 import { ScrollProgress } from "./ScrollProgress";
 import { LandingHeader } from "./LandingHeader";
 import { HeroSection } from "./HeroSection";
-import { ScrollingTicker } from "./ScrollingTicker";
 import { TrustedBySection } from "./TrustedBySection";
 import { PipelineSection } from "./PipelineSection";
 import { FeaturesGrid } from "./FeaturesGrid";
@@ -22,7 +21,6 @@ export function LandingPage() {
       <ScrollProgress />
       <LandingHeader />
       <HeroSection />
-      <ScrollingTicker />
       <TrustedBySection />
       <PipelineSection />
       <FeaturesGrid />
