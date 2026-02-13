@@ -365,7 +365,7 @@ export const ChatEditModal: FC<ChatEditModalProps> = ({
 
             <div className="flex flex-1 min-h-0">
               {/* Left Panel */}
-              <div className="w-[400px] border-r flex flex-col shrink-0">
+              <div className="w-80 lg:w-[400px] border-r flex flex-col min-w-0">
                 <Tabs defaultValue="settings" className="flex flex-col h-full">
                   <TabsList className="mx-4 mt-4 shrink-0">
                     <TabsTrigger value="settings" className="gap-1.5">

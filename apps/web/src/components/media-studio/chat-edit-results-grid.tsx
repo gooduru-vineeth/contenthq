@@ -69,7 +69,7 @@ export const ChatEditResultsGrid: FC<ChatEditResultsGridProps> = ({
             <Badge variant="outline">{group.provider}</Badge>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {group.results.map((result) => (
               <Card key={`${result.modelId}-${result.aspectRatio}-${result.quality}`}>
                 <CardHeader className="pb-3">

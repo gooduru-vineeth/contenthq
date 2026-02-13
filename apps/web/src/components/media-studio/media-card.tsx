@@ -186,7 +186,7 @@ export const MediaCard: FC<MediaCardProps> = ({ media }) => {
               {prompt}
             </p>
           )}
-          <div className="flex w-full gap-2 mt-2">
+          <div className="flex flex-wrap w-full gap-2 mt-2">
             {status === "completed" && (
               <Button
                 variant="outline"

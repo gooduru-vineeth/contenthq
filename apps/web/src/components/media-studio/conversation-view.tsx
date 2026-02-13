@@ -149,7 +149,7 @@ export function ConversationView({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-16rem)]">
+    <div className="flex flex-col h-[calc(100vh-13rem)] overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 border-b pb-4 mb-4">
         <Button variant="ghost" size="sm" onClick={onBack}>
@@ -159,7 +159,7 @@ export function ConversationView({
           <h3 className="text-sm font-semibold truncate">
             {conversation.title || conversation.initialPrompt}
           </h3>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex flex-wrap items-center gap-2 mt-1">
             <Badge variant="outline" className="text-xs">
               {conversation.model}
             </Badge>
@@ -306,6 +306,25 @@ export function ConversationView({
 
       {/* Input Area */}
       <div className="border-t pt-4 mt-auto space-y-3">
+        {models && models.length > 0 && (
+          <div className="sm:hidden">
+            <Select
+              value={effectiveModel}
+              onValueChange={setSelectedModel}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Model" />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="flex items-end gap-2">
           <div className="flex-1">
             <Textarea
@@ -325,7 +344,7 @@ export function ConversationView({
                 value={effectiveModel}
                 onValueChange={setSelectedModel}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[180px] hidden sm:flex">
                   <SelectValue placeholder="Model" />
                 </SelectTrigger>
                 <SelectContent>

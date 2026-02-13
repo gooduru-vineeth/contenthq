@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@contenthq/ai": "workspace:*",
+    "@contenthq/stock-media": "workspace:*",
     "@contenthq/db": "workspace:*",
     "@contenthq/ingestion": "workspace:*",
     "@contenthq/queue": "workspace:*",

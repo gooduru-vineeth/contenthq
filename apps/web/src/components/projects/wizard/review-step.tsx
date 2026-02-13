@@ -95,6 +95,22 @@ export function ReviewStep({ error }: ReviewStepProps) {
               {form.watch("enableCaptions") ? "Enabled" : "Disabled"}
             </dd>
           </div>
+          {form.watch("enableCaptions") && form.watch("captionStyle") && (
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Caption Style</dt>
+              <dd className="font-medium capitalize">
+                {form.watch("captionStyle")?.replace(/-/g, " ")}
+              </dd>
+            </div>
+          )}
+          {form.watch("enableCaptions") && form.watch("captionPosition") && (
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Caption Position</dt>
+              <dd className="font-medium capitalize">
+                {form.watch("captionPosition")?.replace("-center", "")}
+              </dd>
+            </div>
+          )}
           <div className="flex justify-between">
             <dt className="text-muted-foreground">Mode</dt>
             <dd className="font-medium capitalize">

@@ -1,0 +1,14 @@
+{
+  "name": "@contenthq/stock-media",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@contenthq/typescript-config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

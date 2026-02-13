@@ -7,6 +7,8 @@ import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { videoService } from "@contenthq/video";
 import type { MotionSpec } from "@contenthq/video";
+import { pickRandomMotion, mapLegacyMotionSpec } from "@contenthq/video";
+import type { MotionType } from "@contenthq/video";
 import { storage, getSceneVideoPath, getVideoContentType } from "@contenthq/storage";
 import { mediaProviderRegistry, truncateForLog, formatFileSize } from "@contenthq/ai";
 
@@ -143,13 +145,59 @@ export function createVideoGenerationWorker(): Worker {
 
         // FFmpeg fallback: generate video from static image
         console.warn(`[VideoGeneration] Generating scene video via FFmpeg for ${sceneId}: duration=${duration}s, resolution=1920x1080, motionSpecType=${motionSpec ? typeof motionSpec : "none"}, imageUrl=${imageUrl?.substring(0, 80)}`);
+
+        // Resolve motion spec based on assignment mode
+        let effectiveMotion: MotionSpec | undefined;
+        const motionAssignment = stageConfig?.motionAssignment ?? "system_random";
+        const motionSpeed = stageConfig?.motionSpeed ?? 0.5;
+
+        if (motionAssignment === "system_random") {
+          // Query previous scene's motionSpec to avoid consecutive repeats
+          let previousMotionType: MotionType | undefined;
+          if (scene) {
+            const prevScenes = await db
+              .select()
+              .from(scenes)
+              .where(and(eq(scenes.projectId, projectId), eq(scenes.status, "video_generated")));
+            if (prevScenes.length > 0) {
+              const lastScene = prevScenes[prevScenes.length - 1];
+              const prevSpec = lastScene.motionSpec as Record<string, unknown> | null;
+              if (prevSpec?.type) {
+                previousMotionType = prevSpec.type as MotionType;
+              }
+            }
+          }
+          effectiveMotion = pickRandomMotion(previousMotionType);
+          effectiveMotion.speed = motionSpeed;
+        } else if (motionAssignment === "ai_random") {
+          // Use motionSpec from job data (populated from scene DB record by AI)
+          if (motionSpec && typeof motionSpec === "object" && Object.keys(motionSpec).length > 0) {
+            const mapped = mapLegacyMotionSpec(motionSpec as { type?: string; direction?: string });
+            effectiveMotion = { type: mapped, speed: (motionSpec as Record<string, unknown>).speed as number ?? motionSpeed };
+          } else {
+            effectiveMotion = pickRandomMotion();
+            effectiveMotion.speed = motionSpeed;
+          }
+        } else {
+          // "manual" mode - use stageConfig.motionType as uniform default
+          const manualType = (stageConfig?.motionType ?? "kenburns_in") as MotionType;
+          effectiveMotion = { type: manualType, speed: motionSpeed };
+        }
+
+        console.warn(`[VideoGeneration] Resolved motion: type=${effectiveMotion.type}, speed=${effectiveMotion.speed}, assignment=${motionAssignment}`);
+
         const videoResult = await videoService.generateSceneVideo({
           imageUrl,
           duration,
-          motionSpec: motionSpec as unknown as MotionSpec | undefined,
+          motionSpec: effectiveMotion,
           width: 1920,
           height: 1080,
         });
+
+        // Write resolved motionSpec back to scene for auditing
+        if (effectiveMotion) {
+          await db.update(scenes).set({ motionSpec: effectiveMotion, updatedAt: new Date() }).where(eq(scenes.id, sceneId));
+        }
 
         await job.updateProgress(60);
 

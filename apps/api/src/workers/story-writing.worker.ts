@@ -24,6 +24,11 @@ const storyOutputSchema = z.object({
       visualDescription: z.string(),
       narrationScript: z.string(),
       duration: z.number(),
+      motionSpec: z.object({
+        type: z.string(),
+        speed: z.number().optional(),
+      }).optional(),
+      transition: z.string().optional(),
     })
   ),
 });
@@ -158,6 +163,8 @@ export function createStoryWritingWorker(): Worker {
               narrationScript: sceneData.narrationScript,
               duration: sceneData.duration,
               status: "outlined",
+              ...(sceneData.motionSpec && { motionSpec: sceneData.motionSpec }),
+              ...(sceneData.transition && { transitions: sceneData.transition }),
             });
           }
 

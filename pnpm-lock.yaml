@@ -59,6 +59,9 @@ importers:
       '@contenthq/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@contenthq/stock-media':
+        specifier: workspace:*
+        version: link:../../packages/stock-media
       '@contenthq/storage':
         specifier: workspace:*
         version: link:../../packages/storage
@@ -426,6 +429,18 @@ importers:
       '@contenthq/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  packages/stock-media:
+    devDependencies:
+      '@contenthq/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.11
       typescript:
         specifier: ^5.7.0
         version: 5.9.3

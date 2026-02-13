@@ -111,7 +111,7 @@ export function GalleryView() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
               <Button
                 variant="outline"
                 size="sm"
@@ -122,7 +122,11 @@ export function GalleryView() {
                 Previous
               </Button>
 
-              <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground sm:hidden">
+                Page {page} of {totalPages}
+              </span>
+
+              <div className="hidden sm:flex items-center gap-2">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNum: number;
                   if (totalPages <= 5) {

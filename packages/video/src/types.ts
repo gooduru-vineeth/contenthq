@@ -1,3 +1,58 @@
+// ─── Motion Types ───────────────────────────────────────────────────
+
+export type MotionType =
+  | "zoom_in"
+  | "zoom_out"
+  | "pan_left"
+  | "pan_right"
+  | "pan_up"
+  | "pan_down"
+  | "kenburns_in"
+  | "kenburns_out"
+  | "static";
+
+export interface MotionSpec {
+  type: MotionType;
+  speed?: number; // 0.1 (subtle) to 1.0 (dramatic), default 0.5
+  easing?: "linear" | "ease-in" | "ease-out" | "ease-in-out";
+}
+
+// ─── Transition Types ───────────────────────────────────────────────
+
+export type TransitionType =
+  | "fade"
+  | "fadeblack"
+  | "fadewhite"
+  | "dissolve"
+  | "wipeleft"
+  | "wiperight"
+  | "slideleft"
+  | "slideright"
+  | "circleopen"
+  | "circleclose"
+  | "radial"
+  | "smoothleft"
+  | "smoothright"
+  | "zoomin"
+  | "none";
+
+export interface TransitionSpec {
+  type: TransitionType;
+  duration?: number; // seconds, default 0.5
+}
+
+// ─── Animation Presets ──────────────────────────────────────────────
+
+export interface AnimationPreset {
+  id: string;
+  name: string;
+  category: "gentle" | "dynamic" | "cinematic" | "dramatic";
+  motion: MotionSpec;
+  transition: TransitionSpec;
+}
+
+// ─── Video Generation ───────────────────────────────────────────────
+
 export interface VideoGenerationOptions {
   imageUrl: string;
   duration: number;
@@ -8,13 +63,6 @@ export interface VideoGenerationOptions {
   fps?: number;
 }
 
-export interface MotionSpec {
-  type: "zoom" | "pan" | "kenburns" | "static";
-  direction?: "in" | "out" | "left" | "right" | "up" | "down";
-  speed?: number;
-  easing?: "linear" | "ease-in" | "ease-out" | "ease-in-out";
-}
-
 export interface VideoResult {
   videoBuffer: Buffer;
   duration: number;
@@ -22,6 +70,8 @@ export interface VideoResult {
   width: number;
   height: number;
 }
+
+// ─── Audio ──────────────────────────────────────────────────────────
 
 export interface AudioMixOptions {
   voiceoverBuffer: Buffer;
@@ -38,8 +88,11 @@ export interface AudioMixResult {
   format: string;
 }
 
+// ─── Assembly ───────────────────────────────────────────────────────
+
 export interface AssemblyOptions {
   scenes: AssemblyScene[];
+  defaultTransition?: TransitionSpec;
   outputFormat?: "mp4" | "webm";
   width?: number;
   height?: number;
@@ -50,7 +103,7 @@ export interface AssemblyScene {
   videoBuffer: Buffer;
   audioBuffer: Buffer;
   duration: number;
-  transition?: "fade" | "cut" | "dissolve";
+  transition?: TransitionSpec;
 }
 
 export interface AssemblyResult {

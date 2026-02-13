@@ -45,7 +45,7 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 
   if (multiSelect) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 max-h-[300px] overflow-y-auto">
         {models.map((model) => (
           <div
             key={model.id}
@@ -67,9 +67,11 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
             <div className="flex-1 space-y-1">
               <Label
                 htmlFor={model.id}
-                className="flex items-center gap-2 text-sm font-medium leading-none cursor-pointer"
+                className="text-sm font-medium leading-none cursor-pointer"
               >
                 {model.name}
+              </Label>
+              <div className="flex flex-wrap gap-1">
                 <Badge variant="outline" className="text-xs">
                   {model.provider}
                 </Badge>
@@ -82,7 +84,7 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
                     Unavailable
                   </Badge>
                 )}
-              </Label>
+              </div>
             </div>
           </div>
         ))}

@@ -97,8 +97,8 @@ export function ConversationList({ onSelect }: ConversationListProps) {
                   {conv.title || conv.initialPrompt}
                 </p>
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" className="text-xs">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <Badge variant="outline" className="text-xs truncate max-w-[120px]">
                   {conv.model}
                 </Badge>
                 <Badge variant="secondary" className="text-xs">

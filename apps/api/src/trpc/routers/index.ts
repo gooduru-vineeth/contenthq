@@ -23,6 +23,7 @@ import { pipelineConfigRouter } from "./pipeline-config";
 import { mediaOverrideRouter } from "./media-override";
 import { variationRouter } from "./variation";
 import { userModelPreferenceRouter } from "./user-model-preferences";
+import { stockMediaRouter } from "./stock-media";
 
 export const appRouter = router({
   health: healthRouter,
@@ -49,6 +50,7 @@ export const appRouter = router({
   mediaOverride: mediaOverrideRouter,
   variation: variationRouter,
   userModelPreference: userModelPreferenceRouter,
+  stockMedia: stockMediaRouter,
 });
 
 export type AppRouter = typeof appRouter;

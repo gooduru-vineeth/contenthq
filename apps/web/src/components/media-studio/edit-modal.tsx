@@ -109,11 +109,11 @@ export const EditModal: FC<EditModalProps> = ({
           <DialogTitle>Edit Media</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto max-h-[calc(90vh-10rem)]">
           {/* Current Image Preview */}
           <div className="space-y-2">
             <Label>Current Image</Label>
-            <div className="rounded-lg border overflow-hidden relative w-full aspect-square">
+            <div className="rounded-lg border overflow-hidden relative w-full aspect-square max-h-[300px] mx-auto">
               <Image
                 src={mediaUrl}
                 alt="Current media"

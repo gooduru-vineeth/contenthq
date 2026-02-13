@@ -15,6 +15,7 @@ import {
   Bot,
   GitBranch,
   Wand2,
+  Globe,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -33,6 +34,7 @@ export const navigation: NavItem[] = [
   { label: "Speech", href: "/speech-generations", icon: AudioLines },
   { label: "Prompts", href: "/prompts", icon: FileText },
   { label: "Personas", href: "/personas", icon: Users },
+  { label: "Stock Media", href: "/stock-media", icon: Globe },
   { label: "Media Studio", href: "/media-studio", icon: Wand2 },
   { label: "Billing", href: "/billing", icon: CreditCard },
   { label: "Settings", href: "/settings", icon: Settings },

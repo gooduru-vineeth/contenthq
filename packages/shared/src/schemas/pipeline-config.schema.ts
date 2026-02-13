@@ -87,8 +87,10 @@ export const videoGenerationStageConfigSchema = baseStageConfigSchema.extend({
   provider: z.string().optional(),
   model: z.string().optional(),
   motionType: z
-    .enum(["zoom", "pan", "kenburns", "static"])
-    .default("kenburns"),
+    .enum(["zoom_in", "zoom_out", "pan_left", "pan_right", "pan_up", "pan_down", "kenburns_in", "kenburns_out", "static"])
+    .default("kenburns_in"),
+  motionAssignment: z.enum(["system_random", "ai_random", "manual"]).default("system_random"),
+  motionSpeed: z.number().min(0.1).max(1.0).default(0.5),
   durationPerScene: z.number().min(1).max(30).default(5),
 });
 
@@ -155,6 +157,9 @@ export const assemblyStageConfigSchema = baseStageConfigSchema.extend({
   transitions: z
     .enum(["fade", "cut", "dissolve", "wipe"])
     .default("fade"),
+  transitionType: z.enum(["fade", "fadeblack", "fadewhite", "dissolve", "wipeleft", "wiperight", "slideleft", "slideright", "circleopen", "circleclose", "radial", "smoothleft", "smoothright", "zoomin", "none"]).default("fade"),
+  transitionAssignment: z.enum(["system_random", "ai_random", "manual", "uniform"]).default("uniform"),
+  transitionDuration: z.number().min(0.1).max(2.0).default(0.5),
   outputFormat: z.enum(["mp4", "webm", "mov"]).default("mp4"),
   resolution: z.enum(["720p", "1080p", "4k"]).default("1080p"),
   fps: z.number().int().min(24).max(60).default(30),

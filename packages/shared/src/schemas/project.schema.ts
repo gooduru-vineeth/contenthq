@@ -17,6 +17,8 @@ export const createProjectSchema = z.object({
   ttsProvider: z.string().optional(),
   ttsVoiceId: z.string().optional(),
   enableCaptions: z.boolean().default(false),
+  captionStyle: z.string().optional(),
+  captionPosition: z.string().optional(),
   stageConfigs: fullStageConfigsSchema.optional(),
 });
 

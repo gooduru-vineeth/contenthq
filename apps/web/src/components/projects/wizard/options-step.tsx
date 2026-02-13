@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { CaptionStyleSelector } from "./caption-style-selector";
 
 const TONES = [
   { value: "professional", label: "Professional" },
@@ -46,12 +47,6 @@ const VISUAL_STYLES = [
   { value: "minimalist", label: "Minimalist", emoji: "\u{2B1C}" },
   { value: "cartoon", label: "Cartoon", emoji: "\u{1F3AD}" },
   { value: "sketch", label: "Sketch", emoji: "\u{270F}\u{FE0F}" },
-];
-
-const CAPTION_POSITIONS = [
-  { value: "top-center", label: "Top" },
-  { value: "middle-center", label: "Middle" },
-  { value: "bottom-center", label: "Bottom" },
 ];
 
 export const LANGUAGES = [
@@ -217,27 +212,10 @@ export function OptionsStep() {
           />
         </div>
 
-        {/* Caption Position (visible only when captions enabled) */}
+        {/* Caption Style & Position (visible only when captions enabled) */}
         {form.watch("enableCaptions") && (
-          <div className="space-y-2">
-            <Label>Caption Position</Label>
-            <Select
-              value={form.watch("captionPosition" as keyof CreateProjectInput) as string ?? "bottom-center"}
-              onValueChange={(v) =>
-                form.setValue("captionPosition" as keyof CreateProjectInput, v as never)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select position" />
-              </SelectTrigger>
-              <SelectContent>
-                {CAPTION_POSITIONS.map((pos) => (
-                  <SelectItem key={pos.value} value={pos.value}>
-                    {pos.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="rounded-lg border p-4">
+            <CaptionStyleSelector />
           </div>
         )}
       </CardContent>

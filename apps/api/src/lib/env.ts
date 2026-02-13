@@ -18,6 +18,10 @@ const envSchema = z.object({
   ELEVENLABS_API_KEY: z.string().optional(),
   FAL_API_KEY: z.string().optional(),
   REPLICATE_API_TOKEN: z.string().optional(),
+  PEXELS_API_KEY: z.string().optional(),
+  UNSPLASH_ACCESS_KEY: z.string().optional(),
+  PIXABAY_API_KEY: z.string().optional(),
+  STORYBLOCKS_API_KEY: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

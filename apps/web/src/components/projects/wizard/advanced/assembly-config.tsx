@@ -12,12 +12,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 
 const TRANSITIONS = [
   { value: "fade", label: "Fade" },
-  { value: "cut", label: "Cut" },
+  { value: "fadeblack", label: "Fade to Black" },
+  { value: "fadewhite", label: "Fade to White" },
   { value: "dissolve", label: "Dissolve" },
-  { value: "wipe", label: "Wipe" },
+  { value: "wipeleft", label: "Wipe Left" },
+  { value: "wiperight", label: "Wipe Right" },
+  { value: "slideleft", label: "Slide Left" },
+  { value: "slideright", label: "Slide Right" },
+  { value: "circleopen", label: "Circle Open" },
+  { value: "circleclose", label: "Circle Close" },
+  { value: "smoothleft", label: "Smooth Left" },
+  { value: "smoothright", label: "Smooth Right" },
+  { value: "zoomin", label: "Zoom In" },
+  { value: "none", label: "Hard Cut" },
+];
+
+const TRANSITION_ASSIGNMENTS = [
+  { value: "uniform", label: "Same for All" },
+  { value: "system_random", label: "System Random" },
+  { value: "ai_random", label: "AI Contextual" },
+  { value: "manual", label: "Manual" },
 ];
 
 const RESOLUTIONS = [
@@ -38,28 +56,70 @@ export function AssemblyConfig() {
 
   const watermarkEnabled =
     form.watch(`${configKey}.watermarkEnabled` as any) ?? false;
+  const transitionAssignment = form.watch(`${configKey}.transitionAssignment` as any) ?? "uniform";
+  const transitionDuration = form.watch(`${configKey}.transitionDuration` as any) ?? 0.5;
 
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <Label className="text-xs">Transitions</Label>
+        <Label className="text-xs">Transition Assignment</Label>
         <Select
-          value={form.watch(`${configKey}.transitions` as any) ?? "fade"}
+          value={transitionAssignment}
           onValueChange={(v) =>
-            form.setValue(`${configKey}.transitions` as any, v)
+            form.setValue(`${configKey}.transitionAssignment` as any, v)
           }
         >
           <SelectTrigger className="h-8 text-xs">
-            <SelectValue placeholder="Select transition" />
+            <SelectValue placeholder="Select assignment" />
           </SelectTrigger>
           <SelectContent>
-            {TRANSITIONS.map((t) => (
-              <SelectItem key={t.value} value={t.value}>
-                {t.label}
+            {TRANSITION_ASSIGNMENTS.map((a) => (
+              <SelectItem key={a.value} value={a.value}>
+                {a.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+      </div>
+      {(transitionAssignment === "uniform" || transitionAssignment === "manual") && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Transition Type</Label>
+          <Select
+            value={form.watch(`${configKey}.transitionType` as any) ?? "fade"}
+            onValueChange={(v) =>
+              form.setValue(`${configKey}.transitionType` as any, v)
+            }
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Select transition" />
+            </SelectTrigger>
+            <SelectContent>
+              {TRANSITIONS.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className="space-y-1.5">
+        <Label className="text-xs">
+          Transition Duration: {transitionDuration}s
+        </Label>
+        <Slider
+          min={0.1}
+          max={2.0}
+          step={0.1}
+          value={[transitionDuration]}
+          onValueChange={([v]) =>
+            form.setValue(`${configKey}.transitionDuration` as any, v)
+          }
+        />
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span>0.1s</span>
+          <span>2.0s</span>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">

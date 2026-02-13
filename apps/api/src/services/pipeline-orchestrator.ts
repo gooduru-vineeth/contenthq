@@ -312,6 +312,8 @@ export class PipelineOrchestrator {
               model: videoStageConfig.model,
               motionType: videoStageConfig.motionType,
               durationPerScene: videoStageConfig.durationPerScene,
+              motionAssignment: videoStageConfig.motionAssignment,
+              motionSpeed: videoStageConfig.motionSpeed,
             },
           }),
           ...(mediaOverrideUrl && { mediaOverrideUrl }),
@@ -548,10 +550,28 @@ export class PipelineOrchestrator {
     const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
     const captionConfig = frozenConfig?.captionGeneration;
 
+    // Read frozen config for assembly settings
+    const assemblyConfig = frozenConfig?.assembly;
+
     await addVideoAssemblyJob({
       projectId,
       userId,
       sceneIds: activeScenesForAssembly.map((s) => s.id),
+      ...(assemblyConfig && {
+        stageConfig: {
+          transitions: assemblyConfig.transitions,
+          transitionType: assemblyConfig.transitionType,
+          transitionAssignment: assemblyConfig.transitionAssignment,
+          transitionDuration: assemblyConfig.transitionDuration,
+          outputFormat: assemblyConfig.outputFormat,
+          resolution: assemblyConfig.resolution,
+          fps: assemblyConfig.fps,
+          watermarkEnabled: assemblyConfig.watermarkEnabled,
+          watermarkText: assemblyConfig.watermarkText,
+          brandingIntroUrl: assemblyConfig.brandingIntroUrl,
+          brandingOutroUrl: assemblyConfig.brandingOutroUrl,
+        },
+      }),
       ...(captionConfig?.enabled && {
         captionConfig: {
           font: captionConfig.font,

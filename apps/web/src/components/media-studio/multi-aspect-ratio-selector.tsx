@@ -39,7 +39,7 @@ export const MultiAspectRatioSelector: FC<MultiAspectRatioSelectorProps> = ({
         Selected {selectedRatios.length} aspect ratio
         {selectedRatios.length !== 1 ? "s" : ""}
       </p>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {ASPECT_RATIOS.map((ratio) => {
           const isSelected = selectedRatios.includes(ratio.value);
           const isOnlySelected =

@@ -7,6 +7,8 @@ import { eq, and, inArray, asc } from "drizzle-orm";
 import { videoService } from "@contenthq/video";
 import { storage, getOutputPath, getSceneVideoPath, getVideoContentType } from "@contenthq/storage";
 import { formatFileSize } from "@contenthq/ai";
+import type { TransitionSpec, TransitionType } from "@contenthq/video";
+import { pickRandomTransition, mapAiTransitionName } from "@contenthq/video";
 
 export function createVideoAssemblyWorker(): Worker {
   return new Worker<VideoAssemblyJobData>(
@@ -54,7 +56,7 @@ export function createVideoAssemblyWorker(): Worker {
         await job.updateProgress(20);
 
         // Download all scene videos and audio from R2
-        const assemblyScenes = [];
+        const assemblyScenes: Array<{ videoBuffer: Buffer; audioBuffer: Buffer; duration: number; transition?: TransitionSpec }> = [];
         for (const scene of sceneList) {
           const [video] = await db
             .select()
@@ -150,6 +152,48 @@ export function createVideoAssemblyWorker(): Worker {
           });
         }
 
+        // Resolve transitions for each scene based on assignment mode
+        const transitionAssignment = stageConfig?.transitionAssignment ?? "uniform";
+        const transitionDuration = stageConfig?.transitionDuration ?? 0.5;
+        const defaultTransitionType = (stageConfig?.transitionType ?? stageConfig?.transitions ?? "fade") as TransitionType;
+
+        let previousTransitionType: TransitionType | undefined;
+        const resolvedTransitions: TransitionSpec[] = [];
+
+        for (let i = 0; i < assemblyScenes.length; i++) {
+          let transition: TransitionSpec;
+
+          if (i === assemblyScenes.length - 1) {
+            // Last scene has no transition to next
+            transition = { type: "none" };
+          } else if (transitionAssignment === "uniform") {
+            transition = { type: defaultTransitionType, duration: transitionDuration };
+          } else if (transitionAssignment === "system_random") {
+            transition = pickRandomTransition(previousTransitionType);
+            transition.duration = transitionDuration;
+            previousTransitionType = transition.type;
+          } else if (transitionAssignment === "ai_random") {
+            // Read transition from scene DB record
+            const sceneRecord = sceneList[i];
+            if (sceneRecord?.transitions) {
+              const mappedType = mapAiTransitionName(sceneRecord.transitions);
+              transition = { type: mappedType, duration: transitionDuration };
+            } else {
+              transition = pickRandomTransition(previousTransitionType);
+              transition.duration = transitionDuration;
+            }
+            previousTransitionType = transition.type;
+          } else {
+            // "manual" mode - use default
+            transition = { type: defaultTransitionType, duration: transitionDuration };
+          }
+
+          resolvedTransitions.push(transition);
+          assemblyScenes[i].transition = transition;
+        }
+
+        console.warn(`[VideoAssembly] Resolved transitions: assignment=${transitionAssignment}, types=[${resolvedTransitions.map(t => t.type).join(",")}]`);
+
         if (assemblyScenes.length === 0) {
           throw new Error("No valid scenes to assemble");
         }
@@ -160,6 +204,7 @@ export function createVideoAssemblyWorker(): Worker {
         console.warn(`[VideoAssembly] Assembling ${assemblyScenes.length} scene(s) for project ${projectId}: resolution=${assemblyWidth}x${assemblyHeight}`);
         const result = await videoService.assembleProject({
           scenes: assemblyScenes,
+          defaultTransition: { type: defaultTransitionType, duration: transitionDuration },
           width: assemblyWidth,
           height: assemblyHeight,
         });

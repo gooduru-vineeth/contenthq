@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import { writeFile, readFile, unlink, mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import type { MotionSpec, MotionType, TransitionSpec } from "./types";
 
 const execAsync = promisify(exec);
 
@@ -57,12 +58,51 @@ export async function createTempDir(): Promise<string> {
   return mkdtemp(join(tmpdir(), "contenthq-video-"));
 }
 
+function buildZoompanFilter(
+  motionType: MotionType,
+  speed: number,
+  duration: number,
+  fps: number,
+  width: number,
+  height: number,
+): string {
+  const d = Math.round(duration * fps);
+  const maxDelta = 0.04 + speed * 0.16;
+  const panPx = Math.round(width * 0.05 + width * speed * 0.15);
+  const panPxH = Math.round(height * 0.05 + height * speed * 0.15);
+  const w2 = width * 2;
+  const h2 = height * 2;
+
+  switch (motionType) {
+    case "zoom_in":
+      return `zoompan=z='1.0+${maxDelta}*on/${d}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${d}:s=${w2}x${h2}:fps=${fps}`;
+    case "zoom_out":
+      return `zoompan=z='(1.0+${maxDelta})-${maxDelta}*on/${d}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${d}:s=${w2}x${h2}:fps=${fps}`;
+    case "pan_left":
+      return `zoompan=z='1.1':x='${panPx}*(1-on/${d})':y='ih/2-(ih/zoom/2)':d=${d}:s=${w2}x${h2}:fps=${fps}`;
+    case "pan_right":
+      return `zoompan=z='1.1':x='${panPx}*on/${d}':y='ih/2-(ih/zoom/2)':d=${d}:s=${w2}x${h2}:fps=${fps}`;
+    case "pan_up":
+      return `zoompan=z='1.1':x='iw/2-(iw/zoom/2)':y='${panPxH}*(1-on/${d})':d=${d}:s=${w2}x${h2}:fps=${fps}`;
+    case "pan_down":
+      return `zoompan=z='1.1':x='iw/2-(iw/zoom/2)':y='${panPxH}*on/${d}':d=${d}:s=${w2}x${h2}:fps=${fps}`;
+    case "kenburns_in":
+      return `zoompan=z='1.0+${maxDelta}*on/${d}':x='iw/2-(iw/zoom/2)+${Math.round(panPx * 0.3)}*on/${d}':y='ih/2-(ih/zoom/2)+${Math.round(panPx * 0.2)}*on/${d}':d=${d}:s=${w2}x${h2}:fps=${fps}`;
+    case "kenburns_out":
+      return `zoompan=z='(1.0+${maxDelta})-${maxDelta}*on/${d}':x='iw/2-(iw/zoom/2)-${Math.round(panPx * 0.3)}*on/${d}':y='ih/2-(ih/zoom/2)-${Math.round(panPx * 0.2)}*on/${d}':d=${d}:s=${w2}x${h2}:fps=${fps}`;
+    case "static":
+    default:
+      return `zoompan=z='1.0':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${d}:s=${w2}x${h2}:fps=${fps}`;
+  }
+}
+
 export async function imageToVideo(
   imageBuffer: Buffer,
   duration: number,
   width = 1920,
   height = 1080,
   fps = 30,
+  motionSpec?: MotionSpec,
 ): Promise<Buffer> {
   validateDimensions(width, height);
   validateFps(fps);
@@ -75,15 +115,34 @@ export async function imageToVideo(
   try {
     await writeFile(inputPath, imageBuffer);
 
-    const cmd = [
-      "ffmpeg -y",
-      `-loop 1 -i "${inputPath}"`,
-      `-c:v libx264 -t ${duration}`,
-      `-pix_fmt yuv420p`,
-      `-vf "scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2"`,
-      `-r ${fps}`,
-      `"${outputPath}"`,
-    ].join(" ");
+    let cmd: string;
+
+    if (motionSpec) {
+      const speed = Math.max(0.1, Math.min(1.0, motionSpec.speed ?? 0.5));
+      const zoompanFilter = buildZoompanFilter(motionSpec.type, speed, duration, fps, width, height);
+      const w2 = width * 2;
+      const h2 = height * 2;
+
+      cmd = [
+        "ffmpeg -y",
+        `-loop 1 -i "${inputPath}"`,
+        `-vf "scale=${w2}:${h2}:force_original_aspect_ratio=decrease,pad=${w2}:${h2}:(ow-iw)/2:(oh-ih)/2,${zoompanFilter},scale=${width}:${height}"`,
+        `-c:v libx264 -t ${duration}`,
+        `-pix_fmt yuv420p`,
+        `-r ${fps}`,
+        `"${outputPath}"`,
+      ].join(" ");
+    } else {
+      cmd = [
+        "ffmpeg -y",
+        `-loop 1 -i "${inputPath}"`,
+        `-c:v libx264 -t ${duration}`,
+        `-pix_fmt yuv420p`,
+        `-vf "scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2"`,
+        `-r ${fps}`,
+        `"${outputPath}"`,
+      ].join(" ");
+    }
 
     await execAsync(cmd, { timeout: 120000 });
     return readFile(outputPath);
@@ -143,10 +202,11 @@ export async function mixAudio(
 }
 
 export async function assembleVideo(
-  sceneFiles: Array<{ videoPath: string; audioPath: string; duration: number }>,
+  sceneFiles: Array<{ videoPath: string; audioPath: string; duration: number; transition?: TransitionSpec }>,
   outputPath: string,
   width = 1920,
   height = 1080,
+  defaultTransition?: TransitionSpec,
 ): Promise<Buffer> {
   validateDimensions(width, height);
 
@@ -154,14 +214,13 @@ export async function assembleVideo(
   const concatFile = join(tempDir, "concat.txt");
 
   try {
-    // Create concat file for video segments
+    // Merge each scene's video and audio
     const mergedScenes: string[] = [];
 
     for (let i = 0; i < sceneFiles.length; i++) {
       const scene = sceneFiles[i];
       const mergedPath = join(tempDir, `merged_${i}.mp4`);
 
-      // Merge each scene's video and audio
       const cmd = [
         "ffmpeg -y",
         `-i "${scene.videoPath}" -i "${scene.audioPath}"`,
@@ -175,20 +234,110 @@ export async function assembleVideo(
       mergedScenes.push(mergedPath);
     }
 
-    // Write concat list
-    const concatContent = mergedScenes.map((p) => `file '${p}'`).join("\n");
-    await writeFile(concatFile, concatContent);
+    // Determine if any scene uses a non-"none" transition
+    const resolvedTransitions: TransitionSpec[] = [];
+    for (let i = 0; i < sceneFiles.length - 1; i++) {
+      const t = sceneFiles[i + 1]?.transition ?? defaultTransition ?? { type: "none" as const };
+      resolvedTransitions.push(t);
+    }
 
-    // Concatenate all scenes
-    const cmd = [
-      "ffmpeg -y",
-      `-f concat -safe 0 -i "${concatFile}"`,
-      `-c:v libx264 -c:a aac`,
-      `-vf "scale=${width}:${height}"`,
-      `"${outputPath}"`,
-    ].join(" ");
+    const hasTransitions = mergedScenes.length > 1 &&
+      resolvedTransitions.some((t) => t.type !== "none");
 
-    await execAsync(cmd, { timeout: 300000 });
+    if (mergedScenes.length === 1) {
+      // Single scene: just scale to output dimensions
+      const cmd = [
+        "ffmpeg -y",
+        `-i "${mergedScenes[0]}"`,
+        `-c:v libx264 -c:a aac`,
+        `-vf "scale=${width}:${height}"`,
+        `"${outputPath}"`,
+      ].join(" ");
+
+      await execAsync(cmd, { timeout: 300000 });
+    } else if (!hasTransitions) {
+      // No transitions: use simple concat demuxer (fast, no re-encoding)
+      const concatContent = mergedScenes.map((p) => `file '${p}'`).join("\n");
+      await writeFile(concatFile, concatContent);
+
+      const cmd = [
+        "ffmpeg -y",
+        `-f concat -safe 0 -i "${concatFile}"`,
+        `-c:v libx264 -c:a aac`,
+        `-vf "scale=${width}:${height}"`,
+        `"${outputPath}"`,
+      ].join(" ");
+
+      await execAsync(cmd, { timeout: 300000 });
+    } else {
+      // Transitions: build xfade + acrossfade filter_complex
+      const inputs = mergedScenes.map((p) => `-i "${p}"`).join(" ");
+
+      // Calculate capped transition durations
+      const transDurations: number[] = [];
+      for (let i = 0; i < resolvedTransitions.length; i++) {
+        const t = resolvedTransitions[i];
+        const rawDur = t.duration ?? 0.5;
+        const maxDur = Math.min(
+          sceneFiles[i].duration,
+          sceneFiles[i + 1].duration,
+        ) * 0.4;
+        transDurations.push(t.type === "none" ? 0.01 : Math.min(rawDur, maxDur));
+      }
+
+      // Build video xfade chain
+      const videoFilters: string[] = [];
+      let cumulativeDuration = sceneFiles[0].duration;
+      let lastVideoLabel = "[0:v]";
+
+      for (let i = 0; i < resolvedTransitions.length; i++) {
+        const t = resolvedTransitions[i];
+        const td = transDurations[i];
+        const xfadeType = t.type === "none" ? "fade" : t.type;
+        const offset = Math.max(0, cumulativeDuration - td);
+        const outLabel = i === resolvedTransitions.length - 1 ? "[vfinal]" : `[v${i}]`;
+
+        videoFilters.push(
+          `${lastVideoLabel}[${i + 1}:v]xfade=transition=${xfadeType}:duration=${td}:offset=${offset}${outLabel}`,
+        );
+
+        lastVideoLabel = outLabel;
+        cumulativeDuration = offset + sceneFiles[i + 1].duration;
+      }
+
+      // Build audio acrossfade chain
+      const audioFilters: string[] = [];
+      let lastAudioLabel = "[0:a]";
+
+      for (let i = 0; i < resolvedTransitions.length; i++) {
+        const td = transDurations[i];
+        const outLabel = i === resolvedTransitions.length - 1 ? "[afinal]" : `[a${i}]`;
+
+        audioFilters.push(
+          `${lastAudioLabel}[${i + 1}:a]acrossfade=d=${td}:c1=tri:c2=tri${outLabel}`,
+        );
+
+        lastAudioLabel = outLabel;
+      }
+
+      // Final scale filter
+      const scaleFilter = `[vfinal]scale=${width}:${height}[vout]`;
+
+      const filterComplex = [...videoFilters, ...audioFilters, scaleFilter].join(";\n");
+
+      const cmd = [
+        "ffmpeg -y",
+        inputs,
+        `-filter_complex "${filterComplex}"`,
+        `-map "[vout]" -map "[afinal]"`,
+        `-c:v libx264 -c:a aac`,
+        `-pix_fmt yuv420p`,
+        `"${outputPath}"`,
+      ].join(" ");
+
+      await execAsync(cmd, { timeout: 600000 });
+    }
+
     return readFile(outputPath);
   } finally {
     await rm(tempDir, { recursive: true, force: true }).catch(() => {});

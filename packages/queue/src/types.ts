@@ -80,6 +80,8 @@ export interface VideoGenerationJobData extends BaseFlowJobData {
     provider?: string;
     model?: string;
     motionType?: string;
+    motionAssignment?: string;
+    motionSpeed?: number;
     durationPerScene?: number;
   };
 }
@@ -123,6 +125,9 @@ export interface VideoAssemblyJobData extends BaseFlowJobData {
   sceneIds: string[];
   stageConfig?: {
     transitions?: string;
+    transitionType?: string;
+    transitionAssignment?: string;
+    transitionDuration?: number;
     outputFormat?: string;
     resolution?: string;
     fps?: number;

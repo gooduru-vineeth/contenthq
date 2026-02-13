@@ -49,7 +49,7 @@ export class VideoService {
     const height = options.height ?? 1080;
     const fps = options.fps ?? 30;
 
-    const videoBuffer = await imageToVideo(imageBuffer, options.duration, width, height, fps);
+    const videoBuffer = await imageToVideo(imageBuffer, options.duration, width, height, fps, options.motionSpec);
 
     return {
       videoBuffer,
@@ -98,7 +98,7 @@ export class VideoService {
         const audioPath = join(tempDir, `audio_${i}.mp3`);
         await writeFile(videoPath, scene.videoBuffer);
         await writeFile(audioPath, scene.audioBuffer);
-        return { videoPath, audioPath, duration: scene.duration };
+        return { videoPath, audioPath, duration: scene.duration, transition: scene.transition };
       }),
     );
 
@@ -108,6 +108,7 @@ export class VideoService {
       outputPath,
       options.width ?? 1920,
       options.height ?? 1080,
+      options.defaultTransition,
     );
 
     const totalDuration = options.scenes.reduce((sum, s) => sum + s.duration, 0);

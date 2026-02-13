@@ -57,7 +57,7 @@ export const MultiModelSelector: FC<MultiModelSelectorProps> = ({
         </p>
       </div>
 
-      <ScrollArea className="h-[400px] rounded-md border p-4">
+      <ScrollArea className="max-h-[400px] rounded-md border p-4">
         <div className="space-y-6">
           {Object.entries(groupedModels).map(([provider, providerModels]) => (
             <div key={provider} className="space-y-3">

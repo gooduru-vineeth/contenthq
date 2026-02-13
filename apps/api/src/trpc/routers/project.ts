@@ -9,7 +9,7 @@ export const projectRouter = router({
   create: protectedProcedure
     .input(createProjectSchema)
     .mutation(async ({ ctx, input }) => {
-      const { pipelineMode, stageConfigs, visualStyle, ttsProvider, ttsVoiceId, enableCaptions, ...projectData } = input;
+      const { pipelineMode, stageConfigs, visualStyle, ttsProvider, ttsVoiceId, enableCaptions, captionStyle, captionPosition, ...projectData } = input;
       const [project] = await db
         .insert(projects)
         .values({
@@ -24,7 +24,7 @@ export const projectRouter = router({
           ? {
               ...(visualStyle ? { sceneGeneration: { visualStyle } } : {}),
               ...(ttsProvider || ttsVoiceId ? { tts: { ...(ttsProvider ? { provider: ttsProvider } : {}), ...(ttsVoiceId ? { voiceId: ttsVoiceId } : {}) } } : {}),
-              ...(enableCaptions ? { captionGeneration: { enabled: true } } : {}),
+              ...(enableCaptions ? { captionGeneration: { enabled: true, ...(captionStyle ? { animationStyle: captionStyle } : {}), ...(captionPosition ? { position: captionPosition } : {}) } } : {}),
             }
           : {}
       );
