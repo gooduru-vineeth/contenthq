@@ -150,7 +150,7 @@ export function HeroSection() {
             {/* Subtitle */}
             <motion.p
               variants={itemVariants}
-              className="mx-auto mb-10 max-w-xl text-xl leading-relaxed text-muted-foreground sm:text-2xl lg:mx-0"
+              className="mx-auto mb-10 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0 lg:text-left"
             >
               Paste a link, type a topic, or upload your content. ContentHQ
               writes the script, creates the visuals, adds a natural voiceover,
@@ -223,7 +223,7 @@ export function HeroSection() {
               variants={itemVariants}
               className="text-center"
             >
-              <div className="text-2xl font-bold text-gradient-landing-modern sm:text-3xl">
+              <div className="text-xl font-bold text-gradient-landing-modern sm:text-2xl">
                 {stat.value}
               </div>
               <div className="mt-1.5 text-xs text-muted-foreground sm:text-sm">

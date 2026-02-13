@@ -171,6 +171,156 @@ body {
   background-clip: text;
 }
 
+/* ── Per-word hero headline colors ── */
+
+/* "Transform" — vivid violet */
+.hero-word-transform {
+  background: linear-gradient(135deg, #7C3AED, #8B5CF6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(124, 58, 237, 0.18));
+}
+.dark .hero-word-transform {
+  background: linear-gradient(135deg, #A78BFA, #C4B5FD);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(167, 139, 250, 0.22));
+}
+
+/* "Raw" — rose / hot pink */
+.hero-word-raw {
+  background: linear-gradient(135deg, #E11D48, #F43F5E);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(225, 29, 72, 0.18));
+}
+.dark .hero-word-raw {
+  background: linear-gradient(135deg, #FB7185, #FDA4AF);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(251, 113, 133, 0.22));
+}
+
+/* "Content" — ocean blue */
+.hero-word-content {
+  background: linear-gradient(135deg, #2563EB, #3B82F6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(37, 99, 235, 0.18));
+}
+.dark .hero-word-content {
+  background: linear-gradient(135deg, #60A5FA, #93C5FD);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(96, 165, 250, 0.22));
+}
+
+/* "Into" — teal / cyan */
+.hero-word-into {
+  background: linear-gradient(135deg, #0891B2, #06B6D4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(8, 145, 178, 0.18));
+}
+.dark .hero-word-into {
+  background: linear-gradient(135deg, #22D3EE, #67E8F9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(34, 211, 238, 0.22));
+}
+
+/* "Polished" — emerald green */
+.hero-word-polished {
+  background: linear-gradient(135deg, #059669, #10B981, #34D399);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  filter:
+    drop-shadow(0 2px 4px rgba(5, 150, 105, 0.2))
+    drop-shadow(0 4px 12px rgba(16, 185, 129, 0.15));
+}
+.dark .hero-word-polished {
+  background: linear-gradient(135deg, #34D399, #6EE7B7, #A7F3D0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  filter:
+    drop-shadow(0 2px 4px rgba(52, 211, 153, 0.25))
+    drop-shadow(0 4px 12px rgba(110, 231, 183, 0.18));
+}
+
+/* "Videos" — amber / gold */
+.hero-word-videos {
+  background: linear-gradient(135deg, #D97706, #F59E0B, #FBBF24);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  filter:
+    drop-shadow(0 2px 4px rgba(217, 119, 6, 0.2))
+    drop-shadow(0 4px 12px rgba(245, 158, 11, 0.15));
+}
+.dark .hero-word-videos {
+  background: linear-gradient(135deg, #FBBF24, #FCD34D, #FDE68A);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  filter:
+    drop-shadow(0 2px 4px rgba(251, 191, 36, 0.25))
+    drop-shadow(0 4px 12px rgba(252, 211, 77, 0.18));
+}
+
+/* "with" — indigo */
+.hero-word-with {
+  background: linear-gradient(135deg, #4F46E5, #6366F1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(79, 70, 229, 0.18));
+}
+.dark .hero-word-with {
+  background: linear-gradient(135deg, #818CF8, #A5B4FC);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(129, 140, 248, 0.22));
+}
+
+/* "AI" — magenta → orange gradient with neon glow */
+.hero-word-ai {
+  background: linear-gradient(135deg, #EC4899, #F59E0B, #F97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  filter:
+    drop-shadow(0 2px 4px rgba(236, 72, 153, 0.22))
+    drop-shadow(0 4px 12px rgba(245, 158, 11, 0.2))
+    drop-shadow(0 8px 24px rgba(249, 115, 22, 0.15));
+}
+.dark .hero-word-ai {
+  background: linear-gradient(135deg, #F472B6, #FCD34D, #FB923C);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  filter:
+    drop-shadow(0 2px 4px rgba(244, 114, 182, 0.28))
+    drop-shadow(0 4px 12px rgba(252, 211, 77, 0.2))
+    drop-shadow(0 8px 24px rgba(251, 146, 60, 0.15));
+}
+
 /* Modern text gradient — vibrant purple → blue → cyan */
 .text-gradient-landing-modern {
   background: linear-gradient(135deg, #6D28D9, #2563EB, #0891B2);
