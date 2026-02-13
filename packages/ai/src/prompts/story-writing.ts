@@ -16,14 +16,15 @@ REQUIREMENTS:
 - Each scene should be 5-10 seconds long
 - Include clear visual descriptions for each scene
 - Write narration scripts that are engaging and concise
-- Ensure smooth transitions between scenes
+- For each scene, choose a camera motion (zoom_in, zoom_out, pan_left, pan_right, pan_up, pan_down, kenburns_in, kenburns_out, static) with speed 0.1-1.0
+- For each scene, choose a transition to the next scene (fade, fadeblack, fadewhite, dissolve, wipeleft, wiperight, slideleft, slideright, circleopen, circleclose, radial, smoothleft, smoothright, zoomin, none). Use "none" for the last scene.
 
 Create a structured story with:
 1. A compelling title
 2. An attention-grabbing hook (first line the viewer hears)
 3. A brief synopsis
 4. A narrative arc (setup, rising action, climax, resolution)
-5. Individual scenes with: visual description, narration script, and suggested duration`;
+5. Individual scenes with: visual description, narration script, suggested duration, camera motion, and transition`;
 }
 
 export function getStoryOutputSchema() {
@@ -43,6 +44,8 @@ export function getStoryOutputSchema() {
         visualDescription: "What the viewer sees",
         narrationScript: "What the narrator says",
         duration: 8,
+        motionSpec: { type: "kenburns_in", speed: 0.5 },
+        transition: "fade",
       },
     ],
   };

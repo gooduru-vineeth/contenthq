@@ -138,8 +138,8 @@ export function createStoryWritingWorker(): Worker {
               narrationScript: sceneData.narrationScript,
               duration: sceneData.duration,
               status: "outlined",
-              ...(sceneData.motionSpec && { motionSpec: sceneData.motionSpec }),
-              ...(sceneData.transition && { transitions: sceneData.transition }),
+              motionSpec: sceneData.motionSpec,
+              transitions: sceneData.transition,
             });
           }
 

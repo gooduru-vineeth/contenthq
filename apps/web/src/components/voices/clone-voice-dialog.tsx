@@ -40,6 +40,7 @@ interface AudioFile {
   file: File;
   duration: number | null;
   error: string | null;
+  warning: string | null;
 }
 
 const MAX_FILES = 3;
@@ -136,7 +137,7 @@ export function CloneVoiceDialog({
       if (audioFiles.length + newFiles.length >= MAX_FILES) break;
 
       if (!ALLOWED_TYPES.includes(file.type)) {
-        newFiles.push({ file, duration: null, error: "Unsupported format. Use WAV, MP3, or WebM." });
+        newFiles.push({ file, duration: null, error: "Unsupported format. Use WAV, MP3, or WebM.", warning: null });
         continue;
       }
 
@@ -145,12 +146,14 @@ export function CloneVoiceDialog({
         const durationError =
           duration < 5
             ? "Audio must be at least 5 seconds"
-            : duration > 15
-              ? "Audio must be 15 seconds or less"
-              : null;
-        newFiles.push({ file, duration, error: durationError });
+            : null;
+        const durationWarning =
+          duration > 15
+            ? "Audio longer than 15s will be trimmed automatically"
+            : null;
+        newFiles.push({ file, duration, error: durationError, warning: durationWarning });
       } catch {
-        newFiles.push({ file, duration: null, error: "Could not read audio duration" });
+        newFiles.push({ file, duration: null, error: "Could not read audio duration", warning: null });
       }
     }
 
@@ -334,8 +337,9 @@ export function CloneVoiceDialog({
         {step === "upload" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Upload 1-3 audio samples (WAV, MP3, or WebM). Each should be 5-15
-              seconds of clear speech.
+              Upload 1-3 audio samples (WAV, MP3, or WebM). Each should be at
+              least 5 seconds of clear speech. For best results, use 10-15
+              second clips; longer audio will be trimmed automatically.
             </p>
 
             <div
@@ -386,6 +390,9 @@ export function CloneVoiceDialog({
                         )}
                         {af.error && (
                           <p className="text-xs text-destructive">{af.error}</p>
+                        )}
+                        {!af.error && af.warning && (
+                          <p className="text-xs text-amber-500">{af.warning}</p>
                         )}
                       </div>
                     </div>

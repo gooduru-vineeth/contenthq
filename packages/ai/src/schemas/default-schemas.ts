@@ -17,14 +17,22 @@ export const storyOutputSchema = z.object({
   scenes: z.array(
     z.object({
       index: z.number(),
-      visualDescription: z.string(),
-      narrationScript: z.string(),
-      duration: z.number(),
+      visualDescription: z.string().describe("Detailed description of what the viewer sees"),
+      narrationScript: z.string().describe("What the narrator says during this scene"),
+      duration: z.number().describe("Scene duration in seconds, typically 5-10"),
       motionSpec: z.object({
-        type: z.string(),
-        speed: z.number(),
-      }).optional(),
-      transition: z.string().optional(),
+        type: z.enum([
+          "zoom_in", "zoom_out", "pan_left", "pan_right", "pan_up", "pan_down",
+          "kenburns_in", "kenburns_out", "static",
+        ]).describe("Camera motion effect"),
+        speed: z.number().describe("Motion speed from 0.1 (subtle) to 1.0 (dramatic)"),
+      }),
+      transition: z.enum([
+        "fade", "fadeblack", "fadewhite", "dissolve",
+        "wipeleft", "wiperight", "slideleft", "slideright",
+        "circleopen", "circleclose", "radial",
+        "smoothleft", "smoothright", "zoomin", "none",
+      ]).describe("Transition to next scene. Use 'none' for the last scene."),
     })
   ),
 });
@@ -36,12 +44,23 @@ export const sceneOutputSchema = z.object({
   scenes: z.array(
     z.object({
       index: z.number(),
-      visualDescription: z.string(),
-      imagePrompt: z.string(),
-      narrationScript: z.string(),
-      motionSpec: z.string(),
-      transition: z.string(),
-      duration: z.number(),
+      visualDescription: z.string().describe("Detailed description of what the viewer sees"),
+      imagePrompt: z.string().describe("Optimized prompt for AI image generation"),
+      narrationScript: z.string().describe("What the narrator says"),
+      motionSpec: z.object({
+        type: z.enum([
+          "zoom_in", "zoom_out", "pan_left", "pan_right", "pan_up", "pan_down",
+          "kenburns_in", "kenburns_out", "static",
+        ]).describe("Camera motion effect"),
+        speed: z.number().describe("Motion speed from 0.1 (subtle) to 1.0 (dramatic)"),
+      }),
+      transition: z.enum([
+        "fade", "fadeblack", "fadewhite", "dissolve",
+        "wipeleft", "wiperight", "slideleft", "slideright",
+        "circleopen", "circleclose", "radial",
+        "smoothleft", "smoothright", "zoomin", "none",
+      ]).describe("Transition to next scene. Use 'none' for the last scene."),
+      duration: z.number().describe("Scene duration in seconds"),
     })
   ),
 });
