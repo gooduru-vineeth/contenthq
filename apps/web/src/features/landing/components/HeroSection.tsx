@@ -108,12 +108,7 @@ export function HeroSection() {
           animate="visible"
           className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16"
         >
-          {/* Left Column — 3D Floating Pipeline Card */}
-          <motion.div variants={itemVariants}>
-            <FloatingCard />
-          </motion.div>
-
-          {/* Right Column — Text Content */}
+          {/* Left Column — Text Content */}
           <div className="text-center lg:text-left">
             {/* Badge */}
             <motion.div variants={itemVariants} className="mb-8 inline-flex">
@@ -206,6 +201,11 @@ export function HeroSection() {
               </Button>
             </motion.div>
           </div>
+
+          {/* Right Column — 3D Floating Pipeline Card */}
+          <motion.div variants={itemVariants}>
+            <FloatingCard />
+          </motion.div>
         </motion.div>
 
         {/* Stats Row */}
