@@ -394,6 +394,51 @@ export const testimonials: Testimonial[] = [
   },
 ];
 
+// --- Testimonial Accents ---
+export interface TestimonialAccent {
+  /** Tailwind gradient classes for the avatar circle */
+  avatarGradient: string;
+  /** RGB string for glow radial-gradient, e.g. "40, 69, 228" */
+  glowColor: string;
+  /** Tailwind fill/text classes for star rating */
+  starColor: string;
+  /** Tailwind gradient classes for accent bar at card top */
+  accentGradient: string;
+}
+
+export const TESTIMONIAL_ACCENTS: TestimonialAccent[] = [
+  {
+    avatarGradient: "from-brand-700 to-brand-500",
+    glowColor: "40, 69, 228",
+    starColor: "fill-brand-400 text-brand-400",
+    accentGradient: "from-brand-600 via-brand-500 to-brand-400",
+  },
+  {
+    avatarGradient: "from-cta-600 to-cta-400",
+    glowColor: "246, 128, 72",
+    starColor: "fill-cta-400 text-cta-400",
+    accentGradient: "from-cta-600 via-cta-500 to-cta-400",
+  },
+  {
+    avatarGradient: "from-emerald-600 to-emerald-400",
+    glowColor: "16, 185, 129",
+    starColor: "fill-emerald-400 text-emerald-400",
+    accentGradient: "from-emerald-600 via-emerald-500 to-emerald-400",
+  },
+  {
+    avatarGradient: "from-violet-600 to-violet-400",
+    glowColor: "139, 92, 246",
+    starColor: "fill-violet-400 text-violet-400",
+    accentGradient: "from-violet-600 via-violet-500 to-violet-400",
+  },
+  {
+    avatarGradient: "from-rose-600 to-rose-400",
+    glowColor: "244, 63, 94",
+    starColor: "fill-rose-400 text-rose-400",
+    accentGradient: "from-rose-600 via-rose-500 to-rose-400",
+  },
+];
+
 // --- Stats ---
 export interface Stat {
   value: string;

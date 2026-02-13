@@ -1,11 +1,77 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import type { Variants } from "framer-motion";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { testimonials } from "../lib/constants";
+import { testimonials, TESTIMONIAL_ACCENTS } from "../lib/constants";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
+import { TestimonialCard3D } from "./TestimonialCard3D";
+
+/* ------------------------------------------------------------------ */
+/*  3D Transition Variants                                             */
+/* ------------------------------------------------------------------ */
+
+function getCardVariants(prefersReducedMotion: boolean): Variants {
+  if (prefersReducedMotion) {
+    return { initial: {}, animate: {}, exit: {} };
+  }
+
+  return {
+    initial: {
+      opacity: 0,
+      scale: 0.85,
+      rotateY: 15,
+      filter: "blur(4px)",
+    },
+    animate: {
+      opacity: 1,
+      scale: 1,
+      rotateY: 0,
+      filter: "blur(0px)",
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94],
+      },
+    },
+    exit: {
+      opacity: 0,
+      scale: 0.9,
+      rotateY: -10,
+      filter: "blur(3px)",
+      transition: {
+        duration: 0.4,
+        ease: [0.55, 0.085, 0.68, 0.53],
+      },
+    },
+  };
+}
+
+/** Mobile uses simpler opacity+scale (no rotateY/blur for perf) */
+function getMobileCardVariants(prefersReducedMotion: boolean): Variants {
+  if (prefersReducedMotion) {
+    return { initial: {}, animate: {}, exit: {} };
+  }
+
+  return {
+    initial: { opacity: 0, scale: 0.92 },
+    animate: {
+      opacity: 1,
+      scale: 1,
+      transition: { duration: 0.4, ease: "easeOut" },
+    },
+    exit: {
+      opacity: 0,
+      scale: 0.95,
+      transition: { duration: 0.3, ease: "easeIn" },
+    },
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
 
 export function TestimonialsSection() {
   const [current, setCurrent] = useState(0);
@@ -21,27 +87,97 @@ export function TestimonialsSection() {
     [total],
   );
 
+  /* Auto-advance — pauses when tab hidden or reduced-motion */
   useEffect(() => {
     if (prefersReducedMotion) return;
-    const timer = setInterval(next, 5000);
-    return () => clearInterval(timer);
+
+    let timer: ReturnType<typeof setInterval>;
+
+    function start() {
+      timer = setInterval(next, 5000);
+    }
+    function stop() {
+      clearInterval(timer);
+    }
+
+    function handleVisibility() {
+      if (document.hidden) stop();
+      else start();
+    }
+
+    start();
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [next, prefersReducedMotion]);
 
-  // Visible indices: current and next 2 (desktop shows 3)
-  const visibleIndices = [
+  const desktopIndices = [
     current,
     (current + 1) % total,
     (current + 2) % total,
   ];
+  const tabletIndices = [current, (current + 1) % total];
+
+  const cardVariants = getCardVariants(prefersReducedMotion);
+  const mobileVariants = getMobileCardVariants(prefersReducedMotion);
 
   return (
-    <section className="py-24 bg-muted/30">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section className="relative overflow-hidden py-24">
+      {/* ---- Background layers ---- */}
+      <div className="pointer-events-none absolute inset-0">
+        {/* Base gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-50/50 via-white to-violet-50/30 dark:from-brand-950/30 dark:via-background dark:to-violet-950/20" />
+
+        {/* Center radial glow */}
+        <div className="absolute left-1/2 top-1/2 h-[600px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-200/20 blur-3xl dark:bg-brand-800/10" />
+
+        {/* Dot grid overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.025] dark:opacity-[0.04]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle, currentColor 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+      </div>
+
+      {/* Floating ambient orbs */}
+      {!prefersReducedMotion && (
+        <>
+          <motion.div
+            animate={{ y: [0, -20, 0], x: [0, 10, 0] }}
+            transition={{
+              duration: 10,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-brand-400/[0.08] blur-3xl dark:bg-brand-500/[0.05]"
+          />
+          <motion.div
+            animate={{ y: [0, 15, 0], x: [0, -15, 0] }}
+            transition={{
+              duration: 12,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 2,
+            }}
+            className="pointer-events-none absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-violet-400/[0.08] blur-3xl dark:bg-violet-500/[0.05]"
+          />
+        </>
+      )}
+
+      {/* ---- Content ---- */}
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Heading */}
         <motion.div
           initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="mb-12 text-center"
+          className="mb-14 text-center"
         >
           <span className="mb-3 inline-block rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 dark:border-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
             Testimonials
@@ -52,47 +188,37 @@ export function TestimonialsSection() {
           </h2>
         </motion.div>
 
-        {/* Desktop - 3 visible cards */}
-        <div className="hidden md:block">
-          <div className="grid grid-cols-3 gap-6">
+        {/* ---- Desktop: 3 cards ---- */}
+        <div className="hidden lg:block">
+          <div
+            className="grid grid-cols-3 gap-8"
+            style={{ perspective: "1200px" }}
+          >
             <AnimatePresence mode="popLayout">
-              {visibleIndices.map((idx) => {
+              {desktopIndices.map((idx, col) => {
                 const t = testimonials[idx];
+                const accent =
+                  TESTIMONIAL_ACCENTS[idx % TESTIMONIAL_ACCENTS.length];
                 return (
                   <motion.div
-                    key={`${t.name}-${idx}`}
-                    initial={
+                    key={`desktop-${t.name}-${idx}`}
+                    variants={cardVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    transition={
                       prefersReducedMotion
                         ? undefined
-                        : { opacity: 0, x: 50 }
+                        : { delay: col * 0.1 }
                     }
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -50 }}
-                    transition={{ duration: 0.4 }}
-                    className="rounded-xl border bg-card p-6 shadow-sm"
+                    style={{ transformStyle: "preserve-3d" as const }}
                   >
-                    <div className="mb-3 flex gap-0.5">
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <Star
-                          key={j}
-                          className="h-4 w-4 fill-cta-400 text-cta-400"
-                        />
-                      ))}
-                    </div>
-                    <p className="mb-4 text-sm text-muted-foreground">
-                      &quot;{t.quote}&quot;
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-700 to-brand-500 text-xs font-bold text-white">
-                        {t.initials}
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold">{t.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {t.role}, {t.company}
-                        </div>
-                      </div>
-                    </div>
+                    <TestimonialCard3D
+                      testimonial={t}
+                      accent={accent}
+                      columnIndex={col}
+                      prefersReducedMotion={prefersReducedMotion}
+                    />
                   </motion.div>
                 );
               })}
@@ -100,49 +226,70 @@ export function TestimonialsSection() {
           </div>
         </div>
 
-        {/* Mobile - 1 card */}
+        {/* ---- Tablet: 2 cards ---- */}
+        <div className="hidden md:block lg:hidden">
+          <div
+            className="grid grid-cols-2 gap-6"
+            style={{ perspective: "1000px" }}
+          >
+            <AnimatePresence mode="popLayout">
+              {tabletIndices.map((idx, col) => {
+                const t = testimonials[idx];
+                const accent =
+                  TESTIMONIAL_ACCENTS[idx % TESTIMONIAL_ACCENTS.length];
+                return (
+                  <motion.div
+                    key={`tablet-${t.name}-${idx}`}
+                    variants={cardVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    transition={
+                      prefersReducedMotion
+                        ? undefined
+                        : { delay: col * 0.1 }
+                    }
+                    style={{ transformStyle: "preserve-3d" as const }}
+                  >
+                    <TestimonialCard3D
+                      testimonial={t}
+                      accent={accent}
+                      columnIndex={col}
+                      prefersReducedMotion={prefersReducedMotion}
+                    />
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* ---- Mobile: 1 card ---- */}
         <div className="md:hidden">
           <AnimatePresence mode="wait">
             <motion.div
-              key={current}
-              initial={
-                prefersReducedMotion ? undefined : { opacity: 0, x: 40 }
-              }
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -40 }}
-              className="rounded-xl border bg-card p-6 shadow-sm"
+              key={`mobile-${current}`}
+              variants={mobileVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
             >
-              <div className="mb-3 flex gap-0.5">
-                {Array.from({ length: 5 }).map((_, j) => (
-                  <Star
-                    key={j}
-                    className="h-4 w-4 fill-cta-400 text-cta-400"
-                  />
-                ))}
-              </div>
-              <p className="mb-4 text-sm text-muted-foreground">
-                &quot;{testimonials[current].quote}&quot;
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-700 to-brand-500 text-xs font-bold text-white">
-                  {testimonials[current].initials}
-                </div>
-                <div>
-                  <div className="text-sm font-semibold">
-                    {testimonials[current].name}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {testimonials[current].role},{" "}
-                    {testimonials[current].company}
-                  </div>
-                </div>
-              </div>
+              <TestimonialCard3D
+                testimonial={testimonials[current]}
+                accent={
+                  TESTIMONIAL_ACCENTS[
+                    current % TESTIMONIAL_ACCENTS.length
+                  ]
+                }
+                columnIndex={0}
+                prefersReducedMotion={prefersReducedMotion}
+              />
             </motion.div>
           </AnimatePresence>
         </div>
 
-        {/* Controls */}
-        <div className="mt-8 flex items-center justify-center gap-4">
+        {/* ---- Controls ---- */}
+        <div className="relative z-10 mt-10 flex items-center justify-center gap-4">
           <Button variant="ghost" size="icon" onClick={prev}>
             <ChevronLeft className="h-5 w-5" />
             <span className="sr-only">Previous</span>

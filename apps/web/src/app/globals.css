@@ -190,3 +190,15 @@ body {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
+@keyframes testimonial-glow {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+@keyframes card-float {
+  0%, 100% { transform: translateY(0) rotateX(0deg) rotateY(0deg); }
+  25% { transform: translateY(-6px) rotateX(1deg) rotateY(-0.5deg); }
+  50% { transform: translateY(-8px) rotateX(-0.5deg) rotateY(1deg); }
+  75% { transform: translateY(-4px) rotateX(0.5deg) rotateY(-0.5deg); }
+}
