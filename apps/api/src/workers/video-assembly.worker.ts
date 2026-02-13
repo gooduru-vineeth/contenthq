@@ -6,6 +6,7 @@ import { projects, scenes, sceneVideos, sceneVisuals, sceneAudioMixes, generatio
 import { eq, and, inArray, asc } from "drizzle-orm";
 import { videoService } from "@contenthq/video";
 import { storage, getOutputPath, getSceneVideoPath, getVideoContentType } from "@contenthq/storage";
+import { formatFileSize } from "@contenthq/ai";
 
 export function createVideoAssemblyWorker(): Worker {
   return new Worker<VideoAssemblyJobData>(
@@ -156,7 +157,7 @@ export function createVideoAssemblyWorker(): Worker {
         await job.updateProgress(50);
 
         // Assemble final video with FFmpeg
-        console.warn(`[VideoAssembly] Assembling ${assemblyScenes.length} scene(s) for project ${projectId}`);
+        console.warn(`[VideoAssembly] Assembling ${assemblyScenes.length} scene(s) for project ${projectId}: resolution=${assemblyWidth}x${assemblyHeight}`);
         const result = await videoService.assembleProject({
           scenes: assemblyScenes,
           width: assemblyWidth,
@@ -170,7 +171,7 @@ export function createVideoAssemblyWorker(): Worker {
         const uploadResult = await storage.uploadFileWithRetry(outputKey, result.videoBuffer, getVideoContentType(result.format));
         const finalVideoUrl = uploadResult.url;
 
-        console.warn(`[VideoAssembly] Uploaded final video for project ${projectId}: key=${outputKey}`);
+        console.warn(`[VideoAssembly] Uploaded final video for project ${projectId}: key=${outputKey}, fileSize=${formatFileSize(result.videoBuffer.length)}, format=${result.format}`);
 
         await job.updateProgress(90);
 
@@ -188,7 +189,7 @@ export function createVideoAssemblyWorker(): Worker {
         await job.updateProgress(100);
         const completedAt = new Date();
         const durationMs = completedAt.getTime() - startedAt.getTime();
-        console.warn(`[VideoAssembly] Completed for project ${projectId}: ${assemblyScenes.length} scenes assembled, finalVideoUrl=${finalVideoUrl.substring(0, 80)} (${durationMs}ms)`);
+        console.warn(`[VideoAssembly] Completed for project ${projectId}: ${assemblyScenes.length} scenes assembled, resolution=${assemblyWidth}x${assemblyHeight}, outputSize=${formatFileSize(result.videoBuffer.length)}, format=${result.format}, finalVideoUrl=${finalVideoUrl.substring(0, 80)} (${durationMs}ms)`);
 
         // Mark generationJob as completed
         await db

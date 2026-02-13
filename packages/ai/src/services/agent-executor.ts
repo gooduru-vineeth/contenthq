@@ -7,6 +7,7 @@ import { resolvePromptForStage } from "../prompts/resolver";
 import { composePrompt } from "../prompts/composer";
 import { getSchema } from "../schemas/registry";
 import type { AgentConfig } from "@contenthq/shared";
+import { truncateForLog } from "../utils/log-helpers";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DrizzleDb = any;
@@ -46,13 +47,19 @@ export async function executeAgent(
   // Step 1: Resolve agent config
   const config = await resolveAgentConfig(options);
 
+  console.warn(`[AgentExecutor] Step 1 - Config resolved: agentId=${options.agentId ?? "inline"}, agentType=${config.agentType}, aiModelId=${config.aiModelId ?? "default"}, promptTemplateId=${config.promptTemplateId ?? "none"}, hasSystemPrompt=${!!config.systemPrompt}`);
+
   // Step 2: Resolve model
   const resolved = config.aiModelId
     ? await resolveModelFromDb(db, { modelId: config.aiModelId })
     : await resolveModelFromDb(db, { type: mapAgentTypeToProviderType(config.agentType) });
 
+  console.warn(`[AgentExecutor] Step 2 - Model resolved: provider=${resolved.provider}, modelId=${resolved.modelId}`);
+
   // Step 3: Resolve prompt
   const prompt = await resolvePrompt(config, variables, projectId, userId, db);
+
+  console.warn(`[AgentExecutor] Step 3 - Prompt resolved: promptLength=${prompt.length}, prompt="${truncateForLog(prompt, 200)}"`);
 
   // Step 4: Resolve output schema
   const schema = resolveOutputSchema(config);
@@ -126,6 +133,8 @@ export async function executeAgent(
   }
 
   const durationMs = Date.now() - startTime;
+
+  console.warn(`[AgentExecutor] Step 5 - Execution complete: agentType=${config.agentType}, provider=${resolved.provider}, model=${resolved.modelId}, inputTokens=${tokens.input}, outputTokens=${tokens.output}, durationMs=${durationMs}`);
 
   // Step 6: Record in ai_generations table
   if (userId) {

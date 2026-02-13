@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES, addVisualVerificationJob } from "@contenthq/queue";
 import type { VisualGenerationJobData } from "@contenthq/queue";
-import { generateImage, executeAgent } from "@contenthq/ai";
+import { generateImage, executeAgent, truncateForLog, formatFileSize } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
 import { scenes, sceneVisuals, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -86,10 +86,10 @@ export function createVisualGenerationWorker(): Worker {
           });
           const resultData = result.data as { url: string };
           imageUrl = resultData.url;
-          console.warn(`[VisualGeneration] Agent generated image for scene ${sceneId}: url=${imageUrl?.substring(0, 80)}`);
+          console.warn(`[VisualGeneration] Agent generated image for scene ${sceneId}: url=${imageUrl?.substring(0, 80)}, prompt="${truncateForLog(imagePrompt, 200)}"`);
         } else {
           // Existing path: generate image directly
-          console.warn(`[VisualGeneration] Generating image directly for scene ${sceneId} (${imageSize}, ${imageQuality})`);
+          console.warn(`[VisualGeneration] Generating image directly for scene ${sceneId}: provider=openai, model=dall-e-3, size=${imageSize}, quality=${imageQuality}, prompt="${truncateForLog(imagePrompt, 200)}"`);
           const result = await generateImage({
             prompt: imagePrompt,
             size: imageSize,
@@ -109,6 +109,7 @@ export function createVisualGenerationWorker(): Worker {
         const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
         const storageKey = getSceneVisualPath(userId, projectId, sceneId, `visual.${ext}`);
         const r2Upload = await storage.uploadFileWithRetry(storageKey, imageBuffer, contentType);
+        console.warn(`[VisualGeneration] Uploaded to R2: storageKey=${storageKey}, fileSize=${formatFileSize(imageBuffer.length)}, contentType=${contentType}`);
         const r2ImageUrl = r2Upload.url;
 
         // Fetch the scene to get visualDescription for verification
@@ -195,7 +196,7 @@ export function createVisualGenerationWorker(): Worker {
         const completedAt = new Date();
         const durationMs = completedAt.getTime() - startedAt.getTime();
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[VisualGeneration] Failed for scene ${sceneId} after ${durationMs}ms:`, errorMessage);
+        console.error(`[VisualGeneration] Failed for scene ${sceneId} after ${durationMs}ms: prompt="${truncateForLog(imagePrompt, 100)}", error:`, errorMessage);
 
         // Mark generationJob as failed
         await db

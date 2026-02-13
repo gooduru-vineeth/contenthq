@@ -25,7 +25,7 @@ export function createSpeechGenerationWorker(): Worker {
 
         await job.updateProgress(100);
         console.warn(
-          `[SpeechGen] Completed generation ${speechGenerationId}, duration: ${result.duration}s`
+          `[SpeechGen] Completed generation ${speechGenerationId}: duration=${result.duration}s, provider=${result.provider ?? "unknown"}, format=${result.format ?? "unknown"}`
         );
         return { success: true, speechGenerationId };
       } catch (error) {

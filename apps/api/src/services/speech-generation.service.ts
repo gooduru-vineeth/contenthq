@@ -4,6 +4,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { addSpeechGenerationJob } from "@contenthq/queue";
 import type { SpeechGenerationJobData } from "@contenthq/queue";
 import { storage, getSpeechGenerationPath, getAudioContentType } from "@contenthq/storage";
+import { truncateForLog, formatFileSize } from "@contenthq/ai";
 
 interface CreateInput {
   text: string;
@@ -128,6 +129,8 @@ class SpeechGenerationService {
       throw new Error(`Speech generation not found: ${speechGenerationId}`);
     }
 
+    console.warn(`[SpeechGenService] Processing generation ${speechGenerationId}: provider=${generation.provider}, voiceId=${generation.voiceId}, model=${generation.model ?? "default"}, textLength=${generation.inputText.length}, format=${generation.audioFormat ?? "mp3"}, text="${truncateForLog(generation.inputText, 200)}"`);
+
     try {
       // Dynamic import to avoid requiring TTS package at startup
       const { getTTSProviderService } = await import("@contenthq/tts");
@@ -169,6 +172,8 @@ class SpeechGenerationService {
           | "sarvam"
       );
 
+      console.warn(`[SpeechGenService] TTS result for ${speechGenerationId}: provider=${generation.provider}, voiceId=${generation.voiceId}, duration=${result.duration}s, format=${result.format}, fileSize=${formatFileSize(result.audioBuffer.length)}, estimatedCost=${result.estimatedCost ?? "N/A"}`);
+
       await db
         .update(speechGenerations)
         .set({ progress: 70, updatedAt: new Date() })
@@ -178,6 +183,8 @@ class SpeechGenerationService {
       const audioKey = getSpeechGenerationPath(generation.userId, speechGenerationId, `audio.${result.format}`);
       const uploadResult = await storage.uploadFile(audioKey, result.audioBuffer, getAudioContentType(result.format));
       const audioUrl = uploadResult.url;
+
+      console.warn(`[SpeechGenService] Uploaded audio for ${speechGenerationId}: storageKey=${audioKey}, fileSize=${formatFileSize(result.audioBuffer.length)}`);
 
       const durationMs = Math.round(result.duration * 1000);
       const fileSizeBytes = result.audioBuffer.length;
@@ -204,8 +211,10 @@ class SpeechGenerationService {
         speechGenerationId,
         duration: result.duration,
         format: result.format,
+        provider: generation.provider,
       };
     } catch (error) {
+      console.error(`[SpeechGenService] Failed generation ${speechGenerationId}: provider=${generation.provider}, voiceId=${generation.voiceId}, error:`, error);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       await db

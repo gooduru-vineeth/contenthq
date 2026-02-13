@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { MediaGenerationJobData } from "@contenthq/queue";
-import { mediaProviderRegistry } from "@contenthq/ai";
+import { mediaProviderRegistry, truncateForLog, formatFileSize } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
 import { generatedMedia } from "@contenthq/db/schema";
 import { storage } from "@contenthq/storage";
@@ -28,13 +28,15 @@ export function createMediaGenerationWorker(): Worker {
       } = job.data;
 
       console.warn(
-        `[MediaGeneration] Processing job ${job.id} for media ${generatedMediaId}`
+        `[MediaGeneration] Processing job ${job.id} for media ${generatedMediaId}: model=${model}, mediaType=${mediaType}, prompt="${truncateForLog(prompt, 200)}", aspectRatio=${aspectRatio ?? "default"}, quality=${quality ?? "default"}, style=${style ?? "default"}, duration=${duration ?? "N/A"}, count=${count ?? 1}, hasReferenceImage=${!!referenceImageUrl}, isEdit=${!!editOptions}`
       );
+
+      let provider: ReturnType<typeof mediaProviderRegistry.getProviderForModel>;
 
       try {
         await job.updateProgress(10);
 
-        const provider = mediaProviderRegistry.getProviderForModel(model);
+        provider = mediaProviderRegistry.getProviderForModel(model);
         if (!provider) {
           throw new Error(`No provider found for model: ${model}`);
         }
@@ -99,6 +101,8 @@ export function createMediaGenerationWorker(): Worker {
         }
 
         await job.updateProgress(60);
+
+        console.warn(`[MediaGeneration] Generation complete for media ${generatedMediaId}: hasImages=${!!(result.images && result.images.length > 0)}, hasVideo=${!!result.videoUrl}, generationTimeMs=${result.generationTimeMs}`);
 
         let mediaUrl: string;
         let storageKey: string;
@@ -177,7 +181,7 @@ export function createMediaGenerationWorker(): Worker {
 
         await job.updateProgress(100);
         console.warn(
-          `[MediaGeneration] Completed media ${generatedMediaId} in ${result.generationTimeMs}ms`
+          `[MediaGeneration] Completed media ${generatedMediaId}: provider=${provider.name}, model=${model}, mediaType=${mediaType}, fileSize=${formatFileSize(fileSize)}, storageKey=${storageKey}, dimensions=${width ?? "?"}x${height ?? "?"}, revisedPrompt="${truncateForLog(revisedPrompt, 150)}", generationTimeMs=${result.generationTimeMs}`
         );
 
         return { success: true, generatedMediaId, mediaUrl };
@@ -185,7 +189,7 @@ export function createMediaGenerationWorker(): Worker {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         console.error(
-          `[MediaGeneration] Failed for media ${generatedMediaId}:`,
+          `[MediaGeneration] Failed for media ${generatedMediaId}: provider=${provider?.name ?? "unknown"}, model=${model}, mediaType=${mediaType}, prompt="${truncateForLog(prompt, 100)}"`,
           error
         );
 

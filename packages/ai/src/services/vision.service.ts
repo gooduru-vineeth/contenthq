@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
-import { getModelInstance } from "../providers/model-factory";
-import { OPENAI_MODELS } from "../providers/openai";
+import { getModelInstance, ANTHROPIC_MODELS } from "../providers/model-factory";
 import { z } from "zod";
+import { truncateForLog } from "../utils/log-helpers";
 
 const verificationSchema = z.object({
   relevance: z.number().min(0).max(30).describe("How relevant the image is to the description (0-30)"),
@@ -20,10 +20,12 @@ export async function verifyImage(
   sceneDescription: string,
   threshold = 60,
   customPrompt?: string,
-  provider = "openai",
+  provider = "anthropic",
   modelId?: string,
 ): Promise<VerificationResult> {
-  const model = getModelInstance(provider, modelId ?? OPENAI_MODELS.GPT4O);
+  const model = getModelInstance(provider, modelId ?? ANTHROPIC_MODELS.CLAUDE_SONNET_4_5);
+
+  console.warn(`[VisionService] Verifying image: provider=${provider}, model=${modelId ?? "claude-sonnet-4-5"}, threshold=${threshold}, imageUrl="${imageUrl.substring(0, 80)}", sceneDescription="${truncateForLog(sceneDescription, 150)}", hasCustomPrompt=${!!customPrompt}`);
 
   const result = await generateObject({
     model,
@@ -48,6 +50,8 @@ Total score = sum of all criteria (0-100). Approved if total >= ${threshold}.`,
       },
     ],
   });
+
+  console.warn(`[VisionService] Verification result: provider=${provider}, model=${modelId ?? "claude-sonnet-4-5"}, approved=${result.object.approved}, totalScore=${result.object.totalScore}, relevance=${result.object.relevance}, quality=${result.object.quality}`);
 
   return result.object;
 }

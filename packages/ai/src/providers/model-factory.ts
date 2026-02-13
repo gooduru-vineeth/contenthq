@@ -8,12 +8,14 @@ import {
   getVertexAnthropicProvider,
 } from "./google-vertex";
 
+export { ANTHROPIC_MODELS } from "./anthropic";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DrizzleDb = any;
 
 export const SUPPORTED_PROVIDERS = [
-  "openai",
   "anthropic",
+  "openai",
   "google",
   "xai",
   "vertex-google",
@@ -23,8 +25,8 @@ export const SUPPORTED_PROVIDERS = [
 export type SupportedProvider = (typeof SUPPORTED_PROVIDERS)[number];
 
 const PROVIDER_DEFAULTS: Record<string, string> = {
+  anthropic: ANTHROPIC_MODELS.CLAUDE_SONNET_4_5,
   openai: OPENAI_MODELS.GPT4O,
-  anthropic: ANTHROPIC_MODELS.CLAUDE_SONNET,
   google: GOOGLE_MODELS.GEMINI_PRO,
   xai: XAI_MODELS.GROK_3,
   "vertex-google": GOOGLE_MODELS.GEMINI_2_FLASH,
@@ -138,6 +140,7 @@ export async function resolveModelFromDb(
 
     if (results.length > 0) {
       const row = results[0];
+      console.warn(`[ModelFactory] Resolved from DB: provider=${row.providerSlug}, model=${row.modelId}, name="${row.modelName}", isDefault=${row.isDefault}`);
       const model = getModelInstance(row.providerSlug, row.modelId);
       return {
         provider: row.providerSlug,
@@ -151,9 +154,10 @@ export async function resolveModelFromDb(
     console.warn("[ModelFactory] DB resolution failed, falling back to defaults");
   }
 
-  // Fallback: use openai/gpt-4o by default, or match provider type
-  const fallbackProvider = options?.type === "vision" ? "openai" : "openai";
-  const fallbackModelId = PROVIDER_DEFAULTS[fallbackProvider] ?? OPENAI_MODELS.GPT4O;
+  // Fallback: use anthropic/claude-sonnet-4.5 by default, openai for vision
+  const fallbackProvider = options?.type === "vision" ? "openai" : "anthropic";
+  const fallbackModelId = PROVIDER_DEFAULTS[fallbackProvider] ?? ANTHROPIC_MODELS.CLAUDE_SONNET_4_5;
+  console.warn(`[ModelFactory] Using fallback: provider=${fallbackProvider}, model=${fallbackModelId}, reason=${options?.type ? "type=" + options.type : "default"}`);
   const model = getModelInstance(fallbackProvider, fallbackModelId);
 
   return {

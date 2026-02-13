@@ -6,6 +6,7 @@ import { sceneVideos, scenes, projects, generationJobs } from "@contenthq/db/sch
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { storage, getSceneAudioPath, getAudioContentType } from "@contenthq/storage";
+import { formatFileSize } from "@contenthq/ai";
 
 export function createTTSGenerationWorker(): Worker {
   return new Worker<TTSGenerationJobData>(
@@ -76,7 +77,7 @@ export function createTTSGenerationWorker(): Worker {
           provider: provider as "openai" | "elevenlabs" | "google",
         });
 
-        console.warn(`[TTS] Speech generated for scene ${sceneId}: duration=${result.duration}s, format=${result.format}`);
+        console.warn(`[TTS] Speech generated for scene ${sceneId}: duration=${result.duration}s, format=${result.format}, audioFileSize=${formatFileSize(result.audioBuffer.length)}`);
         await job.updateProgress(70);
 
         // Upload voiceover to R2
@@ -128,7 +129,7 @@ export function createTTSGenerationWorker(): Worker {
         await job.updateProgress(100);
         const completedAt = new Date();
         const durationMs = completedAt.getTime() - startedAt.getTime();
-        console.warn(`[TTS] Completed for scene ${sceneId}: audioDuration=${result.duration}s, voiceoverKey=${voiceoverKey} (${durationMs}ms)`);
+        console.warn(`[TTS] Completed for scene ${sceneId}: audioDuration=${result.duration}s, voiceoverKey=${voiceoverKey}, fileSize=${formatFileSize(result.audioBuffer.length)} (${durationMs}ms)`);
 
         // Mark generationJob as completed
         await db

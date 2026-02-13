@@ -20,6 +20,7 @@ export function createVisualVerificationWorker(): Worker {
       // Apply stageConfig overrides
       const verificationThreshold = stageConfig?.threshold ?? 60;
       const maxRetries = stageConfig?.autoRetryCount ?? 3;
+      console.warn(`[VisualVerification] Config: threshold=${verificationThreshold}, maxRetries=${maxRetries}, provider=${stageConfig?.provider ?? "anthropic"}, model=${stageConfig?.model ?? "default"}`);
 
       try {
         // Mark generationJob as processing

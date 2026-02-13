@@ -99,6 +99,7 @@ export function createStoryWritingWorker(): Worker {
           });
           storyData = result.data as z.infer<typeof storyOutputSchema>;
           usedModel = result.model;
+          console.warn(`[StoryWriting] Agent execution complete: provider=${result.provider}, model=${result.model}, inputTokens=${result.tokens.input}, outputTokens=${result.tokens.output}, durationMs=${result.durationMs}`);
         } else {
           // Existing path: resolvePromptForStage + generateStructuredContent
           console.warn(`[StoryWriting] Using prompt template path for project ${projectId}`);
@@ -123,6 +124,7 @@ export function createStoryWritingWorker(): Worker {
           });
           storyData = result.data;
           usedModel = result.model;
+          console.warn(`[StoryWriting] LLM generation complete: provider=${result.provider}, model=${result.model}, inputTokens=${result.tokens.input}, outputTokens=${result.tokens.output}, temperature=${effectiveTemperature}, maxTokens=${effectiveMaxTokens}, promptTemplateId=${templateId ?? "none"}`);
         }
 
         await job.updateProgress(70);
@@ -184,7 +186,7 @@ export function createStoryWritingWorker(): Worker {
         const completedAt = new Date();
         const durationMs = completedAt.getTime() - startedAt.getTime();
         console.warn(
-          `[StoryWriting] Completed for project ${projectId}: "${storyData.title}" with ${storyData.scenes.length} scenes, storyId=${story.id} (${durationMs}ms)`
+          `[StoryWriting] Completed for project ${projectId}: "${storyData.title}" with ${storyData.scenes.length} scenes, storyId=${story.id}, model=${usedModel ?? "unknown"} (${durationMs}ms)`
         );
 
         // Mark generationJob as completed

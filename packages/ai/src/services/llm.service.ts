@@ -1,13 +1,13 @@
 import { generateText, generateObject, streamText, streamObject } from "ai";
 import type { z } from "zod";
-import { getModelInstance, resolveModelFromDb } from "../providers/model-factory";
-import { OPENAI_MODELS } from "../providers/openai";
+import { getModelInstance, resolveModelFromDb, ANTHROPIC_MODELS } from "../providers/model-factory";
 import type {
   GenerationOptions,
   GenerationResult,
   StructuredGenerationResult,
   StreamingGenerationResult,
 } from "../types";
+import { truncateForLog } from "../utils/log-helpers";
 
 async function getModel(options?: GenerationOptions) {
   // If a DB instance and model ID are provided, resolve from DB
@@ -27,8 +27,8 @@ async function getModel(options?: GenerationOptions) {
   }
 
   // Synchronous path: use provider slug + model name
-  const providerName = options?.provider || "openai";
-  const modelName = options?.model || OPENAI_MODELS.GPT4O;
+  const providerName = options?.provider || "anthropic";
+  const modelName = options?.model || ANTHROPIC_MODELS.CLAUDE_SONNET_4_5;
   const model = getModelInstance(providerName, modelName);
   return { model, provider: providerName, modelId: modelName };
 }
@@ -39,6 +39,8 @@ export async function generateTextContent(
 ): Promise<GenerationResult> {
   const { model, provider, modelId } = await getModel(options);
 
+  console.warn(`[LLMService] generateTextContent: provider=${provider}, model=${modelId}, temperature=${options?.temperature ?? "default"}, maxTokens=${options?.maxTokens ?? "default"}, promptLength=${prompt.length}, prompt="${truncateForLog(prompt, 200)}"`);
+
   const result = await generateText({
     model,
     prompt,
@@ -46,6 +48,8 @@ export async function generateTextContent(
     temperature: options?.temperature,
     maxOutputTokens: options?.maxTokens,
   });
+
+  console.warn(`[LLMService] generateTextContent complete: provider=${provider}, model=${modelId}, inputTokens=${result.usage?.inputTokens ?? 0}, outputTokens=${result.usage?.outputTokens ?? 0}, responseLength=${result.text.length}`);
 
   return {
     content: result.text,
@@ -65,6 +69,8 @@ export async function generateStructuredContent<T>(
 ): Promise<StructuredGenerationResult<T>> {
   const { model, provider, modelId } = await getModel(options);
 
+  console.warn(`[LLMService] generateStructuredContent: provider=${provider}, model=${modelId}, temperature=${options?.temperature ?? "default"}, maxTokens=${options?.maxTokens ?? "default"}, promptLength=${prompt.length}, prompt="${truncateForLog(prompt, 200)}"`);
+
   const result = await generateObject({
     model,
     prompt,
@@ -73,6 +79,8 @@ export async function generateStructuredContent<T>(
     temperature: options?.temperature,
     maxOutputTokens: options?.maxTokens,
   });
+
+  console.warn(`[LLMService] generateStructuredContent complete: provider=${provider}, model=${modelId}, inputTokens=${result.usage?.inputTokens ?? 0}, outputTokens=${result.usage?.outputTokens ?? 0}`);
 
   return {
     data: result.object,

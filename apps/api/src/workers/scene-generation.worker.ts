@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { SceneGenerationJobData } from "@contenthq/queue";
-import { generateTextContent, resolvePromptForStage, executeAgent } from "@contenthq/ai";
+import { generateTextContent, resolvePromptForStage, executeAgent, truncateForLog } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
 import { scenes, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -77,6 +77,7 @@ export function createSceneGenerationWorker(): Worker {
               db,
             });
             imagePrompt = result.data as string;
+            console.warn(`[SceneGeneration] Agent generated prompt for scene ${scene.id}: agentId=${effectiveAgentId}, imagePrompt="${truncateForLog(imagePrompt, 200)}"`);
           } else {
             // Existing path: resolvePromptForStage + generateTextContent
             const { composedPrompt } = await resolvePromptForStage(
@@ -86,11 +87,13 @@ export function createSceneGenerationWorker(): Worker {
               "image_refinement",
               { visualDescription: scene.visualDescription }
             );
+            console.warn(`[SceneGeneration] Prompt template resolved: templateType=image_refinement, composedPromptLength=${composedPrompt.length}`);
             const result = await generateTextContent(composedPrompt, {
               temperature: 0.7,
               maxTokens: 500,
             });
             imagePrompt = result.content;
+            console.warn(`[SceneGeneration] LLM generated prompt for scene ${scene.id}: provider=${result.provider}, model=${result.model}, inputTokens=${result.tokens.input}, outputTokens=${result.tokens.output}, imagePrompt="${truncateForLog(imagePrompt, 200)}"`);
           }
 
           sceneUpdates.push({ sceneId: scene.id, imagePrompt });

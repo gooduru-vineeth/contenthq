@@ -40,7 +40,7 @@ export function createIngestionWorker(): Worker {
         // Extract content
         console.warn(`[Ingestion] Starting content extraction from ${sourceUrl?.substring(0, 100)} for project ${projectId}`);
         const result = await ingestionService.ingest(sourceUrl);
-        console.warn(`[Ingestion] Content extracted for project ${projectId}: platform=${result.sourcePlatform}, title="${result.title?.substring(0, 80)}", bodyLength=${result.body?.length ?? 0} chars`);
+        console.warn(`[Ingestion] Content extracted for project ${projectId}: platform=${result.sourcePlatform}, title="${result.title?.substring(0, 80)}", bodyLength=${result.body?.length ?? 0} chars, engagementScore=${result.engagementScore ?? "N/A"}`);
         await job.updateProgress(70);
 
         // Store in database

@@ -8,7 +8,7 @@ import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { videoService } from "@contenthq/video";
 import type { MotionSpec } from "@contenthq/video";
 import { storage, getSceneVideoPath, getVideoContentType } from "@contenthq/storage";
-import { mediaProviderRegistry } from "@contenthq/ai";
+import { mediaProviderRegistry, truncateForLog, formatFileSize } from "@contenthq/ai";
 
 export function createVideoGenerationWorker(): Worker {
   return new Worker<VideoGenerationJobData>(
@@ -82,7 +82,7 @@ export function createVideoGenerationWorker(): Worker {
             || scene?.narrationScript
             || `Generate a cinematic video for this scene`;
 
-          console.warn(`[VideoGeneration] Using AI provider "${aiProvider.name}" model="${stageConfig.model}" for scene ${sceneId}: duration=${duration}s, prompt=${prompt.substring(0, 100)}`);
+          console.warn(`[VideoGeneration] Using AI provider "${aiProvider.name}" model="${stageConfig.model}" for scene ${sceneId}: duration=${duration}s, prompt="${truncateForLog(prompt, 200)}", hasReferenceImage=${!!(imageUrl)}`);
 
           const aiResult = await aiProvider.generateVideo({
             prompt,
@@ -108,7 +108,7 @@ export function createVideoGenerationWorker(): Worker {
           const uploadResult = await storage.uploadFileWithRetry(videoKey, videoBuffer, "video/mp4");
           const videoUrl = uploadResult.url;
 
-          console.warn(`[VideoGeneration] Uploaded AI video for scene ${sceneId}: key=${videoKey} (${aiResult.generationTimeMs}ms generation)`);
+          console.warn(`[VideoGeneration] Uploaded AI video for scene ${sceneId}: key=${videoKey}, fileSize=${formatFileSize(videoBuffer.length)}, generationTimeMs=${aiResult.generationTimeMs}`);
 
           await db.insert(sceneVideos).values({ sceneId, videoUrl, storageKey: videoKey, duration });
           await db.update(scenes).set({ status: "video_generated", updatedAt: new Date() }).where(eq(scenes.id, sceneId));
@@ -142,7 +142,7 @@ export function createVideoGenerationWorker(): Worker {
         }
 
         // FFmpeg fallback: generate video from static image
-        console.warn(`[VideoGeneration] Generating scene video via FFmpeg for ${sceneId}: duration=${duration}s, imageUrl=${imageUrl?.substring(0, 80)}`);
+        console.warn(`[VideoGeneration] Generating scene video via FFmpeg for ${sceneId}: duration=${duration}s, resolution=1920x1080, motionSpecType=${motionSpec ? typeof motionSpec : "none"}, imageUrl=${imageUrl?.substring(0, 80)}`);
         const videoResult = await videoService.generateSceneVideo({
           imageUrl,
           duration,
@@ -158,7 +158,7 @@ export function createVideoGenerationWorker(): Worker {
         const uploadResult = await storage.uploadFileWithRetry(videoKey, videoResult.videoBuffer, getVideoContentType(videoResult.format));
         const videoUrl = uploadResult.url;
 
-        console.warn(`[VideoGeneration] Uploaded video for scene ${sceneId}: key=${videoKey}`);
+        console.warn(`[VideoGeneration] Uploaded video for scene ${sceneId}: key=${videoKey}, fileSize=${formatFileSize(videoResult.videoBuffer.length)}, format=${videoResult.format}`);
 
         // Store video URL in sceneVideos table
         await db.insert(sceneVideos).values({

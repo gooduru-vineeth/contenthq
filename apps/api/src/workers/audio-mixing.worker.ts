@@ -7,6 +7,7 @@ import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { videoService } from "@contenthq/video";
 import { storage, getSceneAudioPath, getAudioContentType } from "@contenthq/storage";
+import { formatFileSize } from "@contenthq/ai";
 
 export function createAudioMixingWorker(): Worker {
   return new Worker<AudioMixingJobData>(
@@ -64,7 +65,7 @@ export function createAudioMixingWorker(): Worker {
             .where(eq(musicTracks.id, musicTrackId));
 
           if (track?.url) {
-            console.warn(`[AudioMix] Downloading music track for scene ${sceneId}: trackId=${musicTrackId}`);
+            console.warn(`[AudioMix] Downloading music track for scene ${sceneId}: trackId=${musicTrackId}, trackName="${track.name ?? "unknown"}"`);
             const musicResponse = await fetch(track.url);
             if (musicResponse.ok) {
               musicBuffer = Buffer.from(await musicResponse.arrayBuffer());
@@ -75,7 +76,7 @@ export function createAudioMixingWorker(): Worker {
         await job.updateProgress(50);
 
         // Mix audio with FFmpeg
-        console.warn(`[AudioMix] Mixing audio for scene ${sceneId}: voiceoverSize=${voiceoverBuffer.length}, hasMusicTrack=${!!musicBuffer}`);
+        console.warn(`[AudioMix] Mixing audio for scene ${sceneId}: voiceoverSize=${formatFileSize(voiceoverBuffer.length)}, musicSize=${musicBuffer ? formatFileSize(musicBuffer.length) : "none"}, voiceoverVolume=${cfgVoiceoverVolume}, musicVolume=${cfgMusicVolume}, ducking=${cfgMusicDucking}`);
         const mixResult = await videoService.mixSceneAudio({
           voiceoverBuffer,
           musicBuffer,
@@ -90,7 +91,7 @@ export function createAudioMixingWorker(): Worker {
         const uploadResult = await storage.uploadFileWithRetry(mixedKey, mixResult.audioBuffer, getAudioContentType(mixResult.format));
         const mixedAudioUrl = uploadResult.url;
 
-        console.warn(`[AudioMix] Uploaded mixed audio for scene ${sceneId}: key=${mixedKey}`);
+        console.warn(`[AudioMix] Uploaded mixed audio for scene ${sceneId}: key=${mixedKey}, outputSize=${formatFileSize(mixResult.audioBuffer.length)}, format=${mixResult.format}`);
 
         // Check if a record already exists for idempotency
         const existing = await db
@@ -137,7 +138,7 @@ export function createAudioMixingWorker(): Worker {
 
         const completedAt = new Date();
         const durationMs = completedAt.getTime() - startedAt.getTime();
-        console.warn(`[AudioMix] Completed for scene ${sceneId}: mixedAudioUrl=${mixedAudioUrl.substring(0, 80)}, musicVolume=${musicTrackId ? 30 : 0} (${durationMs}ms)`);
+        console.warn(`[AudioMix] Completed for scene ${sceneId}: mixedAudioUrl=${mixedAudioUrl.substring(0, 80)}, outputSize=${formatFileSize(mixResult.audioBuffer.length)}, format=${mixResult.format}, voiceoverVolume=${cfgVoiceoverVolume}, musicVolume=${cfgMusicVolume} (${durationMs}ms)`);
 
         // Mark generationJob as completed
         await db
