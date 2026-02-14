@@ -5,8 +5,8 @@ import { NavLink } from "./nav-link";
 
 export function AdminNav() {
   return (
-    <div className="mt-4 border-t pt-4">
-      <p className="mb-2 px-3 text-xs font-semibold uppercase text-muted-foreground/50">
+    <div className="mt-4 border-t border-sidebar-border pt-4">
+      <p className="mb-2 px-3 text-xs font-semibold uppercase text-sidebar-foreground/50">
         Admin
       </p>
       {adminNavigation.map((item) => (
