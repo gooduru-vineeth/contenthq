@@ -42,6 +42,7 @@ export interface SceneGenerationJobData extends BaseFlowJobData {
     visualStyle?: string;
     imagePromptStyle?: string;
     agentId?: string;
+    forceRegeneration?: boolean;
   };
 }
 

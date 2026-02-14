@@ -3,7 +3,6 @@ import {
   Pen,
   Layers,
   Image,
-  ShieldCheck,
   Music,
   Clapperboard,
   FileText,
@@ -14,7 +13,7 @@ import {
 import { PipelineStage } from "@contenthq/shared";
 import type { ConsolidatedStage } from "./types";
 
-/** AI Video pipeline (default — original 10-stage pipeline) */
+/** AI Video pipeline (default — audio-first 10-stage pipeline) */
 const AI_VIDEO_STAGES: ConsolidatedStage[] = [
   {
     id: "ingestion",
@@ -49,22 +48,12 @@ const AI_VIDEO_STAGES: ConsolidatedStage[] = [
   {
     id: "visual-generation",
     label: "Create Visuals",
-    tagline: "Creating visuals & video",
+    tagline: "Generating images",
     icon: Image,
     color: "#6366F1",
     colorEnd: "#4F46E5",
-    rawStages: [PipelineStage.VISUAL_GENERATION, PipelineStage.VIDEO_GENERATION],
+    rawStages: [PipelineStage.VISUAL_GENERATION, PipelineStage.VISUAL_VERIFICATION],
     primaryStage: PipelineStage.VISUAL_GENERATION,
-  },
-  {
-    id: "visual-verification",
-    label: "Quality Check",
-    tagline: "Quality assurance",
-    icon: ShieldCheck,
-    color: "#10B981",
-    colorEnd: "#059669",
-    rawStages: [PipelineStage.VISUAL_VERIFICATION],
-    primaryStage: PipelineStage.VISUAL_VERIFICATION,
   },
   {
     id: "audio-layering",
@@ -77,10 +66,20 @@ const AI_VIDEO_STAGES: ConsolidatedStage[] = [
     primaryStage: PipelineStage.TTS_GENERATION,
   },
   {
+    id: "create-video",
+    label: "Create Video",
+    tagline: "Video & captions",
+    icon: Clapperboard,
+    color: "#10B981",
+    colorEnd: "#059669",
+    rawStages: [PipelineStage.VIDEO_GENERATION, PipelineStage.CAPTION_GENERATION],
+    primaryStage: PipelineStage.VIDEO_GENERATION,
+  },
+  {
     id: "assembly",
     label: "Final Video",
     tagline: "Final video render",
-    icon: Clapperboard,
+    icon: Monitor,
     color: "#EC4899",
     colorEnd: "#DB2777",
     rawStages: [PipelineStage.VIDEO_ASSEMBLY],
