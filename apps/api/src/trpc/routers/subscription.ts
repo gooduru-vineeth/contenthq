@@ -244,7 +244,7 @@ export const subscriptionRouter = router({
           planId: plan.id,
           subscriptionId: subscription.id,
           orderType: "subscription",
-          renewal: true,
+          renewal: "true",
         },
       });
 
