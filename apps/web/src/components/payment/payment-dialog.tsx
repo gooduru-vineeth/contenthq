@@ -16,11 +16,11 @@ interface PaymentDialogProps {
   item: {
     id: string;
     name: string;
-    description?: string;
+    description?: string | null | undefined;
     priceInr: number;
     priceUsd?: number;
     credits: number;
-    bonusCredits?: number;
+    bonusCredits?: number | null | undefined;
     billingInterval?: string;
   } | null;
   onSuccess?: () => void;
@@ -59,7 +59,17 @@ export function PaymentDialog({
               currency: "INR",
             });
 
-      // Open Razorpay checkout
+      // Check if this is a free plan (no payment required)
+      if (!("clientKey" in orderData)) {
+        // Free plan - subscription created directly
+        toast.success("Subscribed successfully!");
+        onOpenChange(false);
+        setStage("preview");
+        onSuccess?.();
+        return;
+      }
+
+      // Open Razorpay checkout for paid plans
       await openCheckout({
         key: orderData.clientKey,
         amount: orderData.amount,

@@ -13,13 +13,13 @@ import { useState } from "react";
 type Plan = {
   id: string;
   name: string;
-  description?: string | null;
+  description?: string | null | undefined;
   priceInr: number;
   priceUsd?: number;
   credits: number;
-  bonusCredits?: number | null;
+  bonusCredits?: number | null | undefined;
   billingInterval?: string;
-  isDefault?: boolean;
+  isDefault?: boolean | null | undefined;
 };
 
 export default function PricingPage() {

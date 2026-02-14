@@ -17,12 +17,13 @@ const PAYMENT_ENABLED = process.env.NEXT_PUBLIC_PAYMENT_ENABLED === "true";
 type Plan = {
   id: string;
   name: string;
-  description?: string | null;
+  description?: string | null | undefined;
   priceInr: number;
   priceUsd?: number;
   credits: number;
-  bonusCredits?: number | null;
+  bonusCredits?: number | null | undefined;
   billingInterval?: string;
+  isDefault?: boolean | null | undefined;
 };
 
 export default function BillingPage() {
@@ -245,9 +246,7 @@ export default function BillingPage() {
                     >
                       {isCurrentPlan
                         ? "Current Plan"
-                        : subscribingPlanId === plan.id
-                          ? "Processing..."
-                          : "Subscribe"}
+                        : "Subscribe"}
                     </Button>
                   </CardContent>
                 </Card>
