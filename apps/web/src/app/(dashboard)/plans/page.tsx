@@ -1,6 +1,6 @@
 "use client";
 
-import { Package, Check, Sparkles, Crown, Zap, Loader2 } from "lucide-react";
+import { Package, Check, Sparkles, Crown, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,33 +9,48 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { PaymentDialog } from "@/components/payment/payment-dialog";
+
+type Plan = {
+  id: string;
+  name: string;
+  description?: string | null | undefined;
+  priceInr: number;
+  priceUsd?: number;
+  credits: number;
+  bonusCredits?: number | null | undefined;
+  billingInterval?: string;
+  isDefault?: boolean | null | undefined;
+};
 
 export default function PlansPage() {
   const { data: plans, isPending } = trpc.subscription.getPlans.useQuery();
   const { data: mySubscription } = trpc.subscription.getMy.useQuery();
   const utils = trpc.useUtils();
-  const [subscribingPlanId, setSubscribingPlanId] = useState<string | null>(null);
+  const [paymentDialog, setPaymentDialog] = useState<{
+    open: boolean;
+    plan: Plan | null;
+  }>({ open: false, plan: null });
 
   const subscribeMutation = trpc.subscription.subscribe.useMutation({
     onSuccess: () => {
       toast.success("Subscribed successfully!");
       utils.subscription.getMy.invalidate();
       utils.billing.getBalance.invalidate();
-      setSubscribingPlanId(null);
     },
     onError: (error) => {
-      if (error.message.includes("coming soon")) {
-        toast.info("Payment integration coming soon! Contact support to subscribe.");
-      } else {
-        toast.error(error.message);
-      }
-      setSubscribingPlanId(null);
+      toast.error(error.message);
     },
   });
 
-  const handleSubscribe = (planId: string) => {
-    setSubscribingPlanId(planId);
-    subscribeMutation.mutate({ planId });
+  const handleSubscribe = (plan: NonNullable<typeof plans>[number]) => {
+    // For free plan, use direct mutation (no payment required)
+    if (plan.isDefault || (plan.priceInr === 0 && plan.priceUsd === 0)) {
+      subscribeMutation.mutate({ planId: plan.id });
+      return;
+    }
+    // For paid plans, open payment dialog
+    setPaymentDialog({ open: true, plan });
   };
 
   const getFeatureList = (plan: NonNullable<typeof plans>[number]) => {
@@ -157,7 +172,6 @@ export default function PlansPage() {
       <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl">
         {plans.map((plan) => {
           const isCurrentPlan = mySubscription?.planId === plan.id;
-          const isSubscribing = subscribingPlanId === plan.id;
 
           return (
             <Card
@@ -236,16 +250,11 @@ export default function PlansPage() {
                   className="w-full"
                   variant={plan.popular ? "default" : "outline"}
                   size="lg"
-                  disabled={isCurrentPlan || isSubscribing}
-                  onClick={() => handleSubscribe(plan.id)}
+                  disabled={isCurrentPlan || subscribeMutation.isPending}
+                  onClick={() => handleSubscribe(plan)}
                 >
                   {isCurrentPlan ? (
                     "Current Plan"
-                  ) : isSubscribing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
                   ) : plan.isDefault ? (
                     "Get Started Free"
                   ) : (
@@ -257,6 +266,19 @@ export default function PlansPage() {
           );
         })}
       </div>
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        open={paymentDialog.open}
+        onOpenChange={(open) => setPaymentDialog({ ...paymentDialog, open })}
+        type="subscription"
+        item={paymentDialog.plan}
+        onSuccess={() => {
+          toast.success("Subscription activated!");
+          utils.subscription.getMy.invalidate();
+          utils.billing.getBalance.invalidate();
+        }}
+      />
     </div>
   );
 }

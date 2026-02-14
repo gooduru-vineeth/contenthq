@@ -584,6 +584,104 @@ async function incrementCreditsUsed(
   });
 }
 
+/**
+ * Renew subscription - extend period and grant new credits
+ * Called by webhook after successful payment
+ */
+async function renewSubscription(subscriptionId: string) {
+  return await db.transaction(async (tx) => {
+    // Lock subscription row
+    const subResult = await tx.execute(
+      sql`SELECT * FROM subscriptions WHERE id = ${subscriptionId} FOR UPDATE`
+    );
+    const subscription = subResult.rows?.[0] as unknown as SubscriptionRow | undefined;
+
+    if (!subscription) {
+      throw new Error(`Subscription ${subscriptionId} not found`);
+    }
+
+    // Get plan details
+    const [plan] = await tx.select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, subscription.plan_id));
+
+    if (!plan) {
+      throw new Error(`Plan ${subscription.plan_id} not found`);
+    }
+
+    // Calculate new period
+    const newPeriodStart = new Date(subscription.current_period_end);
+    const newPeriodEnd = new Date(newPeriodStart);
+
+    if (plan.billingInterval === "monthly") {
+      newPeriodEnd.setMonth(newPeriodEnd.getMonth() + 1);
+    } else if (plan.billingInterval === "yearly") {
+      newPeriodEnd.setFullYear(newPeriodEnd.getFullYear() + 1);
+    }
+
+    // Reset credits for new period
+    const totalCredits = (plan.credits ?? 0) + (plan.bonusCredits ?? 0);
+
+    // Update subscription
+    await tx
+      .update(subscriptions)
+      .set({
+        currentPeriodStart: newPeriodStart,
+        currentPeriodEnd: newPeriodEnd,
+        creditsGranted: totalCredits,
+        creditsUsed: 0,
+        status: "active",
+        cancelAtPeriodEnd: false,
+        cancelledAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(subscriptions.id, subscriptionId));
+
+    // Lock credit balance row
+    const balanceResult = await tx.execute(
+      sql`SELECT * FROM credit_balances WHERE user_id = ${subscription.user_id} FOR UPDATE`
+    );
+    const balance = balanceResult.rows?.[0] as unknown as CreditBalanceRow | undefined;
+
+    if (balance) {
+      // Add renewal credits to balance
+      await tx
+        .update(creditBalances)
+        .set({
+          balance: (balance.balance ?? 0) + totalCredits,
+          lifetimeCreditsReceived: (balance.lifetime_credits_received ?? 0) + totalCredits,
+          lastUpdated: new Date(),
+        })
+        .where(eq(creditBalances.userId, subscription.user_id));
+
+      // Record transaction
+      await tx.insert(creditTransactions).values({
+        userId: subscription.user_id,
+        type: "purchase",
+        amount: totalCredits,
+        description: `Subscription renewed: ${plan.name}`,
+        metadata: {
+          subscriptionId,
+          planId: plan.id,
+          renewal: true,
+        },
+      });
+    }
+
+    // Record change
+    await tx.insert(subscriptionChanges).values({
+      subscriptionId,
+      userId: subscription.user_id,
+      changeType: "reactivated",
+      toPlanId: subscription.plan_id,
+      effectiveDate: newPeriodStart,
+      reason: "Subscription renewed via payment",
+    });
+
+    return subscriptionId;
+  });
+}
+
 // ─── Exports ─────────────────────────────────────────────────────────
 
 export const subscriptionService = {
@@ -592,6 +690,7 @@ export const subscriptionService = {
   changePlan,
   cancelSubscription,
   reactivateSubscription,
+  renewSubscription,
   getUsageStats,
   assignDefaultPlan,
   incrementCreditsUsed,

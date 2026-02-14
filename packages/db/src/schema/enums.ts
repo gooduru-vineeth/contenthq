@@ -101,6 +101,11 @@ export const paymentStatusEnum = pgEnum("payment_status", [
   "refunded",
 ]);
 
+export const orderTypeEnum = pgEnum("order_type", [
+  "credit_pack",
+  "subscription",
+]);
+
 export const creditReservationStatusEnum = pgEnum(
   "credit_reservation_status",
   ["active", "settled", "released", "expired"]

@@ -7,24 +7,47 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { PaymentDialog } from "@/components/payment/payment-dialog";
+import { useState } from "react";
+
+type Plan = {
+  id: string;
+  name: string;
+  description?: string | null | undefined;
+  priceInr: number;
+  priceUsd?: number;
+  credits: number;
+  bonusCredits?: number | null | undefined;
+  billingInterval?: string;
+  isDefault?: boolean | null | undefined;
+};
 
 export default function PricingPage() {
   const { data: plans, isLoading } = trpc.subscription.getPlans.useQuery();
+  const [paymentDialog, setPaymentDialog] = useState<{
+    open: boolean;
+    plan: Plan | null;
+  }>({ open: false, plan: null });
+
   const subscribeMutation = trpc.subscription.subscribe.useMutation({
     onSuccess: () => {
       toast.success("Subscribed successfully!");
+      // Redirect to dashboard for free plan
+      window.location.href = "/dashboard";
     },
     onError: (error) => {
-      if (error.message.includes("coming soon")) {
-        toast.info("Payment integration coming soon! Contact support to subscribe.");
-      } else {
-        toast.error(error.message);
-      }
+      toast.error(error.message);
     },
   });
 
-  const handleSubscribe = (planId: string) => {
-    subscribeMutation.mutate({ planId });
+  const handleSubscribe = (plan: Plan) => {
+    // For free plan, use direct mutation (no payment required)
+    if (plan.isDefault || (plan.priceInr === 0 && plan.priceUsd === 0)) {
+      subscribeMutation.mutate({ planId: plan.id });
+      return;
+    }
+    // For paid plans, open payment dialog
+    setPaymentDialog({ open: true, plan });
   };
 
   if (isLoading) {
@@ -142,7 +165,7 @@ export default function PricingPage() {
               <Button
                 className="w-full"
                 variant={plan.popular ? "default" : "outline"}
-                onClick={() => handleSubscribe(plan.id)}
+                onClick={() => handleSubscribe(plan)}
                 disabled={subscribeMutation.isPending}
               >
                 {plan.isDefault ? "Get Started Free" : "Subscribe"}
@@ -188,6 +211,19 @@ export default function PricingPage() {
           </Card>
         </div>
       </div>
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        open={paymentDialog.open}
+        onOpenChange={(open) => setPaymentDialog({ ...paymentDialog, open })}
+        type="subscription"
+        item={paymentDialog.plan}
+        onSuccess={() => {
+          toast.success("Subscription activated!");
+          // Redirect to dashboard
+          window.location.href = "/dashboard";
+        }}
+      />
     </div>
   );
 }

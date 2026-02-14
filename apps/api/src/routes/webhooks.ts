@@ -4,6 +4,7 @@ import { db } from "@contenthq/db/client";
 import { paymentOrders, creditBalances, creditTransactions } from "@contenthq/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { env } from "../lib/env";
+import { subscriptionService } from "../services/subscription.service";
 
 export const webhookRoutes = new Hono();
 
@@ -54,7 +55,49 @@ webhookRoutes.post("/razorpay", async (c) => {
       return c.json({ status: "already_processed" }, 200);
     }
 
-    // Atomically: update order + add credits + record transaction
+    // Handle subscription payments
+    if (order.orderType === "subscription") {
+      await db.transaction(async (tx) => {
+        let subscriptionId = order.subscriptionId;
+
+        // If no subscription exists (first payment), create it
+        if (!subscriptionId) {
+          // Get planId from order.providerData.notes
+          const providerData = order.providerData as { notes?: { planId?: string } } | null;
+          const planId = providerData?.notes?.planId;
+          if (!planId) {
+            console.error(`[Webhook] No planId in order ${order.id} providerData`);
+            return;
+          }
+
+          const subscription = await subscriptionService.createSubscription(
+            order.userId,
+            planId
+          );
+          subscriptionId = subscription.id;
+        } else {
+          // Renewal: extend subscription period
+          await subscriptionService.renewSubscription(subscriptionId);
+        }
+
+        // Update payment order
+        await tx
+          .update(paymentOrders)
+          .set({
+            status: "captured",
+            externalPaymentId: event.paymentId,
+            subscriptionId,
+            paidAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(paymentOrders.id, order.id));
+      });
+
+      console.warn(`[Webhook] Subscription payment captured: userId=${order.userId}, orderId=${order.id}, subscriptionId=${order.subscriptionId}`);
+      return c.json({ status: "ok" }, 200);
+    }
+
+    // Handle credit pack payments (existing flow)
     await db.transaction(async (tx) => {
       // Lock the credit balance row
       const balanceResult = await tx.execute(

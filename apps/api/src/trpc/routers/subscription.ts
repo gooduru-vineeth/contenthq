@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { db } from "@contenthq/db/client";
-import { subscriptionPlans } from "@contenthq/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { subscriptionPlans, paymentOrders } from "@contenthq/db/schema";
+import { eq, asc, and } from "drizzle-orm";
 import { subscriptionService } from "../../services/subscription.service";
 import { TRPCError } from "@trpc/server";
+import { getPaymentService } from "@contenthq/payment";
 
 /**
  * Subscription Router - User-facing subscription procedures
@@ -79,23 +80,211 @@ export const subscriptionRouter = router({
 
   /**
    * Subscribe to a plan
-   * NOTE: Shows "Coming Soon" until Razorpay payment integration is ready
+   * Creates a Razorpay payment order and returns checkout details
    */
   subscribe: protectedProcedure
     .input(
       z.object({
         planId: z.string(),
+        currency: z.enum(["INR", "USD"]).default("INR"),
       })
     )
-    .mutation(async () => {
-      // Payment integration not ready yet
-      throw new TRPCError({
-        code: "NOT_IMPLEMENTED",
-        message: "Payment integration coming soon! Contact support to subscribe.",
+    .mutation(async ({ ctx, input }) => {
+      // 1. Validate plan exists and is active
+      const [plan] = await db
+        .select()
+        .from(subscriptionPlans)
+        .where(
+          and(
+            eq(subscriptionPlans.id, input.planId),
+            eq(subscriptionPlans.active, true)
+          )
+        );
+
+      if (!plan) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Subscription plan not found",
+        });
+      }
+
+      // 2. For free plan, create subscription directly without payment
+      if (plan.isDefault || (plan.priceInr === 0 && plan.priceUsd === 0)) {
+        return subscriptionService.createSubscription(ctx.user.id, input.planId);
+      }
+
+      // 3. Check no active subscription
+      const existing = await subscriptionService.getCurrentSubscription(ctx.user.id);
+      if (existing?.status === "active") {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Already subscribed. Use changePlan to upgrade.",
+        });
+      }
+
+      // 4. Get payment service
+      let paymentService;
+      try {
+        paymentService = getPaymentService();
+      } catch {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Payment service not configured",
+        });
+      }
+
+      // 5. Create Razorpay order
+      const amount = input.currency === "INR" ? plan.priceInr : plan.priceUsd;
+      const idempotencyKey = crypto.randomUUID();
+
+      const result = await paymentService.createProviderOrder("razorpay", {
+        amount,
+        currency: input.currency,
+        receipt: `sub_${idempotencyKey}`,
+        notes: {
+          userId: ctx.user.id,
+          planId: plan.id,
+          orderType: "subscription",
+        },
       });
 
-      // TODO: Uncomment when Razorpay integration is ready
-      // return subscriptionService.createSubscription(ctx.user.id, input.planId);
+      // 6. Create payment order record
+      const [order] = await db
+        .insert(paymentOrders)
+        .values({
+          userId: ctx.user.id,
+          creditPackId: null, // NULL for subscriptions
+          subscriptionId: null, // Will be set after subscription created
+          orderType: "subscription",
+          provider: "razorpay",
+          externalOrderId: result.externalOrderId,
+          credits: (plan.credits ?? 0) + (plan.bonusCredits ?? 0),
+          amount,
+          currency: input.currency,
+          status: "created",
+          providerData: result.providerData,
+          idempotencyKey,
+        })
+        .returning();
+
+      // 7. Return checkout details
+      return {
+        orderId: order.id,
+        externalOrderId: result.externalOrderId,
+        amount,
+        currency: input.currency,
+        clientKey: paymentService.getClientKey("razorpay"),
+        plan: {
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+          credits: plan.credits,
+          bonusCredits: plan.bonusCredits,
+          billingInterval: plan.billingInterval,
+          priceInr: plan.priceInr,
+          priceUsd: plan.priceUsd,
+        },
+      };
+    }),
+
+  /**
+   * Renew subscription
+   * Creates a new payment order for subscription renewal
+   */
+  renewSubscription: protectedProcedure
+    .input(
+      z.object({
+        currency: z.enum(["INR", "USD"]).default("INR"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // 1. Get current subscription
+      const subscription = await subscriptionService.getCurrentSubscription(ctx.user.id);
+      if (!subscription) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No subscription found to renew",
+        });
+      }
+
+      // 2. Get plan details
+      const [plan] = await db
+        .select()
+        .from(subscriptionPlans)
+        .where(eq(subscriptionPlans.id, subscription.planId));
+
+      if (!plan) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Subscription plan not found",
+        });
+      }
+
+      // 3. Get payment service
+      let paymentService;
+      try {
+        paymentService = getPaymentService();
+      } catch {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Payment service not configured",
+        });
+      }
+
+      // 4. Create Razorpay order
+      const amount = input.currency === "INR" ? plan.priceInr : plan.priceUsd;
+      const idempotencyKey = crypto.randomUUID();
+
+      const result = await paymentService.createProviderOrder("razorpay", {
+        amount,
+        currency: input.currency,
+        receipt: `renewal_${idempotencyKey}`,
+        notes: {
+          userId: ctx.user.id,
+          planId: plan.id,
+          subscriptionId: subscription.id,
+          orderType: "subscription",
+          renewal: "true",
+        },
+      });
+
+      // 5. Create payment order record linked to subscription
+      const [order] = await db
+        .insert(paymentOrders)
+        .values({
+          userId: ctx.user.id,
+          creditPackId: null,
+          subscriptionId: subscription.id, // Link to existing subscription
+          orderType: "subscription",
+          provider: "razorpay",
+          externalOrderId: result.externalOrderId,
+          credits: (plan.credits ?? 0) + (plan.bonusCredits ?? 0),
+          amount,
+          currency: input.currency,
+          status: "created",
+          providerData: result.providerData,
+          idempotencyKey,
+        })
+        .returning();
+
+      // 6. Return checkout details
+      return {
+        orderId: order.id,
+        externalOrderId: result.externalOrderId,
+        amount,
+        currency: input.currency,
+        clientKey: paymentService.getClientKey("razorpay"),
+        plan: {
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+          credits: plan.credits,
+          bonusCredits: plan.bonusCredits,
+          billingInterval: plan.billingInterval,
+          priceInr: plan.priceInr,
+          priceUsd: plan.priceUsd,
+        },
+      };
     }),
 
   /**
