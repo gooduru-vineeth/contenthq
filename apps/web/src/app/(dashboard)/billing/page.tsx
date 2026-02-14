@@ -13,8 +13,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { trpc } from "@/lib/trpc";
 import { PaymentDialog } from "@/components/payment/payment-dialog";
 
-const PAYMENT_ENABLED = process.env.NEXT_PUBLIC_PAYMENT_ENABLED === "true";
-
 type Plan = {
   id: string;
   name: string;
@@ -40,9 +38,7 @@ export default function BillingPage() {
   const { data: availableBalance, isPending: availablePending } = trpc.billing.getAvailableBalance.useQuery();
 
   // Fetch credit packs
-  const { data: packs, isPending: packsPending } = trpc.payment.getPacks.useQuery(undefined, {
-    enabled: PAYMENT_ENABLED,
-  });
+  const { data: packs, isPending: packsPending } = trpc.payment.getPacks.useQuery();
 
   // Fetch transactions
   const { data: transactions, isPending: transactionsPending } = trpc.billing.getTransactions.useQuery({
@@ -50,10 +46,7 @@ export default function BillingPage() {
   });
 
   // Fetch payment orders
-  const { data: orders, isPending: ordersPending } = trpc.payment.getOrders.useQuery(
-    { limit: 5 },
-    { enabled: PAYMENT_ENABLED }
-  );
+  const { data: orders, isPending: ordersPending } = trpc.payment.getOrders.useQuery({ limit: 5 });
 
   const handleBuyPack = (pack: Plan) => {
     setPaymentDialog({ open: true, type: "credit_pack", item: pack });
@@ -249,48 +242,46 @@ export default function BillingPage() {
       </Card>
 
       {/* Credit Packs */}
-      {PAYMENT_ENABLED && (
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Purchase Credits</h2>
-          {packsPending ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-48 w-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {packs?.map((pack) => (
-                <Card key={pack.id} className={pack.popular ? "border-primary" : ""}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{pack.name}</CardTitle>
-                      {pack.popular && <Badge>Popular</Badge>}
+      <div>
+        <h2 className="text-lg font-semibold mb-4">Purchase Credits</h2>
+        {packsPending ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-48 w-full" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {packs?.map((pack) => (
+              <Card key={pack.id} className={pack.popular ? "border-primary" : ""}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{pack.name}</CardTitle>
+                    {pack.popular && <Badge>Popular</Badge>}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-bold">₹{pack.priceInr}</span>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold">₹{pack.priceInr}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {pack.credits.toLocaleString()} credits
-                      </p>
-                    </div>
-                    <Button
-                      className="w-full"
-                      disabled={!pack.active}
-                      onClick={() => handleBuyPack(pack)}
-                    >
-                      Buy Now
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {pack.credits.toLocaleString()} credits
+                    </p>
+                  </div>
+                  <Button
+                    className="w-full"
+                    disabled={!pack.active}
+                    onClick={() => handleBuyPack(pack)}
+                  >
+                    Buy Now
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Transaction History */}
       <Card>
@@ -350,63 +341,61 @@ export default function BillingPage() {
       </Card>
 
       {/* Payment Orders */}
-      {PAYMENT_ENABLED && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <DollarSign className="h-4 w-4" /> Payment History
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {ordersPending ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : !orders || orders.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No payments yet.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <DollarSign className="h-4 w-4" /> Payment History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {ordersPending ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : !orders || orders.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No payments yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order ID</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell>
+                      <code className="text-xs">{order.externalOrderId}</code>
+                    </TableCell>
+                    <TableCell>₹{order.amount}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          order.status === "captured"
+                            ? "default"
+                            : order.status === "failed"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {order.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(order.createdAt).toLocaleDateString()}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell>
-                        <code className="text-xs">{order.externalOrderId}</code>
-                      </TableCell>
-                      <TableCell>₹{order.amount}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            order.status === "captured"
-                              ? "default"
-                              : order.status === "failed"
-                              ? "destructive"
-                              : "secondary"
-                          }
-                        >
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleDateString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Payment Dialog */}
       <PaymentDialog
