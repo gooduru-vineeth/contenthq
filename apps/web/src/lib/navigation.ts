@@ -18,6 +18,7 @@ import {
   Wand2,
   Globe,
   BarChart3,
+  Package,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -40,6 +41,7 @@ export const navigation: NavItem[] = [
   { label: "Stock Media", href: "/stock-media", icon: Globe, iconColor: "text-dash-orange" },
   { label: "Media Studio", href: "/media-studio", icon: Wand2, iconColor: "text-dash-deep-purple" },
   { label: "Analytics", href: "/analytics", icon: BarChart3, iconColor: "text-dash-teal" },
+  { label: "Plans", href: "/plans", icon: Package, iconColor: "text-dash-purple" },
   { label: "Billing", href: "/billing", icon: CreditCard, iconColor: "text-dash-teal" },
   { label: "Settings", href: "/settings", icon: Settings, iconColor: "text-dash-dark-teal" },
 ];

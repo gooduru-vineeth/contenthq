@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Zap, Clock, CreditCard, ArrowUpRight, ArrowDownRight, DollarSign, Lock, Check, Crown, Sparkles, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { Zap, Clock, CreditCard, ArrowUpRight, ArrowDownRight, DollarSign, Lock, Crown, Package } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,31 +19,6 @@ export default function BillingPage() {
   const utils = trpc.useUtils();
   const { openCheckout } = useRazorpay();
   const [purchasingPackId, setPurchasingPackId] = useState<string | null>(null);
-  const [subscribingPlanId, setSubscribingPlanId] = useState<string | null>(null);
-  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
-
-  // Fetch subscription plans
-  const { data: plans, isPending: plansPending } = trpc.subscription.getPlans.useQuery();
-  const { data: mySubscription } = trpc.subscription.getMy.useQuery();
-
-  // Subscribe mutation
-  const subscribeMutation = trpc.subscription.subscribe.useMutation({
-    onSuccess: () => {
-      setSubscribingPlanId(null);
-      toast.success("Subscribed successfully!");
-      utils.subscription.getMy.invalidate();
-      utils.billing.getBalance.invalidate();
-    },
-    onError: (error) => {
-      setSubscribingPlanId(null);
-      toast.info(error.message || "Subscription coming soon!");
-    },
-  });
-
-  const handleSubscribe = (planId: string) => {
-    setSubscribingPlanId(planId);
-    subscribeMutation.mutate({ planId });
-  };
 
   // Fetch balance
   const { data: balance, isPending: balancePending } = trpc.billing.getBalance.useQuery();
@@ -194,123 +170,27 @@ export default function BillingPage() {
         </Card>
       )}
 
-      {/* Subscription Plans */}
-      <div>
-        <h2 className="text-base font-semibold flex items-center gap-2 mb-3">
-          <Crown className="h-4 w-4 text-yellow-500" /> Subscription Plans
-        </h2>
-        {plansPending ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-40 w-full rounded-lg" />
-            ))}
+      {/* Subscription Plans - Link to dedicated Plans page */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Crown className="h-4 w-4 text-yellow-500" /> Subscription Plans
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Browse and compare all available subscription plans
+              </CardDescription>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href="/plans">
+                <Package className="h-4 w-4 mr-2" />
+                View All Plans
+              </Link>
+            </Button>
           </div>
-        ) : !plans || plans.length === 0 ? (
-          <Card>
-            <CardContent className="py-6 text-center text-sm text-muted-foreground">
-              No subscription plans available yet.
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {plans.map((plan) => {
-              const isCurrentPlan = mySubscription?.planId === plan.id;
-              const isExpanded = expandedPlanId === plan.id;
-              const features = (plan.features ?? {}) as Record<string, unknown>;
-              const featureItems: { label: string; value?: string }[] = [];
-              if (features.maxProjects != null) featureItems.push({ label: "Projects", value: String(features.maxProjects) });
-              if (features.pipelinesPerMonth != null) featureItems.push({ label: "Pipelines/mo", value: String(features.pipelinesPerMonth) });
-              if (features.pipelinesPerDay != null) featureItems.push({ label: "Pipelines/day", value: String(features.pipelinesPerDay) });
-              if (features.maxConcurrentPipelines != null) featureItems.push({ label: "Concurrent", value: String(features.maxConcurrentPipelines) });
-              if (features.priorityProcessing === true) featureItems.push({ label: "Priority processing" });
-              if (features.dedicatedSupport === true) featureItems.push({ label: "Dedicated support" });
-              if (features.apiAccess === true) featureItems.push({ label: "API access" });
-              return (
-                <Card
-                  key={plan.id}
-                  className={`relative ${plan.popular ? "border-primary" : ""}`}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                      <Badge className="gap-0.5 text-[10px] px-1.5 py-0">
-                        <Sparkles className="h-2.5 w-2.5" /> Popular
-                      </Badge>
-                    </div>
-                  )}
-                  <CardContent className="p-3 pt-4 space-y-2">
-                    {/* Name + badge */}
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-semibold text-sm truncate">{plan.name}</span>
-                      {isCurrentPlan && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Current</Badge>
-                      )}
-                    </div>
-
-                    {/* Price */}
-                    <div>
-                      <span className="text-xl font-bold">₹{(plan.priceInr ?? 0).toLocaleString()}</span>
-                      <span className="text-xs text-muted-foreground">/{plan.billingInterval === "yearly" ? "yr" : "mo"}</span>
-                      {(plan.priceUsd ?? 0) > 0 && (
-                        <span className="text-[10px] text-muted-foreground ml-1">(${plan.priceUsd})</span>
-                      )}
-                    </div>
-
-                    {/* Credits summary */}
-                    <p className="text-xs text-muted-foreground">
-                      {(plan.credits ?? 0).toLocaleString()} credits
-                      {plan.bonusCredits && plan.bonusCredits > 0 && (
-                        <span className="text-green-600"> +{plan.bonusCredits.toLocaleString()} bonus</span>
-                      )}
-                    </p>
-
-                    {/* Details toggle */}
-                    {featureItems.length > 0 && (
-                      <>
-                        <button
-                          type="button"
-                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                          onClick={() => setExpandedPlanId(isExpanded ? null : plan.id)}
-                        >
-                          <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                          {isExpanded ? "Hide" : "View"} details
-                        </button>
-                        {isExpanded && (
-                          <ul className="space-y-1 pt-1 border-t">
-                            {featureItems.map((f) => (
-                              <li key={f.label} className="flex items-center gap-1.5 text-[11px]">
-                                <Check className="h-3 w-3 text-green-500 shrink-0" />
-                                <span>{f.label}{f.value ? `: ${f.value}` : ""}</span>
-                              </li>
-                            ))}
-                            {plan.description && (
-                              <li className="text-[11px] text-muted-foreground pt-1">{plan.description}</li>
-                            )}
-                          </ul>
-                        )}
-                      </>
-                    )}
-
-                    {/* Subscribe */}
-                    <Button
-                      size="sm"
-                      className="w-full h-7 text-xs"
-                      variant={plan.popular ? "default" : "outline"}
-                      disabled={isCurrentPlan || subscribingPlanId === plan.id}
-                      onClick={() => handleSubscribe(plan.id)}
-                    >
-                      {isCurrentPlan
-                        ? "Current Plan"
-                        : subscribingPlanId === plan.id
-                          ? "Processing..."
-                          : "Subscribe"}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </div>
+        </CardHeader>
+      </Card>
 
       {/* Balance Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
