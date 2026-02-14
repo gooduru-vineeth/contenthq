@@ -1,7 +1,18 @@
 import Groq from "groq-sdk";
 import type { STTResult, WordTimestamp, STTSegment, STTOptions } from "../types";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+let groqClient: Groq | null = null;
+
+function getGroqClient(): Groq {
+  if (!groqClient) {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      throw new Error("GROQ_API_KEY environment variable is not set");
+    }
+    groqClient = new Groq({ apiKey });
+  }
+  return groqClient;
+}
 
 export async function transcribeWithGroqWhisper(
   audioBuffer: Buffer,
@@ -9,7 +20,7 @@ export async function transcribeWithGroqWhisper(
 ): Promise<STTResult> {
   const file = new File([new Uint8Array(audioBuffer)], "audio.mp3", { type: "audio/mpeg" });
 
-  const response = await groq.audio.transcriptions.create({
+  const response = await getGroqClient().audio.transcriptions.create({
     file,
     model: options.model || "whisper-large-v3-turbo",
     response_format: "verbose_json",

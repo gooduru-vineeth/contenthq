@@ -68,7 +68,7 @@ export function createSTTTimestampsWorker(): Worker {
 
         await job.updateProgress(70);
 
-        // Store transcript
+        // Store transcript (upsert to handle retries)
         const [transcript] = await db
           .insert(projectAudioTranscripts)
           .values({
@@ -82,6 +82,21 @@ export function createSTTTimestampsWorker(): Worker {
             wordCount: result.wordCount,
             confidence: result.confidence,
             rawResponse: result.rawResponse,
+          })
+          .onConflictDoUpdate({
+            target: projectAudioTranscripts.projectId,
+            set: {
+              projectAudioId,
+              sttProvider: stageConfig?.provider ?? "groq",
+              sttModel: stageConfig?.model ?? "whisper-large-v3-turbo",
+              words: result.words,
+              segments: result.segments,
+              totalDurationMs: result.totalDurationMs,
+              wordCount: result.wordCount,
+              confidence: result.confidence,
+              rawResponse: result.rawResponse,
+              updatedAt: new Date(),
+            },
           })
           .returning();
 

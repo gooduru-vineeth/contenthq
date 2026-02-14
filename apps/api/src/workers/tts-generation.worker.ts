@@ -129,7 +129,7 @@ export function createTTSGenerationWorker(): Worker {
           const audioKey = getOutputPath(userId, projectId, `narration.${audioFormat}`);
           const uploadResult = await storage.uploadFileWithRetry(audioKey, audioBuffer, getAudioContentType(audioFormat));
 
-          // Store in projectAudio table
+          // Store in projectAudio table (upsert to handle retries)
           const [audio] = await db
             .insert(projectAudio)
             .values({
@@ -141,6 +141,19 @@ export function createTTSGenerationWorker(): Worker {
               format: audioFormat,
               ttsProvider: provider,
               ttsVoiceId: voiceId,
+            })
+            .onConflictDoUpdate({
+              target: projectAudio.projectId,
+              set: {
+                scriptId,
+                audioUrl: uploadResult.url,
+                storageKey: audioKey,
+                durationSec: audioDuration,
+                format: audioFormat,
+                ttsProvider: provider,
+                ttsVoiceId: voiceId,
+                updatedAt: new Date(),
+              },
             })
             .returning();
 
