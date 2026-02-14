@@ -3,11 +3,12 @@ import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { CaptionGenerationJobData } from "@contenthq/queue";
 import { db } from "@contenthq/db/client";
 import { scenes, projects, generationJobs } from "@contenthq/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { creditService } from "../services/credit.service";
 import { costCalculationService } from "../services/cost-calculation.service";
 import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
+import { STAGE_PROGRESS_PERCENT } from "@contenthq/shared";
 
 interface CaptionWord {
   word: string;
@@ -131,7 +132,11 @@ export function createCaptionGenerationWorker(): Worker {
         // Update project status
         await db
           .update(projects)
-          .set({ status: "generating_captions", progressPercent: 82, updatedAt: new Date() })
+          .set({
+            status: "generating_captions",
+            progressPercent: STAGE_PROGRESS_PERCENT["CAPTION_GENERATION"] ?? 80,
+            updatedAt: new Date()
+          })
           .where(eq(projects.id, projectId));
 
         await job.updateProgress(10);
@@ -159,13 +164,17 @@ export function createCaptionGenerationWorker(): Worker {
 
         await job.updateProgress(90);
 
-        // Deduct credits for caption generation
+        // Deduct credits for caption generation with cost breakdown
         try {
           const credits = costCalculationService.getOperationCredits("CAPTION_GENERATION");
           await creditService.deductCredits(userId, credits, `Caption generation for scene ${sceneId}`, {
             projectId,
             operationType: "CAPTION_GENERATION",
             jobId: job.id,
+            costBreakdown: {
+              billedCostCredits: String(credits),
+              costBreakdown: { stage: "CAPTION_GENERATION" },
+            },
           });
         } catch (err) {
           console.warn(`[CaptionGeneration] Credit deduction failed (non-fatal):`, err);
@@ -175,6 +184,18 @@ export function createCaptionGenerationWorker(): Worker {
         const durationMs = completedAt.getTime() - startedAt.getTime();
 
         // Mark generationJob as completed with caption data in result
+        // Format captions for video assembly worker compatibility
+        const captionsForAssembly = captionData.segments.map((seg) => ({
+          text: seg.text,
+          startTime: seg.startMs,
+          endTime: seg.endMs,
+          wordTimings: seg.words.map((w) => ({
+            word: w.word,
+            start: w.startMs,
+            end: w.endMs,
+          })),
+        }));
+
         await db
           .update(generationJobs)
           .set({
@@ -182,7 +203,8 @@ export function createCaptionGenerationWorker(): Worker {
             progressPercent: 100,
             result: {
               sceneId,
-              captionData,
+              captions: captionsForAssembly, // Use "captions" key for assembly worker compatibility
+              captionData, // Keep original captionData for reference
               segmentCount: captionData.segments.length,
               log: {
                 stage: "CAPTION_GENERATION",
@@ -208,8 +230,30 @@ export function createCaptionGenerationWorker(): Worker {
           `[CaptionGeneration] Completed for scene ${sceneId}: ${captionData.segments.length} segments (${durationMs}ms)`
         );
 
-        // Advance pipeline to next stage (VIDEO_ASSEMBLY)
-        await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "CAPTION_GENERATION");
+        // Check if all caption jobs for this project are complete
+        const remainingCaptions = await db
+          .select({ id: generationJobs.id })
+          .from(generationJobs)
+          .where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "CAPTION_GENERATION"),
+              or(
+                eq(generationJobs.status, "pending"),
+                eq(generationJobs.status, "processing"),
+                eq(generationJobs.status, "queued")
+              )
+            )
+          )
+          .limit(1);
+
+        if (remainingCaptions.length === 0) {
+          // All caption jobs complete - trigger pipeline advancement
+          console.warn(`[CaptionGen] All caption jobs complete for project ${projectId}, advancing to assembly`);
+          await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "CAPTION_GENERATION");
+        } else {
+          console.warn(`[CaptionGen] Caption job complete for scene ${sceneId}, but other caption jobs still pending for project ${projectId}`);
+        }
 
         return { success: true, segmentCount: captionData.segments.length };
       } catch (error) {

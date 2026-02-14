@@ -9,6 +9,7 @@ import {
   addVideoGenerationJob,
   addTTSGenerationJob,
   addAudioMixingJob,
+  addCaptionGenerationJob,
   addVideoAssemblyJob,
 } from "@contenthq/queue";
 import type { PipelineStage, FullStageConfigs } from "@contenthq/shared";
@@ -625,7 +626,63 @@ export class PipelineOrchestrator {
 
     // Queue final video assembly with non-failed scenes only
     const activeScenesForAssembly = sceneList.filter(s => s.status !== "failed");
-    console.warn(`[Pipeline] All audio mixed for project ${projectId}: ${activeScenesForAssembly.length} active, ${failedCount} failed. Queuing VIDEO_ASSEMBLY.`);
+    console.warn(`[Pipeline] All audio mixed for project ${projectId}: ${activeScenesForAssembly.length} active, ${failedCount} failed.`);
+
+    // Read frozen config for caption settings
+    const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
+    const captionConfig = frozenConfig?.captionGeneration;
+
+    // If captions are enabled, dispatch caption generation jobs
+    if (captionConfig?.enabled && captionConfig.animationStyle !== "none") {
+      console.warn(`[Pipeline] Captions enabled for project ${projectId}, dispatching caption jobs`);
+
+      // Create caption generation jobs for each scene with audio
+      for (const scene of activeScenesForAssembly) {
+        await db.insert(generationJobs).values({
+          userId,
+          projectId,
+          jobType: "CAPTION_GENERATION",
+          status: "queued",
+        });
+
+        await addCaptionGenerationJob({
+          projectId,
+          sceneId: scene.id,
+          userId,
+          narrationScript: scene.narrationScript ?? "",
+          audioUrl: "", // TTS audio URL (optional for now)
+          stageConfig: {
+            font: captionConfig.font,
+            fontSize: captionConfig.fontSize,
+            fontColor: captionConfig.fontColor,
+            backgroundColor: captionConfig.backgroundColor,
+            position: captionConfig.position,
+            highlightMode: captionConfig.highlightMode,
+            highlightColor: captionConfig.highlightColor,
+            wordsPerLine: captionConfig.wordsPerLine,
+            useWordLevelTiming: captionConfig.useWordLevelTiming,
+            animationStyle: captionConfig.animationStyle,
+          },
+        });
+      }
+
+      // Update project to caption generation stage
+      await db.update(projects)
+        .set({
+          status: "generating_captions",
+          progressPercent: STAGE_PROGRESS_PERCENT["CAPTION_GENERATION"] ?? 80,
+          updatedAt: new Date(),
+        })
+        .where(eq(projects.id, projectId));
+
+      console.warn(`[Pipeline] Dispatched ${activeScenesForAssembly.length} caption jobs for project ${projectId}`);
+
+      // DO NOT dispatch assembly here - caption worker will trigger it
+      return;
+    }
+
+    // If captions disabled, proceed directly to assembly (existing code continues below)
+    console.warn(`[Pipeline] Captions disabled for project ${projectId}, proceeding to VIDEO_ASSEMBLY.`);
 
     await db.insert(generationJobs).values({
       userId,
@@ -633,10 +690,6 @@ export class PipelineOrchestrator {
       jobType: "VIDEO_ASSEMBLY",
       status: "queued",
     });
-
-    // Read frozen config for caption settings
-    const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
-    const captionConfig = frozenConfig?.captionGeneration;
 
     // Read frozen config for assembly settings
     const assemblyConfig = frozenConfig?.assembly;
@@ -686,6 +739,91 @@ export class PipelineOrchestrator {
       .where(eq(projects.id, projectId));
 
     console.warn(`[Pipeline] VIDEO_ASSEMBLY job queued for project ${projectId} with ${activeScenesForAssembly.length} scene(s), status set to "assembling" (88%)`);
+  }
+
+  async advanceAfterCaptionGeneration(
+    projectId: string,
+    userId: string
+  ): Promise<void> {
+    console.warn(`[Pipeline] Advancing after caption generation for ${projectId}`);
+
+    const sceneList = await db
+      .select()
+      .from(scenes)
+      .where(eq(scenes.projectId, projectId))
+      .orderBy(asc(scenes.index));
+
+    // Check all scenes have captions or are failed
+    const captionsComplete = sceneList.every(
+      (s) => s.status === "caption_generated" || s.status === "failed"
+    );
+
+    if (!captionsComplete) {
+      console.warn(`[Pipeline] Not all captions complete for project ${projectId}, waiting`);
+      return;
+    }
+
+    // Queue final video assembly
+    const activeScenesForAssembly = sceneList.filter(s => s.status !== "failed");
+    console.warn(`[Pipeline] All captions complete for project ${projectId}: ${activeScenesForAssembly.length} scenes. Queuing VIDEO_ASSEMBLY.`);
+
+    await db.insert(generationJobs).values({
+      userId,
+      projectId,
+      jobType: "VIDEO_ASSEMBLY",
+      status: "queued",
+    });
+
+    // Read frozen config
+    const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
+    const captionConfig = frozenConfig?.captionGeneration;
+    const assemblyConfig = frozenConfig?.assembly;
+
+    await addVideoAssemblyJob({
+      projectId,
+      userId,
+      sceneIds: activeScenesForAssembly.map((s) => s.id),
+      ...(assemblyConfig && {
+        stageConfig: {
+          transitions: assemblyConfig.transitions,
+          transitionType: assemblyConfig.transitionType,
+          transitionAssignment: assemblyConfig.transitionAssignment,
+          transitionDuration: assemblyConfig.transitionDuration,
+          outputFormat: assemblyConfig.outputFormat,
+          resolution: assemblyConfig.resolution,
+          fps: assemblyConfig.fps,
+          watermarkEnabled: assemblyConfig.watermarkEnabled,
+          watermarkText: assemblyConfig.watermarkText,
+          brandingIntroUrl: assemblyConfig.brandingIntroUrl,
+          brandingOutroUrl: assemblyConfig.brandingOutroUrl,
+        },
+      }),
+      ...(captionConfig?.enabled && {
+        captionConfig: {
+          font: captionConfig.font,
+          fontSize: captionConfig.fontSize,
+          fontColor: captionConfig.fontColor,
+          backgroundColor: captionConfig.backgroundColor,
+          position: captionConfig.position,
+          highlightMode: captionConfig.highlightMode,
+          highlightColor: captionConfig.highlightColor,
+          wordsPerLine: captionConfig.wordsPerLine,
+          useWordLevelTiming: captionConfig.useWordLevelTiming,
+          animationStyle: captionConfig.animationStyle,
+        },
+      }),
+    });
+
+    await db
+      .update(projects)
+      .set({
+        status: "assembling",
+        progressPercent: 90,
+        updatedAt: new Date(),
+      })
+      .where(eq(projects.id, projectId));
+
+    console.warn(`[Pipeline] VIDEO_ASSEMBLY job queued for project ${projectId} with ${activeScenesForAssembly.length} scene(s)`);
   }
 
   async checkAndAdvancePipeline(
@@ -804,10 +942,7 @@ export class PipelineOrchestrator {
         await this.advanceAfterAudioMixing(projectId, userId);
         break;
       case "CAPTION_GENERATION":
-        // Caption generation completes before final assembly
-        // The caption worker advances to VIDEO_ASSEMBLY
-        console.warn(`[Pipeline] CAPTION_GENERATION completed for project ${projectId}, advancing to assembly`);
-        await this.advanceAfterAudioMixing(projectId, userId);
+        await this.advanceAfterCaptionGeneration(projectId, userId);
         break;
       default:
         console.error(
