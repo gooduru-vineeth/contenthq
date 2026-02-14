@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { trpc } from "@/lib/trpc";
 
 const TTS_PROVIDERS = [
   { value: "openai", label: "OpenAI", description: "Natural voices, fast generation" },
@@ -104,16 +105,22 @@ const VOICES_BY_PROVIDER: Record<string, Array<{ value: string; label: string }>
     { value: "jhanvi", label: "Jhanvi (Gujarati, Female)" },
     { value: "undhiyu", label: "Undhiyu (Gujarati, Male)" },
   ],
-  inworld: [
-    { value: "narrator", label: "Narrator" },
-    { value: "character-1", label: "Character 1" },
-  ],
+  inworld: [],
 };
 
 export function VoiceStep() {
   const form = useFormContext<CreateProjectInput>();
   const selectedProvider = form.watch("ttsProvider") ?? "openai";
-  const voices = VOICES_BY_PROVIDER[selectedProvider] ?? [];
+
+  // Fetch real voices from API for providers without static voice lists
+  const { data: dynamicVoices } = trpc.speechGeneration.getVoices.useQuery(
+    { provider: selectedProvider },
+    { enabled: selectedProvider === "inworld" }
+  );
+
+  const voices = selectedProvider === "inworld" && dynamicVoices?.length
+    ? dynamicVoices.map((v) => ({ value: v.id, label: v.name }))
+    : VOICES_BY_PROVIDER[selectedProvider] ?? [];
 
   return (
     <Card>

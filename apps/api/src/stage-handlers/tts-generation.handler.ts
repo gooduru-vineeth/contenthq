@@ -64,6 +64,12 @@ export class TTSGenerationHandler implements StageHandler {
       }
     }
 
+    // Use provider-specific default voice instead of OpenAI's "alloy"
+    if (resolvedProvider !== "openai" && (!resolvedVoiceId || resolvedVoiceId === "alloy")) {
+      const { getDefaultVoice } = await import("@contenthq/tts");
+      resolvedVoiceId = getDefaultVoice(resolvedProvider as any) || resolvedVoiceId;
+    }
+
     const jobs: PreparedJob[] = [];
     for (const scene of activeScenes) {
       await db.insert(generationJobs).values({

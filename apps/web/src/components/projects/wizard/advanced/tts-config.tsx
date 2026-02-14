@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { trpc } from "@/lib/trpc";
 import { MediaUploadOverride } from "./media-upload-override";
 
 const TTS_PROVIDERS = [
@@ -99,10 +100,7 @@ const VOICES_BY_PROVIDER: Record<string, { value: string; label: string }[]> = {
     { value: "jhanvi", label: "Jhanvi (Gujarati, F)" },
     { value: "undhiyu", label: "Undhiyu (Gujarati, M)" },
   ],
-  inworld: [
-    { value: "narrator", label: "Narrator" },
-    { value: "character-1", label: "Character 1" },
-  ],
+  inworld: [],
 };
 
 const QUALITY_OPTIONS = [
@@ -119,7 +117,15 @@ export function TtsConfig() {
   const speed = form.watch(`${configKey}.speed` as any) ?? 1.0;
   const pitch = form.watch(`${configKey}.pitch` as any) ?? 0;
 
-  const voices = VOICES_BY_PROVIDER[provider] ?? [];
+  // Fetch real voices from API for providers without static voice lists
+  const { data: dynamicVoices } = trpc.speechGeneration.getVoices.useQuery(
+    { provider },
+    { enabled: provider === "inworld" }
+  );
+
+  const voices = provider === "inworld" && dynamicVoices?.length
+    ? dynamicVoices.map((v) => ({ value: v.id, label: v.name }))
+    : VOICES_BY_PROVIDER[provider] ?? [];
 
   return (
     <div className="space-y-3">

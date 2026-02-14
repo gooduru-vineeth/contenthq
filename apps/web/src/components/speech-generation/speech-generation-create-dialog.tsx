@@ -29,7 +29,7 @@ export function SpeechGenerationCreateDialog() {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [provider, setProvider] = useState("openai");
-  const [voiceId, setVoiceId] = useState("alloy");
+  const [voiceId, setVoiceId] = useState("");
   const [model, setModel] = useState("");
   const [title, setTitle] = useState("");
   const [speed, setSpeed] = useState("1");

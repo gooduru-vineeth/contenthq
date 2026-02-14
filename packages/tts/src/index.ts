@@ -13,6 +13,6 @@ export { OpenAITTSProvider } from "./providers/openai-tts";
 export { ElevenLabsTTSProvider } from "./providers/elevenlabs-tts";
 export { GoogleCloudTTSProviderV2 } from "./providers/google-cloud-v2";
 export { GoogleGeminiTTSProvider } from "./providers/google-gemini-tts";
-export { InworldTTSProvider } from "./providers/inworld";
+export { InworldTTSProvider, DEFAULT_INWORLD_VOICE_ID } from "./providers/inworld";
 export type { InworldTTSConfig, InworldVoiceCloneRequest, InworldVoiceCloneResponse } from "./providers/inworld";
 export { SarvamTTSProvider } from "./providers/sarvam";

@@ -12,6 +12,9 @@ import type {
   VoiceQuality,
 } from '../provider-service';
 
+/** Default Inworld voice ID. Update by running: npx tsx scripts/fetch-inworld-voices.ts */
+export const DEFAULT_INWORLD_VOICE_ID = 'Ashley';
+
 export interface InworldTTSConfig {
   provider: Extract<SpeechProvider, 'inworld'>;
   enabled: boolean;
@@ -184,8 +187,11 @@ export class InworldTTSProvider implements ITTSProvider {
   async generateAudio(options: GenerateAudioOptions): Promise<AudioGenerationResult> {
     const format = options.format || this.defaultFormat;
     const sampleRate = options.sampleRate || this.capabilities.defaultSampleRate;
-    const voiceId = options.voiceId || this.defaultVoiceId;
-    if (!voiceId) throw new Error('Inworld TTS requires voiceId');
+    let voiceId = options.voiceId || this.defaultVoiceId || DEFAULT_INWORLD_VOICE_ID;
+    // "alloy" is an OpenAI voice, not valid for Inworld — fall back to default
+    if (voiceId === 'alloy') {
+      voiceId = DEFAULT_INWORLD_VOICE_ID;
+    }
 
     const formatMap: Record<string, string> = {
       wav: 'LINEAR16',

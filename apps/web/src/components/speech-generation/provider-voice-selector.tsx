@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -50,6 +51,16 @@ export function ProviderVoiceSelector({
   const hasClonedVoices =
     provider === "inworld" && clonedVoices && clonedVoices.length > 0;
 
+  // Auto-select the first voice when voices load and current voiceId is invalid
+  useEffect(() => {
+    if (voices && voices.length > 0) {
+      const currentValid = voices.some((v) => v.id === voiceId);
+      if (!currentValid) {
+        onVoiceChange(voices[0].id);
+      }
+    }
+  }, [voices, voiceId, onVoiceChange]);
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -99,7 +110,7 @@ export function ProviderVoiceSelector({
                 {voice.gender ? ` (${voice.gender})` : ""}
               </SelectItem>
             )) ?? (
-              <SelectItem value={voiceId || "alloy"} disabled>
+              <SelectItem value="loading" disabled>
                 {voicesLoading ? "Loading..." : "No voices available"}
               </SelectItem>
             )}

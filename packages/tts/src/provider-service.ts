@@ -8,7 +8,7 @@
 import { OpenAITTSProvider } from './providers/openai-tts';
 import { GoogleCloudTTSProviderV2 } from './providers/google-cloud-v2';
 import { GoogleGeminiTTSProvider } from './providers/google-gemini-tts';
-import { InworldTTSProvider } from './providers/inworld';
+import { InworldTTSProvider, DEFAULT_INWORLD_VOICE_ID } from './providers/inworld';
 import { ElevenLabsTTSProvider } from './providers/elevenlabs-tts';
 import { SarvamTTSProvider } from './providers/sarvam';
 
@@ -393,7 +393,7 @@ export function getDefaultTTSProviders(): TTSProviderConfig[] {
   providers.push({
     provider: 'inworld',
     enabled: hasInworld,
-    defaultVoiceId: undefined as any,
+    defaultVoiceId: DEFAULT_INWORLD_VOICE_ID,
     defaultFormat: 'wav',
     defaultQuality: 'ultra',
     baseUrl: process.env.INWORLD_API_BASE_URL,

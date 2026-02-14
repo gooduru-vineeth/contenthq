@@ -1,7 +1,7 @@
 import type { TTSOptions, TTSResult, TTSProvider, TTSVoice } from "./types";
 import { generateOpenAITTS, OPENAI_VOICES } from "./providers/openai-tts";
 import { generateElevenLabsTTS, ELEVENLABS_VOICES } from "./providers/elevenlabs-tts";
-import { InworldTTSProvider } from "./providers/inworld";
+import { InworldTTSProvider, DEFAULT_INWORLD_VOICE_ID } from "./providers/inworld";
 import { SarvamTTSProvider } from "./providers/sarvam";
 import { GoogleGeminiTTSProvider } from "./providers/google-gemini-tts";
 
@@ -78,7 +78,7 @@ export function getDefaultVoice(provider: TTSProvider): string {
     case "google-gemini":
       return "Kore";
     case "inworld":
-      return "";
+      return DEFAULT_INWORLD_VOICE_ID;
     case "sarvam":
       return "shubh";
     default:
