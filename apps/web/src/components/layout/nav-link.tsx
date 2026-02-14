@@ -21,11 +21,11 @@ export function NavLink({ item, onClick }: NavLinkProps) {
       className={cn(
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         isActive
-          ? "bg-accent text-accent-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
       )}
     >
-      <item.icon className="h-4 w-4" />
+      <item.icon className={cn("h-4 w-4", !isActive && item.iconColor)} />
       {item.label}
     </Link>
   );

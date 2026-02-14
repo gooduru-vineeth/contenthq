@@ -32,45 +32,45 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="border-l-4 border-l-dash-blue">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Total Projects
             </CardTitle>
-            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+            <FolderOpen className="h-4 w-4 text-dash-blue" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold text-dash-blue">0</div>
             <p className="text-xs text-muted-foreground">
               Create your first project to get started
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-dash-purple">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Credits Remaining
             </CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <CreditCard className="h-4 w-4 text-dash-purple" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,000</div>
+            <div className="text-2xl font-bold text-dash-purple">1,000</div>
             <p className="text-xs text-muted-foreground">
               Available credits for AI generation
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-dash-orange">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Recent Activity
             </CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <Activity className="h-4 w-4 text-dash-orange" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">--</div>
+            <div className="text-2xl font-bold text-dash-orange">--</div>
             <p className="text-xs text-muted-foreground">
               No recent activity
             </p>
@@ -82,7 +82,7 @@ export default function DashboardPage() {
         <h3 className="text-lg font-semibold mb-4">Recent Projects</h3>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FolderOpen className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <FolderOpen className="h-12 w-12 text-dash-purple/30 mb-4" />
             <p className="text-sm text-muted-foreground text-center">
               No projects yet. Create your first project to get started.
             </p>

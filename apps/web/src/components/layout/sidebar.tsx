@@ -31,7 +31,7 @@ export function Sidebar() {
     .slice(0, 2);
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-sidebar-background text-sidebar-foreground">
+    <aside className="flex h-full w-64 flex-col border-r sidebar-gradient text-sidebar-foreground">
       <div className="flex h-14 items-center px-6">
         <Link href="/" className="flex items-center gap-2">
           <span className="text-xl font-bold tracking-tight">
@@ -58,13 +58,13 @@ export function Sidebar() {
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
             >
-              <item.icon className="h-4 w-4" />
+              <item.icon className={cn("h-4 w-4", !isActive && item.iconColor)} />
               {item.label}
             </Link>
           );
         })}
         {session?.user?.role === "admin" && (
-          <div className="mt-4 border-t pt-4">
+          <div className="mt-4 border-t border-sidebar-border pt-4">
             <p className="mb-2 px-3 text-xs font-semibold uppercase text-sidebar-foreground/50">
               Admin
             </p>
@@ -81,7 +81,7 @@ export function Sidebar() {
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className={cn("h-4 w-4", !isActive && item.iconColor)} />
                   {item.label}
                 </Link>
               );

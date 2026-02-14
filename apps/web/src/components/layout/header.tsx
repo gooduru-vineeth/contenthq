@@ -9,7 +9,6 @@ import { NavLink } from "./nav-link";
 import { AdminNav } from "./admin-nav";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Sheet,
@@ -51,7 +50,7 @@ export function Header() {
   );
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6">
+    <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4 md:px-6 header-accent">
       <Sheet>
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon" className="md:hidden">
@@ -59,10 +58,10 @@ export function Header() {
             <span className="sr-only">Toggle menu</span>
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-64 p-0 sidebar-gradient text-sidebar-foreground">
           <SheetHeader className="px-6 pt-6">
-            <SheetTitle className="text-left text-xl font-bold tracking-tight">
-              Content<span className="text-primary">HQ</span>
+            <SheetTitle className="text-left text-xl font-bold tracking-tight text-sidebar-foreground">
+              Content<span className="text-dash-blue">HQ</span>
             </SheetTitle>
           </SheetHeader>
           <nav className="space-y-1 px-3 py-4">
@@ -71,7 +70,7 @@ export function Header() {
             ))}
             {session?.user?.role === "admin" && <AdminNav />}
           </nav>
-          <Separator />
+          <div className="border-t border-sidebar-border" />
           <div className="flex items-center gap-3 p-4">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs">
@@ -79,9 +78,9 @@ export function Header() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 truncate">
-              <p className="truncate text-sm font-medium">{userName}</p>
+              <p className="truncate text-sm font-medium text-sidebar-foreground">{userName}</p>
               {userEmail && (
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-xs text-sidebar-foreground/50">
                   {userEmail}
                 </p>
               )}
@@ -89,7 +88,7 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 shrink-0"
+              className="h-8 w-8 shrink-0 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
               onClick={handleSignOut}
             >
               <LogOut className="h-4 w-4" />
