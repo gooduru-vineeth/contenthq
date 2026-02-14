@@ -197,7 +197,7 @@ export default function ProjectDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
             <Link href="/projects">
@@ -205,8 +205,8 @@ export default function ProjectDetailPage({
             </Link>
           </Button>
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
                 {project.title}
               </h1>
               <Badge
@@ -219,7 +219,7 @@ export default function ProjectDetailPage({
                 {PIPELINE_TEMPLATE_LABELS[project.pipelineTemplateId ?? "builtin-ai-video"] ?? "AI Video"}
               </Badge>
             </div>
-            <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground sm:text-sm">
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
                 {formatFullDate(project.createdAt)}
@@ -232,7 +232,7 @@ export default function ProjectDetailPage({
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex w-full gap-2 sm:w-auto">
           {canStart && (
             <Button
               onClick={handleStartPipeline}
