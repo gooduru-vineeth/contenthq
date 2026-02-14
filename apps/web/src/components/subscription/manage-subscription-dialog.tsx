@@ -265,7 +265,7 @@ export function ManageSubscriptionDialog({
                         <CardContent className="space-y-4">
                           <div>
                             <div className="flex items-baseline gap-1">
-                              <span className="text-3xl font-bold">₹{plan.priceInr}</span>
+                              <span className="text-3xl font-bold">₹{(plan.priceInr / 100).toLocaleString()}</span>
                               <span className="text-muted-foreground">/{plan.billingInterval}</span>
                             </div>
                             <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
