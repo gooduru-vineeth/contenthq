@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Zap, Clock, CreditCard, ArrowUpRight, ArrowDownRight, DollarSign, Lock, Crown, Package } from "lucide-react";
-import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { PaymentDialog } from "@/components/payment/payment-dialog";
+import { ManageSubscriptionDialog } from "@/components/subscription/manage-subscription-dialog";
 
 type Plan = {
   id: string;
@@ -32,6 +32,7 @@ export default function BillingPage() {
     type: "subscription" | "credit_pack";
     item: Plan | null;
   }>({ open: false, type: "credit_pack", item: null });
+  const [manageSubscriptionOpen, setManageSubscriptionOpen] = useState(false);
 
   // Fetch balance
   const { data: balance, isPending: balancePending } = trpc.billing.getBalance.useQuery();
@@ -80,7 +81,7 @@ export default function BillingPage() {
                   }
                 </CardDescription>
               </div>
-              <Button variant="outline" onClick={() => toast.info("Plan management coming soon")}>
+              <Button variant="outline" onClick={() => setManageSubscriptionOpen(true)}>
                 Manage Plan
               </Button>
             </div>
@@ -410,6 +411,12 @@ export default function BillingPage() {
           utils.billing.getTransactions.invalidate();
           utils.payment.getOrders.invalidate();
         }}
+      />
+
+      {/* Manage Subscription Dialog */}
+      <ManageSubscriptionDialog
+        open={manageSubscriptionOpen}
+        onOpenChange={setManageSubscriptionOpen}
       />
     </div>
   );
