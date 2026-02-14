@@ -2,7 +2,7 @@ import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { VideoGenerationJobData } from "@contenthq/queue";
 import { db } from "@contenthq/db/client";
-import { scenes, sceneVideos, projects, generationJobs } from "@contenthq/db/schema";
+import { scenes, sceneVideos, sceneAudioMixes, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { videoService } from "@contenthq/video";
@@ -77,9 +77,10 @@ export function createVideoGenerationWorker(): Worker {
           return { success: true, videoUrl: overrideUpload.url, override: true };
         }
 
-        // Get scene for duration info, apply stageConfig override
+        // Get scene for duration info, prefer audio duration over AI estimate
         const [scene] = await db.select().from(scenes).where(eq(scenes.id, sceneId));
-        const duration = stageConfig?.durationPerScene ?? scene?.duration ?? 5;
+        const [audioMix] = await db.select().from(sceneAudioMixes).where(eq(sceneAudioMixes.sceneId, sceneId));
+        const duration = audioMix?.duration ?? scene?.audioDuration ?? stageConfig?.durationPerScene ?? scene?.duration ?? 5;
 
         // AI video provider branch: use configured provider/model if set
         if (stageConfig?.provider && stageConfig?.model) {

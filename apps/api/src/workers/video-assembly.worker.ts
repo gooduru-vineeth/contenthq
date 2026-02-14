@@ -253,6 +253,12 @@ export function createVideoAssemblyWorker(): Worker {
             }> = [];
             let cumulativeOffset = 0;
 
+            // Build audio mix map for accurate duration lookup
+            const allAudioMixes = sceneIds.length > 0
+              ? await db.select().from(sceneAudioMixes).where(inArray(sceneAudioMixes.sceneId, sceneIds))
+              : [];
+            const audioMixMap = new Map(allAudioMixes.map((a) => [a.sceneId, a]));
+
             for (const scene of sceneList) {
               const captionJob = captionJobs.find((j) => {
                 const r = j.result as Record<string, unknown>;
@@ -281,7 +287,8 @@ export function createVideoAssemblyWorker(): Worker {
                   });
                 }
               }
-              cumulativeOffset += scene.duration ?? 5;
+              const sceneAudioMix = audioMixMap.get(scene.id);
+              cumulativeOffset += sceneAudioMix?.duration ?? scene.audioDuration ?? scene.duration ?? 5;
             }
 
             if (subtitleSegments.length > 0) {

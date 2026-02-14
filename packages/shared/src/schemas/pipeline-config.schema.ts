@@ -36,6 +36,7 @@ export const storyWritingStageConfigSchema = baseStageConfigSchema.extend({
   targetSceneCount: z.number().int().min(1).max(50).optional(),
   temperature: z.number().min(0).max(2).default(0.7),
   agentId: z.string().optional(),
+  generateImagePrompts: z.boolean().default(true),
 });
 
 // ─── Scene Generation Stage ─────────────────────────────────────────
@@ -59,6 +60,7 @@ export const sceneGenerationStageConfigSchema = baseStageConfigSchema.extend({
     .default("photorealistic"),
   imagePromptStyle: z.string().optional(),
   agentId: z.string().optional(),
+  forceRegeneration: z.boolean().default(false),
 });
 
 // ─── Visual Generation Stage ────────────────────────────────────────

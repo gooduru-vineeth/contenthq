@@ -188,6 +188,7 @@ export interface CaptionGenerationJobData extends BaseFlowJobData {
   userId: string;
   narrationScript: string;
   audioUrl: string;
+  audioDurationMs?: number;
   stageConfig?: {
     font?: string;
     fontSize?: number;

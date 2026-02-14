@@ -114,6 +114,7 @@ export function createTTSGenerationWorker(): Worker {
                 storageKey: voiceoverKey,
                 ttsProvider: provider,
                 ttsVoiceId: voiceId,
+                duration: result.duration,
                 updatedAt: new Date(),
               })
               .where(eq(sceneVideos.sceneId, sceneId));
@@ -124,9 +125,16 @@ export function createTTSGenerationWorker(): Worker {
               storageKey: voiceoverKey,
               ttsProvider: provider,
               ttsVoiceId: voiceId,
+              duration: result.duration,
             });
           }
         });
+
+        // Write audio duration to scenes table for downstream stages
+        await db
+          .update(scenes)
+          .set({ audioDuration: result.duration, updatedAt: new Date() })
+          .where(eq(scenes.id, sceneId));
 
         // Update scene status to video_generated (Fix 5)
         await db

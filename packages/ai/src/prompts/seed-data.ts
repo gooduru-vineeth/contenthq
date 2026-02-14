@@ -54,13 +54,14 @@ REQUIREMENTS:
 - Write narration scripts that are engaging and concise
 - For each scene, choose a camera motion (zoom_in, zoom_out, pan_left, pan_right, pan_up, pan_down, kenburns_in, kenburns_out, static) with speed 0.1-1.0
 - For each scene, choose a transition to the next scene (fade, fadeblack, fadewhite, dissolve, wipeleft, wiperight, slideleft, slideright, circleopen, circleclose, radial, smoothleft, smoothright, zoomin, none). Use "none" for the last scene.
+- For each scene, create an optimized AI image generation prompt (imagePrompt). Include art style, lighting, mood, and composition. Keep under 300 characters. No text or watermarks.
 
 Create a structured story with:
 1. A compelling title
 2. An attention-grabbing hook (first line the viewer hears)
 3. A brief synopsis
 4. A narrative arc (setup, rising action, climax, resolution)
-5. Individual scenes with: visual description, narration script, suggested duration, camera motion, and transition`,
+5. Individual scenes with: visual description, narration script, image prompt, suggested duration, camera motion, and transition`,
     variables: ["content", "tone", "targetDuration", "sceneCount"],
   },
   {
@@ -332,9 +333,9 @@ export const DEFAULT_AGENTS: SeedAgent[] = [
     name: "Story Writer",
     slug: "story-writer",
     description:
-      "Generates structured video stories from source content with scenes, narration, and visual descriptions.",
+      "Generates structured video stories from source content with scenes, narration, visual descriptions, and image prompts.",
     agentType: "llm_structured",
-    modelConfig: { temperature: 0.7, maxTokens: 4000 },
+    modelConfig: { temperature: 0.7, maxTokens: 6000 },
     outputConfig: { outputType: "object", schemaName: "story_output" },
     expectedVariables: ["content", "tone", "targetDuration", "sceneCount"],
     promptType: "story_writing",

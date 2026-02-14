@@ -61,13 +61,60 @@ export function createSceneGenerationWorker(): Worker {
         console.warn(`[SceneGeneration] Found ${projectScenes.length} scene(s) for project ${projectId}, ${projectScenes.filter((s) => s.visualDescription).length} have visual descriptions`);
         await job.updateProgress(20);
 
-        const totalScenes = projectScenes.length;
+        // Check if all scenes already have imagePrompts from story writing (consolidated call)
+        const forceRegeneration = stageConfig?.forceRegeneration ?? false;
+        const scenesNeedingPrompts = forceRegeneration
+          ? projectScenes.filter((s) => s.visualDescription)
+          : projectScenes.filter((s) => s.visualDescription && !s.imagePrompt);
+
+        if (scenesNeedingPrompts.length === 0 && projectScenes.some((s) => s.imagePrompt)) {
+          console.warn(`[SceneGeneration] All ${projectScenes.length} scenes already have imagePrompts from story writing. Skipping AI calls.`);
+
+          // Mark job as completed
+          await job.updateProgress(100);
+          const completedAt = new Date();
+          const durationMs = completedAt.getTime() - startedAt.getTime();
+
+          await db.update(projects).set({ progressPercent: 25, updatedAt: new Date() }).where(eq(projects.id, projectId));
+
+          await db.update(generationJobs).set({
+            status: "completed",
+            progressPercent: 100,
+            result: {
+              storyId,
+              scenesProcessed: projectScenes.length,
+              skippedReason: "image_prompts_from_story",
+              log: {
+                stage: "SCENE_GENERATION",
+                status: "completed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs,
+                details: `Skipped — all ${projectScenes.length} scenes have imagePrompts from story writing`,
+              },
+            },
+            updatedAt: new Date(),
+          }).where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "SCENE_GENERATION"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
+          await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "SCENE_GENERATION");
+          return { success: true, storyId, scenesProcessed: projectScenes.length, skippedReason: "image_prompts_from_story" };
+        }
+
+        const totalScenes = scenesNeedingPrompts.length;
         let processed = 0;
+
+        console.warn(`[SceneGeneration] ${totalScenes} scene(s) need image prompt generation (${projectScenes.length - totalScenes} already have prompts)`);
 
         // Collect all scene updates first, then apply atomically
         const sceneUpdates: Array<{ sceneId: string; imagePrompt: string }> = [];
 
-        for (const scene of projectScenes) {
+        for (const scene of scenesNeedingPrompts) {
           if (!scene.visualDescription) {
             console.warn(`[SceneGeneration] Skipping scene ${scene.id} (index=${scene.index}) — no visual description`);
             processed++;

@@ -312,86 +312,8 @@ export class PipelineOrchestrator {
     const activeScenes = sceneList.filter(s => s.status !== "failed");
     console.warn(`[Pipeline] All scenes verified for project ${projectId}: ${activeScenes.length} active, ${failedCount} failed`);
 
-    // Check frozen config for video generation enablement (fall back to project flag)
-    const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
-    const videoEnabled = frozenConfig?.videoGeneration?.enabled ?? project.enableVideoGeneration;
-
-    if (videoEnabled) {
-      console.warn(`[Pipeline] Video generation enabled for project ${projectId}, queuing VIDEO_GENERATION for ${activeScenes.length} scene(s)`);
-      const videoStageConfig = frozenConfig?.videoGeneration;
-
-      // Batch fetch all scene visuals and media overrides upfront
-      const activeSceneIds = activeScenes.map((s) => s.id);
-      const [allVisuals, allOverrides] = await Promise.all([
-        activeSceneIds.length > 0
-          ? db.select().from(sceneVisuals).where(inArray(sceneVisuals.sceneId, activeSceneIds))
-          : Promise.resolve([]),
-        pipelineConfigService.getMediaOverrides(projectId, "VIDEO_GENERATION"),
-      ]);
-
-      // Build Maps for O(1) lookup
-      const visualsBySceneId = new Map(allVisuals.map((v) => [v.sceneId, v]));
-      const overridesBySceneIndex = new Map<number, string | undefined>();
-      for (const override of allOverrides) {
-        if (override.sceneIndex !== null && !overridesBySceneIndex.has(override.sceneIndex)) {
-          overridesBySceneIndex.set(override.sceneIndex, override.url ?? undefined);
-        }
-      }
-
-      // Queue VIDEO_GENERATION jobs for each non-failed scene in parallel
-      await Promise.all(
-        activeScenes.map(async (scene) => {
-          const mediaOverrideUrl = overridesBySceneIndex.get(scene.index);
-          const visual = visualsBySceneId.get(scene.id);
-          const imageUrl = visual?.imageUrl ?? "";
-
-          await db.insert(generationJobs).values({
-            userId,
-            projectId,
-            jobType: "VIDEO_GENERATION",
-            status: "queued",
-          });
-
-          await addVideoGenerationJob({
-            projectId,
-            sceneId: scene.id,
-            userId,
-            imageUrl,
-            motionSpec: (scene.motionSpec as Record<string, unknown>) ?? {},
-            scenePrompt: scene.imagePrompt || scene.visualDescription || scene.narrationScript || "",
-            ...(videoStageConfig && {
-              stageConfig: {
-                provider: videoStageConfig.provider,
-                model: videoStageConfig.model,
-                motionType: videoStageConfig.motionType,
-                durationPerScene: videoStageConfig.durationPerScene,
-                motionAssignment: videoStageConfig.motionAssignment,
-                motionSpeed: videoStageConfig.motionSpeed,
-              },
-            }),
-            ...(mediaOverrideUrl && { mediaOverrideUrl }),
-          });
-
-          console.warn(`[Pipeline] VIDEO_GENERATION job queued for scene ${scene.id} (index=${scene.index}), imageUrl=${imageUrl ? "present" : "missing"}${mediaOverrideUrl ? ", mediaOverride=present" : ""}`);
-        })
-      );
-
-      await db
-        .update(projects)
-        .set({
-          status: "generating_video",
-          progressPercent: STAGE_PROGRESS_PERCENT["VIDEO_GENERATION"] ?? 55,
-          updatedAt: new Date(),
-        })
-        .where(eq(projects.id, projectId));
-
-      console.warn(`[Pipeline] Project ${projectId} status set to "generating_video"`);
-    } else {
-      // Skip video generation — use frozen config to find next enabled stage
-      const nextStage = this.getNextEnabledStage("VIDEO_GENERATION" as PipelineStage, frozenConfig);
-      console.warn(`[Pipeline] Video generation disabled for project ${projectId}, next enabled stage: ${nextStage ?? "none"}`);
-      await this.queueTTSForScenes(projectId, userId, activeScenes, project.voiceProfileId);
-    }
+    // Audio-first: queue TTS immediately after visual verification
+    await this.queueTTSForScenes(projectId, userId, activeScenes, project.voiceProfileId);
   }
 
   async advanceAfterVideoGeneration(
@@ -401,16 +323,6 @@ export class PipelineOrchestrator {
     console.warn(
       `[Pipeline] Advancing after video generation for ${projectId}`
     );
-
-    const [project] = await db
-      .select()
-      .from(projects)
-      .where(eq(projects.id, projectId));
-
-    if (!project) {
-      console.error(`[Pipeline] Project ${projectId} not found during advanceAfterVideoGeneration, aborting`);
-      return;
-    }
 
     const sceneList = await db
       .select()
@@ -430,12 +342,11 @@ export class PipelineOrchestrator {
 
     if (!allDone) {
       console.warn(`[Pipeline] Not all videos generated for project ${projectId}, waiting (${pendingCount} still pending)`);
-      return; // Not all scenes done yet, wait
+      return;
     }
 
-    const activeScenes = sceneList.filter(s => s.status !== "failed");
-    console.warn(`[Pipeline] All videos generated for project ${projectId}: ${activeScenes.length} active, ${failedCount} failed. Proceeding to TTS.`);
-    await this.queueTTSForScenes(projectId, userId, activeScenes, project.voiceProfileId);
+    // Convergence check: video generation is done. Check if captions are also done.
+    await this.tryQueueAssembly(projectId, userId, "VIDEO_GENERATION");
   }
 
   private async queueTTSForScenes(
@@ -603,6 +514,16 @@ export class PipelineOrchestrator {
   ): Promise<void> {
     console.warn(`[Pipeline] Advancing after audio mixing for ${projectId}`);
 
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
+
+    if (!project) {
+      console.error(`[Pipeline] Project ${projectId} not found during advanceAfterAudioMixing, aborting`);
+      return;
+    }
+
     const sceneList = await db
       .select()
       .from(scenes)
@@ -621,23 +542,96 @@ export class PipelineOrchestrator {
 
     if (!allMixed) {
       console.warn(`[Pipeline] Not all audio mixed for project ${projectId}, waiting (${pendingCount} still pending)`);
-      return; // Not all scenes done yet, wait
+      return;
     }
 
-    // Queue final video assembly with non-failed scenes only
-    const activeScenesForAssembly = sceneList.filter(s => s.status !== "failed");
-    console.warn(`[Pipeline] All audio mixed for project ${projectId}: ${activeScenesForAssembly.length} active, ${failedCount} failed.`);
+    const activeScenes = sceneList.filter(s => s.status !== "failed");
+    console.warn(`[Pipeline] All audio mixed for project ${projectId}: ${activeScenes.length} active, ${failedCount} failed.`);
 
-    // Read frozen config for caption settings
+    // Read frozen config
     const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
+    const videoEnabled = frozenConfig?.videoGeneration?.enabled ?? project.enableVideoGeneration;
     const captionConfig = frozenConfig?.captionGeneration;
+    const captionsEnabled = captionConfig?.enabled && captionConfig.animationStyle !== "none";
 
-    // If captions are enabled, dispatch caption generation jobs
-    if (captionConfig?.enabled && captionConfig.animationStyle !== "none") {
-      console.warn(`[Pipeline] Captions enabled for project ${projectId}, dispatching caption jobs`);
+    // Audio-first pipeline: after audio mixing, dispatch VIDEO_GENERATION and CAPTION_GENERATION in parallel
 
-      // Create caption generation jobs for each scene with audio
-      for (const scene of activeScenesForAssembly) {
+    // 1. Queue VIDEO_GENERATION (if enabled)
+    if (videoEnabled) {
+      console.warn(`[Pipeline] Queuing VIDEO_GENERATION for ${activeScenes.length} scene(s) (audio-first: audio duration drives video length)`);
+      const videoStageConfig = frozenConfig?.videoGeneration;
+
+      // Batch fetch all scene visuals and media overrides upfront
+      const activeSceneIds = activeScenes.map((s) => s.id);
+      const [allVisuals, allOverrides] = await Promise.all([
+        activeSceneIds.length > 0
+          ? db.select().from(sceneVisuals).where(inArray(sceneVisuals.sceneId, activeSceneIds))
+          : Promise.resolve([]),
+        pipelineConfigService.getMediaOverrides(projectId, "VIDEO_GENERATION"),
+      ]);
+
+      const visualsBySceneId = new Map(allVisuals.map((v) => [v.sceneId, v]));
+      const overridesBySceneIndex = new Map<number, string | undefined>();
+      for (const override of allOverrides) {
+        if (override.sceneIndex !== null && !overridesBySceneIndex.has(override.sceneIndex)) {
+          overridesBySceneIndex.set(override.sceneIndex, override.url ?? undefined);
+        }
+      }
+
+      await Promise.all(
+        activeScenes.map(async (scene) => {
+          const mediaOverrideUrl = overridesBySceneIndex.get(scene.index);
+          const visual = visualsBySceneId.get(scene.id);
+          const imageUrl = visual?.imageUrl ?? "";
+
+          await db.insert(generationJobs).values({
+            userId,
+            projectId,
+            jobType: "VIDEO_GENERATION",
+            status: "queued",
+          });
+
+          await addVideoGenerationJob({
+            projectId,
+            sceneId: scene.id,
+            userId,
+            imageUrl,
+            motionSpec: (scene.motionSpec as Record<string, unknown>) ?? {},
+            scenePrompt: scene.imagePrompt || scene.visualDescription || scene.narrationScript || "",
+            ...(videoStageConfig && {
+              stageConfig: {
+                provider: videoStageConfig.provider,
+                model: videoStageConfig.model,
+                motionType: videoStageConfig.motionType,
+                durationPerScene: videoStageConfig.durationPerScene,
+                motionAssignment: videoStageConfig.motionAssignment,
+                motionSpeed: videoStageConfig.motionSpeed,
+              },
+            }),
+            ...(mediaOverrideUrl && { mediaOverrideUrl }),
+          });
+
+          console.warn(`[Pipeline] VIDEO_GENERATION job queued for scene ${scene.id} (index=${scene.index})`);
+        })
+      );
+    }
+
+    // 2. Queue CAPTION_GENERATION (if enabled) with audioDurationMs
+    if (captionsEnabled) {
+      console.warn(`[Pipeline] Queuing CAPTION_GENERATION for ${activeScenes.length} scene(s) with audio duration`);
+
+      // Fetch audio mixes to get actual audio duration for captions
+      const activeSceneIds = activeScenes.map((s) => s.id);
+      const allAudioMixes = activeSceneIds.length > 0
+        ? await db.select().from(sceneAudioMixes).where(inArray(sceneAudioMixes.sceneId, activeSceneIds))
+        : [];
+      const audioMixBySceneId = new Map(allAudioMixes.map((a) => [a.sceneId, a]));
+
+      for (const scene of activeScenes) {
+        const audioMix = audioMixBySceneId.get(scene.id);
+        const audioDurationSec = audioMix?.duration ?? scene.audioDuration;
+        const audioDurationMs = audioDurationSec ? Math.round(audioDurationSec * 1000) : undefined;
+
         await db.insert(generationJobs).values({
           userId,
           projectId,
@@ -650,95 +644,48 @@ export class PipelineOrchestrator {
           sceneId: scene.id,
           userId,
           narrationScript: scene.narrationScript ?? "",
-          audioUrl: "", // TTS audio URL (optional for now)
+          audioUrl: audioMix?.mixedAudioUrl ?? "",
+          audioDurationMs,
           stageConfig: {
-            font: captionConfig.font,
-            fontSize: captionConfig.fontSize,
-            fontColor: captionConfig.fontColor,
-            backgroundColor: captionConfig.backgroundColor,
-            position: captionConfig.position,
-            highlightMode: captionConfig.highlightMode,
-            highlightColor: captionConfig.highlightColor,
-            wordsPerLine: captionConfig.wordsPerLine,
-            useWordLevelTiming: captionConfig.useWordLevelTiming,
-            animationStyle: captionConfig.animationStyle,
+            font: captionConfig!.font,
+            fontSize: captionConfig!.fontSize,
+            fontColor: captionConfig!.fontColor,
+            backgroundColor: captionConfig!.backgroundColor,
+            position: captionConfig!.position,
+            highlightMode: captionConfig!.highlightMode,
+            highlightColor: captionConfig!.highlightColor,
+            wordsPerLine: captionConfig!.wordsPerLine,
+            useWordLevelTiming: captionConfig!.useWordLevelTiming,
+            animationStyle: captionConfig!.animationStyle,
           },
         });
       }
 
-      // Update project to caption generation stage
-      await db.update(projects)
-        .set({
-          status: "generating_captions",
-          progressPercent: STAGE_PROGRESS_PERCENT["CAPTION_GENERATION"] ?? 80,
-          updatedAt: new Date(),
-        })
-        .where(eq(projects.id, projectId));
-
-      console.warn(`[Pipeline] Dispatched ${activeScenesForAssembly.length} caption jobs for project ${projectId}`);
-
-      // DO NOT dispatch assembly here - caption worker will trigger it
-      return;
+      console.warn(`[Pipeline] Dispatched ${activeScenes.length} caption jobs for project ${projectId}`);
     }
 
-    // If captions disabled, proceed directly to assembly (existing code continues below)
-    console.warn(`[Pipeline] Captions disabled for project ${projectId}, proceeding to VIDEO_ASSEMBLY.`);
-
-    await db.insert(generationJobs).values({
-      userId,
-      projectId,
-      jobType: "VIDEO_ASSEMBLY",
-      status: "queued",
-    });
-
-    // Read frozen config for assembly settings
-    const assemblyConfig = frozenConfig?.assembly;
-
-    await addVideoAssemblyJob({
-      projectId,
-      userId,
-      sceneIds: activeScenesForAssembly.map((s) => s.id),
-      ...(assemblyConfig && {
-        stageConfig: {
-          transitions: assemblyConfig.transitions,
-          transitionType: assemblyConfig.transitionType,
-          transitionAssignment: assemblyConfig.transitionAssignment,
-          transitionDuration: assemblyConfig.transitionDuration,
-          outputFormat: assemblyConfig.outputFormat,
-          resolution: assemblyConfig.resolution,
-          fps: assemblyConfig.fps,
-          watermarkEnabled: assemblyConfig.watermarkEnabled,
-          watermarkText: assemblyConfig.watermarkText,
-          brandingIntroUrl: assemblyConfig.brandingIntroUrl,
-          brandingOutroUrl: assemblyConfig.brandingOutroUrl,
-        },
-      }),
-      ...(captionConfig?.enabled && {
-        captionConfig: {
-          font: captionConfig.font,
-          fontSize: captionConfig.fontSize,
-          fontColor: captionConfig.fontColor,
-          backgroundColor: captionConfig.backgroundColor,
-          position: captionConfig.position,
-          highlightMode: captionConfig.highlightMode,
-          highlightColor: captionConfig.highlightColor,
-          wordsPerLine: captionConfig.wordsPerLine,
-          useWordLevelTiming: captionConfig.useWordLevelTiming,
-          animationStyle: captionConfig.animationStyle,
-        },
-      }),
-    });
-
-    await db
-      .update(projects)
-      .set({
-        status: "assembling",
-        progressPercent: 88,
+    // Update project status
+    if (videoEnabled) {
+      await db.update(projects).set({
+        status: "generating_video",
+        progressPercent: STAGE_PROGRESS_PERCENT["VIDEO_GENERATION"] ?? 70,
         updatedAt: new Date(),
-      })
-      .where(eq(projects.id, projectId));
+      }).where(eq(projects.id, projectId));
+    } else if (captionsEnabled) {
+      await db.update(projects).set({
+        status: "generating_captions",
+        progressPercent: STAGE_PROGRESS_PERCENT["CAPTION_GENERATION"] ?? 80,
+        updatedAt: new Date(),
+      }).where(eq(projects.id, projectId));
+    }
 
-    console.warn(`[Pipeline] VIDEO_ASSEMBLY job queued for project ${projectId} with ${activeScenesForAssembly.length} scene(s), status set to "assembling" (88%)`);
+    // If neither video nor captions are enabled, go straight to assembly
+    if (!videoEnabled && !captionsEnabled) {
+      console.warn(`[Pipeline] Both video gen and captions disabled for project ${projectId}, proceeding to assembly`);
+      await this.queueAssembly(projectId, userId, activeScenes);
+    }
+
+    console.warn(`[Pipeline] Post-audio-mixing dispatch complete for project ${projectId}: videoEnabled=${videoEnabled}, captionsEnabled=${captionsEnabled}`);
   }
 
   async advanceAfterCaptionGeneration(

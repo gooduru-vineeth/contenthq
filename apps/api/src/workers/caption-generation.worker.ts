@@ -41,7 +41,8 @@ const DEFAULT_MS_PER_WORD = 300;
 
 function generateCaptionData(
   narrationScript: string,
-  stageConfig?: CaptionGenerationJobData["stageConfig"]
+  stageConfig?: CaptionGenerationJobData["stageConfig"],
+  audioDurationMs?: number
 ): CaptionData {
   const wordsPerLine = stageConfig?.wordsPerLine ?? 5;
   const font = stageConfig?.font ?? "Arial";
@@ -56,13 +57,18 @@ function generateCaptionData(
   const words = narrationScript.trim().split(/\s+/).filter(Boolean);
   const allWordTimings: CaptionWord[] = [];
 
+  // Use actual audio duration for proportional timing, fall back to fixed estimate
+  const msPerWord = audioDurationMs && words.length > 0
+    ? audioDurationMs / words.length
+    : DEFAULT_MS_PER_WORD;
+
   let currentMs = 0;
   for (const word of words) {
-    const wordDurationMs = DEFAULT_MS_PER_WORD;
+    const wordDurationMs = msPerWord;
     allWordTimings.push({
       word,
-      startMs: currentMs,
-      endMs: currentMs + wordDurationMs,
+      startMs: Math.round(currentMs),
+      endMs: Math.round(currentMs + wordDurationMs),
     });
     currentMs += wordDurationMs;
   }
@@ -100,7 +106,7 @@ export function createCaptionGenerationWorker(): Worker {
   return new Worker<CaptionGenerationJobData>(
     QUEUE_NAMES.CAPTION_GENERATION,
     async (job) => {
-      const { projectId, sceneId, userId, narrationScript, audioUrl, stageConfig } = job.data;
+      const { projectId, sceneId, userId, narrationScript, audioUrl, audioDurationMs, stageConfig } = job.data;
       const startedAt = new Date();
       console.warn(
         `[CaptionGeneration] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, scriptLength=${narrationScript?.length ?? 0} chars, audioUrl=${audioUrl ? "present" : "missing"}`
@@ -148,7 +154,7 @@ export function createCaptionGenerationWorker(): Worker {
           `[CaptionGeneration] Generating caption segments for scene ${sceneId} (wordsPerLine=${stageConfig?.wordsPerLine ?? 5})`
         );
 
-        const captionData = generateCaptionData(narrationScript, stageConfig);
+        const captionData = generateCaptionData(narrationScript, stageConfig, audioDurationMs);
 
         await job.updateProgress(70);
 

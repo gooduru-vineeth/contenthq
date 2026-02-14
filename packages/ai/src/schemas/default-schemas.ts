@@ -19,6 +19,9 @@ export const storyOutputSchema = z.object({
       index: z.number(),
       visualDescription: z.string().describe("Detailed description of what the viewer sees"),
       narrationScript: z.string().describe("What the narrator says during this scene"),
+      imagePrompt: z.string().optional().describe(
+        "Optimized prompt for AI image generation. Include art style, lighting, mood, composition. Under 300 chars. No text/watermarks."
+      ),
       duration: z.number().describe("Scene duration in seconds, typically 5-10"),
       motionSpec: z.object({
         type: z.enum([

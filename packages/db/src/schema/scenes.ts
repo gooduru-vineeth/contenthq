@@ -31,6 +31,7 @@ export const scenes = pgTable(
     motionSpec: jsonb("motion_spec"),
     transitions: text("transitions"),
     duration: real("duration"),
+    audioDuration: real("audio_duration"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

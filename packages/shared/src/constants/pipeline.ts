@@ -6,9 +6,9 @@ export const PIPELINE_STAGE_ORDER: PipelineStage[] = [
   PipelineStage.SCENE_GENERATION,
   PipelineStage.VISUAL_GENERATION,
   PipelineStage.VISUAL_VERIFICATION,
-  PipelineStage.VIDEO_GENERATION,
   PipelineStage.TTS_GENERATION,
   PipelineStage.AUDIO_MIXING,
+  PipelineStage.VIDEO_GENERATION,
   PipelineStage.CAPTION_GENERATION,
   PipelineStage.VIDEO_ASSEMBLY,
 ];
@@ -51,9 +51,9 @@ export const STAGE_PROGRESS_PERCENT: Record<string, number> = {
   [PipelineStage.SCENE_GENERATION]: 20,
   [PipelineStage.VISUAL_GENERATION]: 30,
   [PipelineStage.VISUAL_VERIFICATION]: 40,
-  [PipelineStage.VIDEO_GENERATION]: 50,
-  [PipelineStage.TTS_GENERATION]: 60,
-  [PipelineStage.AUDIO_MIXING]: 70,
+  [PipelineStage.TTS_GENERATION]: 50,
+  [PipelineStage.AUDIO_MIXING]: 60,
+  [PipelineStage.VIDEO_GENERATION]: 70,
   [PipelineStage.CAPTION_GENERATION]: 80,
   [PipelineStage.VIDEO_ASSEMBLY]: 90,
 };

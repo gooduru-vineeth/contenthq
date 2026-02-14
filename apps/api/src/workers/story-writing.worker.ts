@@ -32,7 +32,7 @@ export function createStoryWritingWorker(): Worker {
       // Apply stageConfig overrides if provided
       const effectiveAgentId = stageConfig?.agentId ?? agentId;
       const effectiveTemperature = stageConfig?.temperature ?? 0.7;
-      const effectiveMaxTokens = stageConfig?.maxTokens ?? 4000;
+      const effectiveMaxTokens = stageConfig?.maxTokens ?? 6000;
 
       try {
         // Mark generationJob as processing
@@ -155,8 +155,9 @@ export function createStoryWritingWorker(): Worker {
               index: sceneData.index,
               visualDescription: sceneData.visualDescription,
               narrationScript: sceneData.narrationScript,
+              imagePrompt: sceneData.imagePrompt ?? null,
               duration: sceneData.duration,
-              status: "outlined",
+              status: sceneData.imagePrompt ? "scripted" : "outlined",
               motionSpec: sceneData.motionSpec,
               transitions: sceneData.transition,
             });
