@@ -37,7 +37,9 @@ webhookRoutes.post("/razorpay", async (c) => {
 
   console.warn(`[Webhook] Razorpay event: ${event.eventType}, orderId=${event.orderId}, paymentId=${event.paymentId}, amount=${event.amount}`);
 
-  if (event.eventType === "payment.captured") {
+  // Handle both payment.authorized AND payment.captured events
+  // This ensures credits are added immediately when payment succeeds
+  if (event.eventType === "payment.authorized" || event.eventType === "payment.captured") {
     // Find the order by externalOrderId
     const [order] = await db
       .select()
@@ -49,9 +51,9 @@ webhookRoutes.post("/razorpay", async (c) => {
       return c.json({ status: "order_not_found" }, 200); // Return 200 to prevent retry
     }
 
-    // Idempotency: skip if already captured
-    if (order.status === "captured") {
-      console.warn(`[Webhook] Order ${order.id} already captured, skipping`);
+    // Idempotency: skip if already processed (authorized or captured)
+    if (order.status === "authorized" || order.status === "captured") {
+      console.warn(`[Webhook] Order ${order.id} already processed (status: ${order.status}), skipping`);
       return c.json({ status: "already_processed" }, 200);
     }
 
@@ -80,11 +82,11 @@ webhookRoutes.post("/razorpay", async (c) => {
           await subscriptionService.renewSubscription(subscriptionId);
         }
 
-        // Update payment order
+        // Update payment order with the event status
         await tx
           .update(paymentOrders)
           .set({
-            status: "captured",
+            status: event.eventType === "payment.captured" ? "captured" : "authorized",
             externalPaymentId: event.paymentId,
             subscriptionId,
             paidAt: new Date(),
@@ -141,11 +143,11 @@ webhookRoutes.post("/razorpay", async (c) => {
         })
         .returning();
 
-      // Update order status
+      // Update order status with the event status
       await tx
         .update(paymentOrders)
         .set({
-          status: "captured",
+          status: event.eventType === "payment.captured" ? "captured" : "authorized",
           externalPaymentId: event.paymentId,
           creditTransactionId: transaction.id,
           paidAt: new Date(),
