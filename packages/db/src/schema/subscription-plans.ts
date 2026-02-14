@@ -15,5 +15,6 @@ export const subscriptionPlans = pgTable("subscription_plans", {
   monthlyCredits: integer("monthly_credits").notNull(),
   price: numeric("price").notNull(),
   limits: jsonb("limits"),
+  rateLimits: jsonb("rate_limits"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

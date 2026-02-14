@@ -8,6 +8,8 @@ import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { storage, getSceneAudioPath, getAudioContentType } from "@contenthq/storage";
 import { formatFileSize } from "@contenthq/ai";
 import type { TTSProvider } from "@contenthq/tts";
+import { creditService } from "../services/credit.service";
+import { costCalculationService } from "../services/cost-calculation.service";
 import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createTTSGenerationWorker(): Worker {
@@ -137,6 +139,19 @@ export function createTTSGenerationWorker(): Worker {
           .update(projects)
           .set({ status: "generating_tts", progressPercent: 62, updatedAt: new Date() })
           .where(eq(projects.id, projectId));
+
+        // Deduct credits for TTS generation
+        try {
+          const credits = costCalculationService.getOperationCredits("TTS_GENERATION", { provider });
+          await creditService.deductCredits(userId, credits, `TTS generation for scene ${sceneId}`, {
+            projectId,
+            operationType: "TTS_GENERATION",
+            provider,
+            jobId: job.id,
+          });
+        } catch (err) {
+          console.warn(`[TTS] Credit deduction failed (non-fatal):`, err);
+        }
 
         await job.updateProgress(100);
         const completedAt = new Date();

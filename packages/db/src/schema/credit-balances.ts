@@ -12,6 +12,7 @@ export const creditBalances = pgTable(
       .unique()
       .references(() => user.id, { onDelete: "cascade" }),
     balance: integer("balance").default(0),
+    reservedBalance: integer("reserved_balance").default(0).notNull(),
     lastUpdated: timestamp("last_updated").notNull().defaultNow(),
   },
   (table) => [index("credit_balances_user_id_idx").on(table.userId)]

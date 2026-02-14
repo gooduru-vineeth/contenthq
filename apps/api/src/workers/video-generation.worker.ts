@@ -11,6 +11,8 @@ import { pickRandomMotion, mapLegacyMotionSpec } from "@contenthq/video";
 import type { MotionType } from "@contenthq/video";
 import { storage, getSceneVideoPath, getVideoContentType } from "@contenthq/storage";
 import { mediaProviderRegistry, truncateForLog, formatFileSize } from "@contenthq/ai";
+import { creditService } from "../services/credit.service";
+import { costCalculationService } from "../services/cost-calculation.service";
 import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createVideoGenerationWorker(): Worker {
@@ -126,6 +128,20 @@ export function createVideoGenerationWorker(): Worker {
           await db.insert(sceneVideos).values({ sceneId, videoUrl, storageKey: videoKey, duration });
           await db.update(scenes).set({ status: "video_generated", updatedAt: new Date() }).where(eq(scenes.id, sceneId));
 
+          // Deduct credits for AI video generation
+          try {
+            const credits = costCalculationService.getOperationCredits("VIDEO_GENERATION", { provider: aiProvider.name, model: stageConfig.model });
+            await creditService.deductCredits(userId, credits, `Video generation for scene ${sceneId}`, {
+              projectId,
+              operationType: "VIDEO_GENERATION",
+              provider: aiProvider.name,
+              model: stageConfig.model,
+              jobId: job.id,
+            });
+          } catch (err) {
+            console.warn(`[VideoGeneration] Credit deduction failed (non-fatal):`, err);
+          }
+
           await job.updateProgress(80);
 
           const completedAt = new Date();
@@ -232,6 +248,19 @@ export function createVideoGenerationWorker(): Worker {
           .update(scenes)
           .set({ status: "video_generated", updatedAt: new Date() })
           .where(eq(scenes.id, sceneId));
+
+        // Deduct credits for FFmpeg video generation
+        try {
+          const credits = costCalculationService.getOperationCredits("VIDEO_GENERATION", { provider: "ffmpeg" });
+          await creditService.deductCredits(userId, credits, `Video generation for scene ${sceneId}`, {
+            projectId,
+            operationType: "VIDEO_GENERATION",
+            provider: "ffmpeg",
+            jobId: job.id,
+          });
+        } catch (err) {
+          console.warn(`[VideoGeneration] Credit deduction failed (non-fatal):`, err);
+        }
 
         await job.updateProgress(80);
 

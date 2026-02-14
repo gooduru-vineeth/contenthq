@@ -23,6 +23,10 @@ const envSchema = z.object({
   PIXABAY_API_KEY: z.string().optional(),
   STORYBLOCKS_API_KEY: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
+  PAYMENT_ENABLED: z.coerce.boolean().default(false),
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

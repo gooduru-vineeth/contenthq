@@ -6,17 +6,30 @@ import {
   createBatchSpeechGenerationSchema,
   listSpeechGenerationsSchema,
   updateSpeechGenerationSchema,
+  PROVIDER_CREDIT_COSTS,
 } from "@contenthq/shared";
+import { createRateLimitMiddleware } from "../middleware/rate-limit.middleware";
+import { createCreditCheckMiddleware } from "../middleware/credit-check.middleware";
 
 export const speechGenerationRouter = router({
   create: protectedProcedure
     .input(createSpeechGenerationSchema)
+    .use(createRateLimitMiddleware("speech_generation"))
+    .use(createCreditCheckMiddleware(() => PROVIDER_CREDIT_COSTS.SPEECH_GEN_STANDALONE))
     .mutation(async ({ ctx, input }) => {
       return speechGenerationService.createGeneration(input, ctx.user.id);
     }),
 
   createBatch: protectedProcedure
     .input(createBatchSpeechGenerationSchema)
+    .use(createRateLimitMiddleware("speech_generation", (input: unknown) => {
+      const i = input as { items?: unknown[] };
+      return i?.items?.length ?? 1;
+    }))
+    .use(createCreditCheckMiddleware((input: unknown) => {
+      const i = input as { items?: unknown[] };
+      return (i?.items?.length ?? 1) * PROVIDER_CREDIT_COSTS.SPEECH_GEN_STANDALONE;
+    }))
     .mutation(async ({ ctx, input }) => {
       return speechGenerationService.createBatch(input, ctx.user.id);
     }),

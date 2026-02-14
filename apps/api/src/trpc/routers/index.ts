@@ -24,6 +24,8 @@ import { mediaOverrideRouter } from "./media-override";
 import { variationRouter } from "./variation";
 import { userModelPreferenceRouter } from "./user-model-preferences";
 import { stockMediaRouter } from "./stock-media";
+import { adminBillingRouter } from "./admin-billing";
+import { paymentRouter } from "./payment";
 
 export const appRouter = router({
   health: healthRouter,
@@ -51,6 +53,8 @@ export const appRouter = router({
   variation: variationRouter,
   userModelPreference: userModelPreferenceRouter,
   stockMedia: stockMediaRouter,
+  adminBilling: adminBillingRouter,
+  payment: paymentRouter,
 });
 
 export type AppRouter = typeof appRouter;

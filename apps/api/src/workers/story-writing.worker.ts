@@ -7,6 +7,8 @@ import { stories, scenes, ingestedContent, projects, aiGenerations, generationJo
 import { eq, and } from "drizzle-orm";
 import type { z } from "zod";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
+import { creditService } from "../services/credit.service";
+import { costCalculationService } from "../services/cost-calculation.service";
 import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createStoryWritingWorker(): Worker {
@@ -171,6 +173,19 @@ export function createStoryWritingWorker(): Worker {
         }
 
         await job.updateProgress(100);
+
+        // Deduct credits for story writing
+        try {
+          const credits = costCalculationService.getOperationCredits("STORY_WRITING", { model: usedModel });
+          await creditService.deductCredits(userId, credits, `Story writing for project ${projectId}`, {
+            projectId,
+            operationType: "STORY_WRITING",
+            model: usedModel,
+            jobId: job.id,
+          });
+        } catch (err) {
+          console.warn(`[StoryWriting] Credit deduction failed (non-fatal):`, err);
+        }
 
         // Update project
         await db

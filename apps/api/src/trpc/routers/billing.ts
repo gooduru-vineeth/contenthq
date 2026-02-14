@@ -1,49 +1,53 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@contenthq/db/client";
-import {
-  creditBalances,
-  creditTransactions,
-  subscriptions,
-  subscriptionPlans,
-} from "@contenthq/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { subscriptions, subscriptionPlans } from "@contenthq/db/schema";
+import { eq } from "drizzle-orm";
+import { creditService } from "../../services/credit.service";
 
 export const billingRouter = router({
+  /**
+   * Get the current user's credit balance.
+   * Creates a default balance with free credits for new users.
+   */
   getBalance: protectedProcedure.query(async ({ ctx }) => {
-    const [balance] = await db
-      .select()
-      .from(creditBalances)
-      .where(eq(creditBalances.userId, ctx.user.id));
-
-    if (!balance) {
-      // Create initial balance for new users
-      const [newBalance] = await db
-        .insert(creditBalances)
-        .values({ userId: ctx.user.id, balance: 50 })
-        .returning();
-      return newBalance;
-    }
-    return balance;
+    return creditService.getBalance(ctx.user.id);
   }),
 
+  /**
+   * Get the current user's available balance (balance minus reserved).
+   */
+  getAvailableBalance: protectedProcedure.query(async ({ ctx }) => {
+    const available = await creditService.getAvailableBalance(ctx.user.id);
+    return { available };
+  }),
+
+  /**
+   * List credit transactions for the current user.
+   */
   getTransactions: protectedProcedure
     .input(
       z
         .object({
           limit: z.number().int().min(1).max(100).default(50),
+          offset: z.number().int().min(0).default(0),
+          type: z.string().optional(),
+          projectId: z.string().optional(),
         })
         .optional()
     )
     .query(async ({ ctx, input }) => {
-      return db
-        .select()
-        .from(creditTransactions)
-        .where(eq(creditTransactions.userId, ctx.user.id))
-        .orderBy(desc(creditTransactions.createdAt))
-        .limit(input?.limit ?? 50);
+      return creditService.getTransactions(ctx.user.id, {
+        limit: input?.limit ?? 50,
+        offset: input?.offset ?? 0,
+        type: input?.type,
+        projectId: input?.projectId,
+      });
     }),
 
+  /**
+   * Get the current user's active subscription with plan details.
+   */
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
     const [sub] = await db
       .select()
@@ -60,10 +64,17 @@ export const billingRouter = router({
     return { ...sub, plan: plan ?? null };
   }),
 
+  /**
+   * List all available subscription plans.
+   */
   getPlans: protectedProcedure.query(async () => {
     return db.select().from(subscriptionPlans);
   }),
 
+  /**
+   * Deduct credits from the current user's balance.
+   * Uses atomic SELECT ... FOR UPDATE to prevent race conditions.
+   */
   deductCredits: protectedProcedure
     .input(
       z.object({
@@ -73,44 +84,21 @@ export const billingRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return await db.transaction(async (tx) => {
-        // Lock the row with SELECT ... FOR UPDATE to prevent race conditions
-        const result = await tx.execute(
-          sql`SELECT * FROM credit_balances WHERE user_id = ${ctx.user.id} FOR UPDATE`
-        );
-        const balance = result.rows?.[0] as
-          | { id: string; user_id: string; balance: number | null; last_updated: Date }
-          | undefined;
-
-        if (!balance || (balance.balance ?? 0) < input.amount) {
-          throw new Error("Insufficient credits");
+      return creditService.deductCredits(
+        ctx.user.id,
+        input.amount,
+        input.description,
+        {
+          jobId: input.jobId,
+          type: "usage",
         }
-
-        // Deduct credits atomically
-        await tx
-          .update(creditBalances)
-          .set({
-            balance: (balance.balance ?? 0) - input.amount,
-            lastUpdated: new Date(),
-          })
-          .where(eq(creditBalances.userId, ctx.user.id));
-
-        // Record transaction
-        const [transaction] = await tx
-          .insert(creditTransactions)
-          .values({
-            userId: ctx.user.id,
-            type: "deduction",
-            amount: -input.amount,
-            description: input.description,
-            jobId: input.jobId,
-          })
-          .returning();
-
-        return transaction;
-      });
+      );
     }),
 
+  /**
+   * Add credits to the current user's balance.
+   * Uses atomic SELECT ... FOR UPDATE to prevent race conditions.
+   */
   addCredits: protectedProcedure
     .input(
       z.object({
@@ -119,40 +107,11 @@ export const billingRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return await db.transaction(async (tx) => {
-        // Lock the row with SELECT ... FOR UPDATE to prevent race conditions
-        const result = await tx.execute(
-          sql`SELECT * FROM credit_balances WHERE user_id = ${ctx.user.id} FOR UPDATE`
-        );
-        const existing = result.rows?.[0] as
-          | { id: string; user_id: string; balance: number | null; last_updated: Date }
-          | undefined;
-
-        if (existing) {
-          await tx
-            .update(creditBalances)
-            .set({
-              balance: (existing.balance ?? 0) + input.amount,
-              lastUpdated: new Date(),
-            })
-            .where(eq(creditBalances.userId, ctx.user.id));
-        } else {
-          await tx
-            .insert(creditBalances)
-            .values({ userId: ctx.user.id, balance: input.amount });
-        }
-
-        const [transaction] = await tx
-          .insert(creditTransactions)
-          .values({
-            userId: ctx.user.id,
-            type: "credit",
-            amount: input.amount,
-            description: input.description,
-          })
-          .returning();
-
-        return transaction;
-      });
+      return creditService.addCredits(
+        ctx.user.id,
+        input.amount,
+        input.description,
+        "purchase"
+      );
     }),
 });

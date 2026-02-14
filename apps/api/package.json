@@ -18,6 +18,7 @@
     "@contenthq/ai": "workspace:*",
     "@contenthq/db": "workspace:*",
     "@contenthq/ingestion": "workspace:*",
+    "@contenthq/payment": "workspace:*",
     "@contenthq/queue": "workspace:*",
     "@contenthq/shared": "workspace:*",
     "@contenthq/stock-media": "workspace:*",

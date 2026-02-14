@@ -8,6 +8,8 @@ import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { videoService } from "@contenthq/video";
 import { storage, getSceneAudioPath, getAudioContentType } from "@contenthq/storage";
 import { formatFileSize } from "@contenthq/ai";
+import { creditService } from "../services/credit.service";
+import { costCalculationService } from "../services/cost-calculation.service";
 import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createAudioMixingWorker(): Worker {
@@ -140,6 +142,18 @@ export function createAudioMixingWorker(): Worker {
           .where(eq(scenes.id, sceneId));
 
         await job.updateProgress(100);
+
+        // Deduct credits for audio mixing
+        try {
+          const credits = costCalculationService.getOperationCredits("AUDIO_MIXING");
+          await creditService.deductCredits(userId, credits, `Audio mixing for scene ${sceneId}`, {
+            projectId,
+            operationType: "AUDIO_MIXING",
+            jobId: job.id,
+          });
+        } catch (err) {
+          console.warn(`[AudioMix] Credit deduction failed (non-fatal):`, err);
+        }
 
         // Update project status
         await db

@@ -26,10 +26,18 @@ import {
   addCaptionGenerationJob,
 } from "@contenthq/queue";
 import { startPipelineSchema, retryStageSchema } from "@contenthq/shared";
+import { createRateLimitMiddleware } from "../middleware/rate-limit.middleware";
+import { createCreditCheckMiddleware } from "../middleware/credit-check.middleware";
+import { costCalculationService } from "../../services/cost-calculation.service";
 
 export const pipelineRouter = router({
   start: protectedProcedure
     .input(startPipelineSchema)
+    .use(createRateLimitMiddleware("pipeline_start"))
+    .use(createCreditCheckMiddleware(() => {
+      // Estimate minimum pipeline cost (assumes ~5 scenes as default estimate)
+      return costCalculationService.estimatePipelineCost({ sceneCount: 5 }).totalCredits;
+    }))
     .mutation(async ({ ctx, input }) => {
       console.warn(`[PipelineRouter] start called: projectId=${input.projectId}, userId=${ctx.user.id}`);
       const [project] = await db
@@ -339,6 +347,12 @@ export const pipelineRouter = router({
               ttsProvider = vp.provider;
               ttsVoiceId = vp.providerVoiceId;
             }
+          }
+
+          // Use provider-specific default voice instead of OpenAI's "alloy"
+          if (ttsProvider !== "openai" && (!ttsVoiceId || ttsVoiceId === "alloy")) {
+            const { getDefaultVoice } = await import("@contenthq/tts");
+            ttsVoiceId = getDefaultVoice(ttsProvider as Parameters<typeof getDefaultVoice>[0]) || ttsVoiceId;
           }
 
           for (const scene of scenesForTts) {

@@ -2,6 +2,9 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { mediaGenerationService } from "../../services/media-generation.service";
+import { createRateLimitMiddleware } from "../middleware/rate-limit.middleware";
+import { createCreditCheckMiddleware } from "../middleware/credit-check.middleware";
+import { PROVIDER_CREDIT_COSTS } from "@contenthq/shared";
 
 export const mediaGenerationRouter = router({
   getModels: protectedProcedure
@@ -34,6 +37,8 @@ export const mediaGenerationRouter = router({
         projectId: z.string().optional(),
       })
     )
+    .use(createRateLimitMiddleware("media_generation"))
+    .use(createCreditCheckMiddleware(() => PROVIDER_CREDIT_COSTS.MEDIA_GEN_STANDALONE_IMAGE))
     .mutation(async ({ ctx, input }) => {
       return mediaGenerationService.generate(ctx.user.id, input);
     }),
@@ -55,6 +60,15 @@ export const mediaGenerationRouter = router({
         projectId: z.string().optional(),
       })
     )
+    .use(createRateLimitMiddleware("media_generation", (input: unknown) => {
+      const i = input as { models?: string[]; aspectRatios?: string[]; qualities?: string[] };
+      return (i?.models?.length ?? 1) * (i?.aspectRatios?.length ?? 1) * (i?.qualities?.length ?? 1);
+    }))
+    .use(createCreditCheckMiddleware((input: unknown) => {
+      const i = input as { models?: string[]; aspectRatios?: string[]; qualities?: string[] };
+      const count = (i?.models?.length ?? 1) * (i?.aspectRatios?.length ?? 1) * (i?.qualities?.length ?? 1);
+      return count * PROVIDER_CREDIT_COSTS.MEDIA_GEN_STANDALONE_IMAGE;
+    }))
     .mutation(async ({ ctx, input }) => {
       return mediaGenerationService.generateMultiModel(ctx.user.id, input);
     }),
@@ -68,6 +82,8 @@ export const mediaGenerationRouter = router({
         strength: z.number().min(0).max(1).optional(),
       })
     )
+    .use(createRateLimitMiddleware("media_generation"))
+    .use(createCreditCheckMiddleware(() => PROVIDER_CREDIT_COSTS.MEDIA_GEN_STANDALONE_IMAGE))
     .mutation(async ({ ctx, input }) => {
       return mediaGenerationService.editMedia(
         ctx.user.id,
@@ -144,6 +160,15 @@ export const mediaGenerationRouter = router({
         conversationId: z.string().optional(),
       })
     )
+    .use(createRateLimitMiddleware("media_generation", (input: unknown) => {
+      const i = input as { models?: string[]; aspectRatios?: string[]; qualities?: string[] };
+      return (i?.models?.length ?? 1) * (i?.aspectRatios?.length ?? 1) * (i?.qualities?.length ?? 1);
+    }))
+    .use(createCreditCheckMiddleware((input: unknown) => {
+      const i = input as { models?: string[]; aspectRatios?: string[]; qualities?: string[] };
+      const count = (i?.models?.length ?? 1) * (i?.aspectRatios?.length ?? 1) * (i?.qualities?.length ?? 1);
+      return count * PROVIDER_CREDIT_COSTS.MEDIA_GEN_STANDALONE_IMAGE;
+    }))
     .mutation(async ({ ctx, input }) => {
       const { sourceMediaId, ...request } = input;
       return mediaGenerationService.chatEditMultiCombination(
@@ -198,6 +223,8 @@ export const mediaGenerationRouter = router({
         duration: z.number().int().min(1).max(30).optional(),
       })
     )
+    .use(createRateLimitMiddleware("media_generation"))
+    .use(createCreditCheckMiddleware(() => PROVIDER_CREDIT_COSTS.MEDIA_GEN_STANDALONE_IMAGE))
     .mutation(async ({ ctx, input }) => {
       const { conversationId, ...request } = input;
       return mediaGenerationService.sendConversationMessage(

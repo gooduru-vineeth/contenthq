@@ -9,6 +9,8 @@ import { storage, getOutputPath, getSceneVideoPath, getVideoContentType } from "
 import { formatFileSize } from "@contenthq/ai";
 import type { TransitionSpec, TransitionType } from "@contenthq/video";
 import { pickRandomTransition, mapAiTransitionName } from "@contenthq/video";
+import { creditService } from "../services/credit.service";
+import { costCalculationService } from "../services/cost-calculation.service";
 import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createVideoAssemblyWorker(): Worker {
@@ -309,6 +311,18 @@ export function createVideoAssemblyWorker(): Worker {
         console.warn(`[VideoAssembly] Uploaded final video for project ${projectId}: key=${outputKey}, fileSize=${formatFileSize(finalVideoBuffer.length)}, format=${result.format}`);
 
         await job.updateProgress(90);
+
+        // Deduct credits for video assembly
+        try {
+          const credits = costCalculationService.getOperationCredits("VIDEO_ASSEMBLY");
+          await creditService.deductCredits(userId, credits, `Video assembly for project ${projectId}`, {
+            projectId,
+            operationType: "VIDEO_ASSEMBLY",
+            jobId: job.id,
+          });
+        } catch (err) {
+          console.warn(`[VideoAssembly] Credit deduction failed (non-fatal):`, err);
+        }
 
         // Mark project as completed
         await db

@@ -18,51 +18,6 @@ import type {
 } from "@contenthq/shared";
 
 // ============================================
-// RATE LIMITING
-// In-memory per-user rate limiter: 20 requests/hour
-// ============================================
-
-const RATE_LIMIT_MAX = 20;
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-
-const rateLimitMap = new Map<
-  string,
-  { count: number; resetAt: number }
->();
-
-function checkRateLimit(userId: string, requestCount = 1): void {
-  const now = Date.now();
-
-  // Clean up expired entries periodically
-  if (rateLimitMap.size > 100) {
-    for (const [key, val] of rateLimitMap) {
-      if (now >= val.resetAt) {
-        rateLimitMap.delete(key);
-      }
-    }
-  }
-
-  const entry = rateLimitMap.get(userId);
-
-  if (!entry || now >= entry.resetAt) {
-    rateLimitMap.set(userId, {
-      count: requestCount,
-      resetAt: now + RATE_LIMIT_WINDOW_MS,
-    });
-    return;
-  }
-
-  if (entry.count + requestCount > RATE_LIMIT_MAX) {
-    const minutesLeft = Math.ceil((entry.resetAt - now) / 60000);
-    throw new Error(
-      `Rate limit exceeded. You can generate up to ${RATE_LIMIT_MAX} media per hour. Try again in ${minutesLeft} minutes.`
-    );
-  }
-
-  entry.count += requestCount;
-}
-
-// ============================================
 // SERVICE METHODS
 // ============================================
 
@@ -86,8 +41,6 @@ async function generate(
     projectId?: string;
   }
 ) {
-  checkRateLimit(userId);
-
   // Validate model exists and provider is configured
   const provider = mediaProviderRegistry.getProviderForModel(request.model);
   if (!provider) {
@@ -228,9 +181,6 @@ async function generateMultiModel(
     }
   }
 
-  // Rate limit check for the total number of combinations
-  checkRateLimit(userId, combinations.length);
-
   // Create placeholder records and queue jobs in parallel
   const queuePromises = combinations.map(async (combo) => {
     const provider = mediaProviderRegistry.getProviderForModel(combo.model);
@@ -335,8 +285,6 @@ async function editMedia(
   if (!provider) {
     throw new Error(`Unknown model: ${editModel}`);
   }
-
-  checkRateLimit(userId);
 
   // Create placeholder record for the edit result
   const [record] = await db
@@ -547,8 +495,6 @@ async function sendConversationMessage(
   if (!conversation) {
     throw new Error("Conversation not found or access denied");
   }
-
-  checkRateLimit(userId);
 
   // Build composite prompt from recent user messages
   const recentUserMessages = await db
@@ -852,9 +798,6 @@ async function chatEditMultiCombination(
       }
     }
   }
-
-  // Rate limit check
-  checkRateLimit(userId, combinations.length);
 
   // Create or reuse conversation
   let conversationId = request.conversationId ?? null;

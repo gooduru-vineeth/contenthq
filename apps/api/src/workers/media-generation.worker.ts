@@ -6,6 +6,8 @@ import { db } from "@contenthq/db/client";
 import { generatedMedia } from "@contenthq/db/schema";
 import { storage } from "@contenthq/storage";
 import { eq } from "drizzle-orm";
+import { creditService } from "../services/credit.service";
+import { costCalculationService } from "../services/cost-calculation.service";
 
 export function createMediaGenerationWorker(): Worker {
   return new Worker<MediaGenerationJobData>(
@@ -178,6 +180,20 @@ export function createMediaGenerationWorker(): Worker {
             updatedAt: new Date(),
           })
           .where(eq(generatedMedia.id, generatedMediaId));
+
+        // Deduct credits for media generation
+        try {
+          const operationType = mediaType === "video" ? "MEDIA_GEN_VIDEO" as const : "MEDIA_GEN_IMAGE" as const;
+          const credits = costCalculationService.getOperationCredits(operationType, { provider: provider?.name, model });
+          await creditService.deductCredits(userId, credits, `Media generation: ${mediaType} with ${model}`, {
+            operationType,
+            provider: provider?.name,
+            model,
+            jobId: job.id,
+          });
+        } catch (err) {
+          console.warn(`[MediaGeneration] Credit deduction failed (non-fatal):`, err);
+        }
 
         await job.updateProgress(100);
         console.warn(

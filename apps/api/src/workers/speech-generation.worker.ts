@@ -1,12 +1,14 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { SpeechGenerationJobData } from "@contenthq/queue";
+import { creditService } from "../services/credit.service";
+import { costCalculationService } from "../services/cost-calculation.service";
 
 export function createSpeechGenerationWorker(): Worker {
   return new Worker<SpeechGenerationJobData>(
     QUEUE_NAMES.SPEECH_GENERATION,
     async (job) => {
-      const { speechGenerationId } = job.data;
+      const { speechGenerationId, userId, provider, model } = job.data;
       console.warn(
         `[SpeechGen] Processing job ${job.id} for generation ${speechGenerationId}`
       );
@@ -22,6 +24,19 @@ export function createSpeechGenerationWorker(): Worker {
 
         const result =
           await speechGenerationService.processGeneration(speechGenerationId);
+
+        // Deduct credits for speech generation
+        try {
+          const credits = costCalculationService.getOperationCredits("SPEECH_GENERATION", { provider: result.provider ?? provider, model });
+          await creditService.deductCredits(userId, credits, `Speech generation ${speechGenerationId}`, {
+            operationType: "SPEECH_GENERATION",
+            provider: result.provider ?? provider,
+            model,
+            jobId: job.id,
+          });
+        } catch (err) {
+          console.warn(`[SpeechGen] Credit deduction failed (non-fatal):`, err);
+        }
 
         await job.updateProgress(100);
         console.warn(

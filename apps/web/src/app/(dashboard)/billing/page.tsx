@@ -1,94 +1,348 @@
 "use client";
 
-import { Zap, Clock } from "lucide-react";
+import { useState } from "react";
+import { Zap, Clock, CreditCard, ArrowUpRight, ArrowDownRight, DollarSign, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { trpc } from "@/lib/trpc";
+import { useRazorpay } from "@/hooks/use-razorpay";
 
-const PLANS = [
-  { name: "Free", price: 0, credits: 50, current: true },
-  { name: "Starter", price: 29, credits: 500, current: false },
-  { name: "Pro", price: 79, credits: 2000, current: false },
-  { name: "Enterprise", price: 249, credits: 10000, current: false },
-];
+const PAYMENT_ENABLED = process.env.NEXT_PUBLIC_PAYMENT_ENABLED === "true";
 
 export default function BillingPage() {
-  // Placeholder data until billing router is connected
-  const creditsUsed = 12;
-  const creditsTotal = 50;
-  const percentage = Math.round((creditsUsed / creditsTotal) * 100);
+  const utils = trpc.useUtils();
+  const { openCheckout } = useRazorpay();
+  const [purchasingPackId, setPurchasingPackId] = useState<string | null>(null);
+
+  // Fetch balance
+  const { data: balance, isPending: balancePending } = trpc.billing.getBalance.useQuery();
+  const { data: availableBalance, isPending: availablePending } = trpc.billing.getAvailableBalance.useQuery();
+
+  // Fetch credit packs
+  const { data: packs, isPending: packsPending } = trpc.payment.getPacks.useQuery(undefined, {
+    enabled: PAYMENT_ENABLED,
+  });
+
+  // Fetch transactions
+  const { data: transactions, isPending: transactionsPending } = trpc.billing.getTransactions.useQuery({
+    limit: 10,
+  });
+
+  // Fetch payment orders
+  const { data: orders, isPending: ordersPending } = trpc.payment.getOrders.useQuery(
+    { limit: 5 },
+    { enabled: PAYMENT_ENABLED }
+  );
+
+  // Mutations
+  const createOrderMutation = trpc.payment.createOrder.useMutation({
+    onSuccess: async (data) => {
+      try {
+        await openCheckout({
+          key: data.clientKey,
+          amount: data.amount,
+          currency: "INR",
+          name: "ContentHQ",
+          description: "ContentHQ Credit Purchase",
+          order_id: data.externalOrderId,
+          handler: (response) => {
+            verifyPaymentMutation.mutate({
+              orderId: data.orderId,
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+            });
+          },
+          theme: { color: "#000000" },
+          modal: {
+            ondismiss: () => {
+              setPurchasingPackId(null);
+              toast.info("Payment cancelled");
+            },
+          },
+        });
+      } catch {
+        setPurchasingPackId(null);
+        toast.error("Failed to open payment checkout");
+      }
+    },
+    onError: (error) => {
+      setPurchasingPackId(null);
+      toast.error(error.message || "Failed to create order");
+    },
+  });
+
+  const verifyPaymentMutation = trpc.payment.verifyPayment.useMutation({
+    onSuccess: () => {
+      setPurchasingPackId(null);
+      toast.success("Payment successful! Credits added to your account");
+      utils.billing.getBalance.invalidate();
+      utils.billing.getAvailableBalance.invalidate();
+      utils.billing.getTransactions.invalidate();
+      utils.payment.getOrders.invalidate();
+    },
+    onError: (error) => {
+      setPurchasingPackId(null);
+      toast.error(error.message || "Payment verification failed");
+    },
+  });
+
+  const handleBuyPack = (packId: string) => {
+    setPurchasingPackId(packId);
+    createOrderMutation.mutate({ creditPackId: packId });
+  };
+
+  const totalCredits = balance?.balance ?? 0;
+  const reservedCredits = balance?.reservedBalance ?? 0;
+  const available = availableBalance?.available ?? 0;
+  const percentage = totalCredits > 0 ? Math.round(((totalCredits - available) / totalCredits) * 100) : 0;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
-        <p className="text-sm text-muted-foreground">Manage your subscription and credits</p>
+        <p className="text-sm text-muted-foreground">Manage your credits and transactions</p>
       </div>
 
-      {/* Credit Usage */}
+      {/* Balance Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <Zap className="h-4 w-4 text-yellow-500" />
+              Total Credits
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {balancePending ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <div className="text-2xl font-bold">{totalCredits.toLocaleString()}</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <Lock className="h-4 w-4 text-orange-500" />
+              Reserved
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {balancePending ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <div className="text-2xl font-bold">{reservedCredits.toLocaleString()}</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <CreditCard className="h-4 w-4 text-green-500" />
+              Available
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {availablePending ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <div className="text-2xl font-bold">{available.toLocaleString()}</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Credit Usage Progress */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Zap className="h-4 w-4" /> Credit Usage
           </CardTitle>
           <CardDescription>
-            {creditsUsed} of {creditsTotal} credits used this month
+            {totalCredits - available} of {totalCredits} credits used
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Progress value={percentage} className="h-2" />
-          <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-            <span>{creditsUsed} used</span>
-            <span>{creditsTotal - creditsUsed} remaining</span>
-          </div>
+          {balancePending ? (
+            <Skeleton className="h-2 w-full" />
+          ) : (
+            <>
+              <Progress value={percentage} className="h-2" />
+              <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                <span>{totalCredits - available} used</span>
+                <span>{available} remaining</span>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
-      {/* Plans */}
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Subscription Plans</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {PLANS.map((plan) => (
-            <Card key={plan.name} className={plan.current ? "border-primary" : ""}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{plan.name}</CardTitle>
-                  {plan.current && <Badge>Current</Badge>}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <span className="text-3xl font-bold">${plan.price}</span>
-                  <span className="text-muted-foreground">/mo</span>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {plan.credits} credits/month
-                </p>
-                <Button
-                  variant={plan.current ? "outline" : "default"}
-                  className="w-full"
-                  disabled={plan.current}
-                >
-                  {plan.current ? "Current Plan" : "Upgrade"}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+      {/* Credit Packs */}
+      {PAYMENT_ENABLED && (
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Purchase Credits</h2>
+          {packsPending ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-48 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {packs?.map((pack) => (
+                <Card key={pack.id} className={pack.popular ? "border-primary" : ""}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">{pack.name}</CardTitle>
+                      {pack.popular && <Badge>Popular</Badge>}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold">₹{pack.priceInr}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {pack.credits.toLocaleString()} credits
+                      </p>
+                    </div>
+                    <Button
+                      className="w-full"
+                      disabled={!pack.active || purchasingPackId === pack.id}
+                      onClick={() => handleBuyPack(pack.id)}
+                    >
+                      {purchasingPackId === pack.id ? "Processing..." : "Buy Now"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
-      {/* Usage History */}
+      {/* Transaction History */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Clock className="h-4 w-4" /> Recent Usage
+            <Clock className="h-4 w-4" /> Transaction History
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No usage history yet.</p>
+          {transactionsPending ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : !transactions || transactions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No transactions yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transactions.map((tx) => (
+                  <TableRow key={tx.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {tx.type === "credit" ? (
+                          <ArrowUpRight className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <ArrowDownRight className="h-4 w-4 text-red-500" />
+                        )}
+                        <span className="capitalize">{tx.type}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={tx.type === "credit" ? "text-green-600" : "text-red-600"}>
+                        {tx.type === "credit" ? "+" : "-"}
+                        {tx.amount}
+                      </span>
+                    </TableCell>
+                    <TableCell>{tx.description}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(tx.createdAt).toLocaleDateString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      {/* Payment Orders */}
+      {PAYMENT_ENABLED && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <DollarSign className="h-4 w-4" /> Payment History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {ordersPending ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : !orders || orders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No payments yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>
+                        <code className="text-xs">{order.externalOrderId}</code>
+                      </TableCell>
+                      <TableCell>₹{order.amount}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            order.status === "captured"
+                              ? "default"
+                              : order.status === "failed"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                        >
+                          {order.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

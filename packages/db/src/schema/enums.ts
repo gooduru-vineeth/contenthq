@@ -92,3 +92,16 @@ export const pipelineRunStageStatusEnum = pgEnum("pipeline_run_stage_status", [
   "failed",
   "skipped",
 ]);
+
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "created",
+  "authorized",
+  "captured",
+  "failed",
+  "refunded",
+]);
+
+export const creditReservationStatusEnum = pgEnum(
+  "credit_reservation_status",
+  ["active", "settled", "released", "expired"]
+);

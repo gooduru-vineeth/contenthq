@@ -7,6 +7,8 @@ import { db } from "@contenthq/db/client";
 import { scenes, sceneVisuals, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
+import { creditService } from "../services/credit.service";
+import { costCalculationService } from "../services/cost-calculation.service";
 import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createVisualVerificationWorker(): Worker {
@@ -115,6 +117,20 @@ export function createVisualVerificationWorker(): Worker {
           .update(projects)
           .set({ status: "verifying", progressPercent: 44, updatedAt: new Date() })
           .where(eq(projects.id, projectId));
+
+        // Deduct credits for visual verification
+        try {
+          const credits = costCalculationService.getOperationCredits("VISUAL_VERIFICATION");
+          await creditService.deductCredits(userId, credits, `Visual verification for scene ${sceneId}`, {
+            projectId,
+            operationType: "VISUAL_VERIFICATION",
+            provider: stageConfig?.provider,
+            model: stageConfig?.model,
+            jobId: job.id,
+          });
+        } catch (err) {
+          console.warn(`[VisualVerification] Credit deduction failed (non-fatal):`, err);
+        }
 
         if (result.approved) {
           // Image passed verification

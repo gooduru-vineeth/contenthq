@@ -5,6 +5,8 @@ import { db } from "@contenthq/db/client";
 import { scenes, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
+import { creditService } from "../services/credit.service";
+import { costCalculationService } from "../services/cost-calculation.service";
 import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 interface CaptionWord {
@@ -156,6 +158,18 @@ export function createCaptionGenerationWorker(): Worker {
           .where(eq(scenes.id, sceneId));
 
         await job.updateProgress(90);
+
+        // Deduct credits for caption generation
+        try {
+          const credits = costCalculationService.getOperationCredits("CAPTION_GENERATION");
+          await creditService.deductCredits(userId, credits, `Caption generation for scene ${sceneId}`, {
+            projectId,
+            operationType: "CAPTION_GENERATION",
+            jobId: job.id,
+          });
+        } catch (err) {
+          console.warn(`[CaptionGeneration] Credit deduction failed (non-fatal):`, err);
+        }
 
         const completedAt = new Date();
         const durationMs = completedAt.getTime() - startedAt.getTime();
