@@ -155,7 +155,7 @@ export function ManageSubscriptionDialog({
                     <div className="flex items-center justify-between">
                       <div>
                         <CardTitle className="flex items-center gap-2">
-                          {subscription.planName}
+                          {subscription.plan.name}
                           <Badge variant={subscription.status === "active" ? "default" : "secondary"}>
                             {subscription.status}
                           </Badge>
@@ -312,13 +312,13 @@ export function ManageSubscriptionDialog({
                   <CardContent className="space-y-4">
                     <div className="space-y-3">
                       <div>
-                        <h4 className="font-medium mb-1">Plan: {subscription.planName}</h4>
+                        <h4 className="font-medium mb-1">Plan: {subscription.plan.name}</h4>
                         <p className="text-sm text-muted-foreground">
-                          Billing Interval: {subscription.planSlug === "free" ? "Free" : "Monthly"}
+                          Billing Interval: {subscription.plan.slug === "free" ? "Free" : "Monthly"}
                         </p>
                       </div>
 
-                      {subscription.planSlug !== "free" && !isCancelled && (
+                      {subscription.plan.slug !== "free" && !isCancelled && (
                         <div className="pt-4 border-t">
                           <h4 className="font-medium mb-2 text-red-600">Danger Zone</h4>
                           <p className="text-sm text-muted-foreground mb-3">
