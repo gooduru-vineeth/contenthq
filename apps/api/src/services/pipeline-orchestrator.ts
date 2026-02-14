@@ -1,5 +1,5 @@
 import { db } from "@contenthq/db/client";
-import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals, sceneVideos, voiceProfiles, pipelineRuns } from "@contenthq/db/schema";
+import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals, sceneVideos, sceneAudioMixes, voiceProfiles, pipelineRuns } from "@contenthq/db/schema";
 import { eq, asc, inArray, and } from "drizzle-orm";
 import {
   addIngestionJob,
@@ -694,25 +694,86 @@ export class PipelineOrchestrator {
   ): Promise<void> {
     console.warn(`[Pipeline] Advancing after caption generation for ${projectId}`);
 
+    // Convergence check: captions are done. Check if video gen is also done.
+    await this.tryQueueAssembly(projectId, userId, "CAPTION_GENERATION");
+  }
+
+  /**
+   * Convergence check: VIDEO_GENERATION and CAPTION_GENERATION run in parallel.
+   * Assembly only starts when BOTH are complete (or when the disabled one is skipped).
+   */
+  private async tryQueueAssembly(
+    projectId: string,
+    userId: string,
+    completedStage: "VIDEO_GENERATION" | "CAPTION_GENERATION"
+  ): Promise<void> {
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
+
+    if (!project) return;
+
+    const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
+    const videoEnabled = frozenConfig?.videoGeneration?.enabled ?? project.enableVideoGeneration;
+    const captionConfig = frozenConfig?.captionGeneration;
+    const captionsEnabled = captionConfig?.enabled && captionConfig.animationStyle !== "none";
+
+    // Check video generation completion
+    let videoComplete = !videoEnabled; // If disabled, treat as complete
+    if (videoEnabled) {
+      const videoJobs = await db.select({ id: generationJobs.id, status: generationJobs.status })
+        .from(generationJobs)
+        .where(and(
+          eq(generationJobs.projectId, projectId),
+          eq(generationJobs.jobType, "VIDEO_GENERATION"),
+        ));
+      videoComplete = videoJobs.length > 0 && videoJobs.every((j) => j.status === "completed" || j.status === "failed");
+    }
+
+    // Check caption generation completion
+    let captionsComplete = !captionsEnabled; // If disabled, treat as complete
+    if (captionsEnabled) {
+      const captionJobs = await db.select({ id: generationJobs.id, status: generationJobs.status })
+        .from(generationJobs)
+        .where(and(
+          eq(generationJobs.projectId, projectId),
+          eq(generationJobs.jobType, "CAPTION_GENERATION"),
+        ));
+      captionsComplete = captionJobs.length > 0 && captionJobs.every((j) => j.status === "completed" || j.status === "failed");
+    }
+
+    console.warn(`[Pipeline] Convergence check for project ${projectId} (triggered by ${completedStage}): videoComplete=${videoComplete}, captionsComplete=${captionsComplete}`);
+
+    if (!videoComplete || !captionsComplete) {
+      console.warn(`[Pipeline] Not ready for assembly yet, waiting for ${!videoComplete ? "video generation" : "caption generation"}`);
+      return;
+    }
+
+    // Both are done — queue assembly
     const sceneList = await db
       .select()
       .from(scenes)
       .where(eq(scenes.projectId, projectId))
       .orderBy(asc(scenes.index));
 
-    // Check all scenes have captions or are failed
-    const captionsComplete = sceneList.every(
-      (s) => s.status === "caption_generated" || s.status === "failed"
-    );
+    const activeScenes = sceneList.filter(s => s.status !== "failed");
+    console.warn(`[Pipeline] Both video gen and captions complete for project ${projectId}. Queuing assembly with ${activeScenes.length} scene(s).`);
 
-    if (!captionsComplete) {
-      console.warn(`[Pipeline] Not all captions complete for project ${projectId}, waiting`);
-      return;
-    }
+    await this.queueAssembly(projectId, userId, activeScenes);
+  }
 
-    // Queue final video assembly
-    const activeScenesForAssembly = sceneList.filter(s => s.status !== "failed");
-    console.warn(`[Pipeline] All captions complete for project ${projectId}: ${activeScenesForAssembly.length} scenes. Queuing VIDEO_ASSEMBLY.`);
+  /**
+   * Queue the final VIDEO_ASSEMBLY job.
+   */
+  private async queueAssembly(
+    projectId: string,
+    userId: string,
+    activeScenes: { id: string }[]
+  ): Promise<void> {
+    const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
+    const captionConfig = frozenConfig?.captionGeneration;
+    const assemblyConfig = frozenConfig?.assembly;
 
     await db.insert(generationJobs).values({
       userId,
@@ -721,15 +782,10 @@ export class PipelineOrchestrator {
       status: "queued",
     });
 
-    // Read frozen config
-    const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
-    const captionConfig = frozenConfig?.captionGeneration;
-    const assemblyConfig = frozenConfig?.assembly;
-
     await addVideoAssemblyJob({
       projectId,
       userId,
-      sceneIds: activeScenesForAssembly.map((s) => s.id),
+      sceneIds: activeScenes.map((s) => s.id),
       ...(assemblyConfig && {
         stageConfig: {
           transitions: assemblyConfig.transitions,
@@ -770,7 +826,7 @@ export class PipelineOrchestrator {
       })
       .where(eq(projects.id, projectId));
 
-    console.warn(`[Pipeline] VIDEO_ASSEMBLY job queued for project ${projectId} with ${activeScenesForAssembly.length} scene(s)`);
+    console.warn(`[Pipeline] VIDEO_ASSEMBLY job queued for project ${projectId} with ${activeScenes.length} scene(s)`);
   }
 
   async checkAndAdvancePipeline(
