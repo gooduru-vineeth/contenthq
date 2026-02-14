@@ -23,7 +23,7 @@
   --input: #e2e0f0;
   --ring: #5B23FF;
   --radius: 0.625rem;
-  --sidebar-background: #362F4F;
+  --sidebar-background: #000000;
   --sidebar-foreground: #f0ecff;
   --sidebar-primary: #008BFF;
   --sidebar-primary-foreground: #ffffff;
@@ -62,7 +62,7 @@
   --border: #3a3a3a;
   --input: #3a3a3a;
   --ring: #7b4dff;
-  --sidebar-background: #1c1c1c;
+  --sidebar-background: #000000;
   --sidebar-foreground: #d4d4d4;
   --sidebar-primary: #3da5ff;
   --sidebar-primary-foreground: #ffffff;
@@ -170,10 +170,10 @@ body {
 
 /* Sidebar gradient */
 .sidebar-gradient {
-  background: linear-gradient(180deg, #362F4F 0%, #234C6A 100%);
+  background: #000000;
 }
 .dark .sidebar-gradient {
-  background: linear-gradient(180deg, #1c1c1c 0%, #1a2845 100%);
+  background: #000000;
 }
 
 /* Header accent gradient underline */
