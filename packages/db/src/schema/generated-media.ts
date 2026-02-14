@@ -3,6 +3,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  real,
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
@@ -35,7 +36,7 @@ export const generatedMedia = pgTable(
     style: text("style"),
     width: integer("width"),
     height: integer("height"),
-    duration: integer("duration"),
+    duration: real("duration"),
     fileSize: integer("file_size"),
     mimeType: text("mime_type").default("image/png"),
     generationTimeMs: integer("generation_time_ms"),

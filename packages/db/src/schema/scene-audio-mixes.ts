@@ -3,6 +3,7 @@ import {
   index,
   integer,
   pgTable,
+  real,
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
@@ -19,6 +20,7 @@ export const sceneAudioMixes = pgTable(
       .references(() => scenes.id, { onDelete: "cascade" }),
     mixedAudioUrl: text("mixed_audio_url"),
     storageKey: text("storage_key"),
+    duration: real("duration"), // Duration in seconds (from ffprobe)
     voiceoverVolume: integer("voiceover_volume").default(100),
     musicVolume: integer("music_volume").default(30),
     musicDuckingEnabled: boolean("music_ducking_enabled").default(true),

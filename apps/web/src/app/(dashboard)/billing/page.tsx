@@ -96,8 +96,10 @@ export default function BillingPage() {
     createOrderMutation.mutate({ creditPackId: packId });
   };
 
-  const totalCredits = balance?.balance ?? 0;
+  const purchasedCredits = balance?.balance ?? 0;
+  const bonusCredits = balance?.bonusBalance ?? 0;
   const reservedCredits = balance?.reservedBalance ?? 0;
+  const totalCredits = purchasedCredits + bonusCredits;
   const available = availableBalance?.available ?? 0;
   const percentage = totalCredits > 0 ? Math.round(((totalCredits - available) / totalCredits) * 100) : 0;
 
@@ -108,20 +110,97 @@ export default function BillingPage() {
         <p className="text-sm text-muted-foreground">Manage your credits and transactions</p>
       </div>
 
+      {/* Subscription Section */}
+      {balance?.subscription && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>{balance.subscription.planName} Plan</CardTitle>
+                <CardDescription>
+                  {balance.subscription.cancelAtPeriodEnd
+                    ? `Cancelled - Access until ${new Date(balance.subscription.currentPeriodEnd).toLocaleDateString()}`
+                    : `Renews on ${new Date(balance.subscription.currentPeriodEnd).toLocaleDateString()}`
+                  }
+                </CardDescription>
+              </div>
+              <Button variant="outline" onClick={() => toast.info("Plan management coming soon")}>
+                Manage Plan
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            {/* Credits Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span>Subscription Credits Used</span>
+                <span>
+                  {balance.subscription.creditsUsed.toLocaleString()} / {balance.subscription.creditsGranted.toLocaleString()}
+                </span>
+              </div>
+              <Progress
+                value={(balance.subscription.creditsUsed / balance.subscription.creditsGranted) * 100}
+                className="h-2"
+              />
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{balance.subscription.creditsRemaining.toLocaleString()} remaining</span>
+                <Badge variant={balance.subscription.status === "active" ? "default" : "secondary"}>
+                  {balance.subscription.status}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Period Info */}
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+              <div>
+                <p className="text-xs text-muted-foreground">Current Period</p>
+                <p className="text-sm font-medium">
+                  {new Date(balance.subscription.currentPeriodStart).toLocaleDateString()} -{" "}
+                  {new Date(balance.subscription.currentPeriodEnd).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Plan Slug</p>
+                <p className="text-sm font-medium">{balance.subscription.planSlug}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Balance Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-medium">
-              <Zap className="h-4 w-4 text-yellow-500" />
-              Total Credits
+              <CreditCard className="h-4 w-4 text-blue-500" />
+              Purchased Credits
             </CardTitle>
           </CardHeader>
           <CardContent>
             {balancePending ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <div className="text-2xl font-bold">{totalCredits.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{purchasedCredits.toLocaleString()}</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <Zap className="h-4 w-4 text-green-500" />
+              Bonus Credits
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {balancePending ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <div className="text-2xl font-bold text-green-600">
+                {bonusCredits > 0 ? `+${bonusCredits.toLocaleString()}` : bonusCredits.toLocaleString()}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -145,7 +224,7 @@ export default function BillingPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-medium">
-              <CreditCard className="h-4 w-4 text-green-500" />
+              <Zap className="h-4 w-4 text-yellow-500" />
               Available
             </CardTitle>
           </CardHeader>

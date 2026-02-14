@@ -1,4 +1,4 @@
-import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, pgTable, real, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./users";
 
 export const musicTracks = pgTable("music_tracks", {
@@ -13,7 +13,7 @@ export const musicTracks = pgTable("music_tracks", {
   category: text("category"),
   mood: text("mood"),
   bpm: integer("bpm"),
-  duration: integer("duration"),
+  duration: real("duration"),
   url: text("url"),
   storageKey: text("storage_key"),
   source: text("source"),

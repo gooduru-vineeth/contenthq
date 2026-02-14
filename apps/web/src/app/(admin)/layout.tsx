@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Bot, Box, CreditCard, FileText, GitBranch, LogOut, Server, Settings, User, Users } from "lucide-react";
+import { ArrowLeft, Bot, Box, CreditCard, Crown, FileText, GitBranch, LogOut, Server, Settings, User, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -27,6 +27,7 @@ const adminNavigation: AdminNavItem[] = [
   { label: "Models", href: "/admin/models", icon: Box },
   { label: "Providers", href: "/admin/providers", icon: Server },
   { label: "Defaults", href: "/admin/default-models", icon: Settings },
+  { label: "Subscriptions", href: "/admin/subscriptions/plans", icon: Crown },
   { label: "Billing", href: "/admin/billing", icon: CreditCard },
 ];
 

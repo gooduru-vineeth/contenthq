@@ -3,7 +3,9 @@ import {
   creditBalances,
   creditTransactions,
   creditReservations,
+  bonusCredits,
 } from "@contenthq/db/schema";
+import { subscriptionService } from "./subscription.service";
 import { eq, sql, desc, and, lt } from "drizzle-orm";
 import { DEFAULT_FREE_CREDITS } from "@contenthq/shared";
 import type { CreditTransactionType } from "@contenthq/shared";
@@ -18,6 +20,7 @@ interface CreditBalanceRow {
   id: string;
   user_id: string;
   balance: number | null;
+  bonus_balance: number;
   reserved_balance: number;
   lifetime_credits_received: number;
   lifetime_credits_used: number;
@@ -80,12 +83,13 @@ async function getBalance(userId: string) {
 }
 
 /**
- * Returns `balance - reservedBalance` (i.e. credits not locked by any
- * pending reservation).
+ * Returns `(balance + bonusBalance) - reservedBalance` (i.e. total credits
+ * not locked by any pending reservation, including both purchased and bonus).
  */
 async function getAvailableBalance(userId: string): Promise<number> {
   const balance = await getBalance(userId);
-  return (balance.balance ?? 0) - (balance.reservedBalance ?? 0);
+  const total = (balance.balance ?? 0) + (balance.bonusBalance ?? 0);
+  return total - (balance.reservedBalance ?? 0);
 }
 
 /**
@@ -140,8 +144,10 @@ async function reserveCredits(
     }
 
     const currentBalance = row.balance ?? 0;
+    const bonusBalance = row.bonus_balance ?? 0;
     const currentReserved = row.reserved_balance ?? 0;
-    const available = currentBalance - currentReserved;
+    const totalBalance = currentBalance + bonusBalance;
+    const available = totalBalance - currentReserved;
 
     if (available < amount) {
       throw new Error(
@@ -327,6 +333,11 @@ async function releaseReservation(reservationId: string) {
 /**
  * Directly deduct credits from a user's balance (post-completion flow,
  * no prior reservation). Uses `SELECT … FOR UPDATE` to prevent races.
+ *
+ * Implements three-tier deduction priority:
+ * 1. Bonus credits (from bonusBalance)
+ * 2. Subscription credits (from active subscription)
+ * 3. Purchased credits (from balance)
  */
 async function deductCredits(
   userId: string,
@@ -343,6 +354,7 @@ async function deductCredits(
   }
 ) {
   return await db.transaction(async (tx) => {
+    // 1. Lock the balance row
     const result = await tx.execute(
       sql`SELECT * FROM credit_balances WHERE user_id = ${userId} FOR UPDATE`
     );
@@ -354,6 +366,7 @@ async function deductCredits(
         userId,
         balance: DEFAULT_FREE_CREDITS,
         reservedBalance: 0,
+        bonusBalance: 0,
       });
       const created = await tx.execute(
         sql`SELECT * FROM credit_balances WHERE user_id = ${userId} FOR UPDATE`
@@ -365,24 +378,96 @@ async function deductCredits(
       throw new Error("Failed to create credit balance");
     }
 
-    const currentBalance = row.balance ?? 0;
+    // 2. Compute deductions across all three tiers (no UPDATEs yet)
+    const creditSources: Array<{ source: string; amount: number }> = [];
+    let remaining = amount;
+    let bonusDeducted = 0;
+    let subscriptionDeducted = 0;
+    let purchasedDeducted = 0;
 
-    if (currentBalance < amount) {
-      throw new Error(
-        `Insufficient credits. Balance: ${currentBalance}, required: ${amount}`
-      );
+    const originalBonusBalance = row.bonus_balance ?? 0;
+    const originalBalance = row.balance ?? 0;
+
+    // Step 1: Calculate bonus deduction
+    if (originalBonusBalance > 0 && remaining > 0) {
+      bonusDeducted = Math.min(originalBonusBalance, remaining);
+      remaining -= bonusDeducted;
+      creditSources.push({ source: "bonus", amount: bonusDeducted });
     }
 
-    // Deduct balance and atomically increment lifetimeCreditsUsed
+    // Step 2: Calculate subscription deduction
+    if (remaining > 0) {
+      try {
+        const subscription = await subscriptionService.getCurrentSubscription(userId);
+
+        if (subscription) {
+          const subscriptionAvailable = subscription.creditsGranted - subscription.creditsUsed;
+
+          if (subscriptionAvailable > 0) {
+            subscriptionDeducted = Math.min(subscriptionAvailable, remaining);
+            await subscriptionService.incrementCreditsUsed(subscription.id, subscriptionDeducted);
+            remaining -= subscriptionDeducted;
+            creditSources.push({ source: "subscription", amount: subscriptionDeducted });
+          }
+        }
+      } catch (error) {
+        // Do not fail credit deduction if subscription tracking fails
+        console.error("[CreditService] Failed to track subscription usage:", error);
+      }
+    }
+
+    // Step 3: Calculate purchased deduction + check sufficiency
+    if (remaining > 0) {
+      if (originalBalance < remaining) {
+        const totalAvailable = originalBonusBalance + originalBalance;
+        throw new Error(
+          `Insufficient credits. Available: ${totalAvailable}, required: ${amount}`
+        );
+      }
+      purchasedDeducted = remaining;
+      remaining = 0;
+      creditSources.push({ source: "purchased", amount: purchasedDeducted });
+    }
+
+    // 3. Update bonus_credits records with FIFO deduction
+    if (bonusDeducted > 0) {
+      const activeBonuses = await tx
+        .select()
+        .from(bonusCredits)
+        .where(
+          and(
+            eq(bonusCredits.userId, userId),
+            eq(bonusCredits.isExpired, false)
+          )
+        )
+        .orderBy(bonusCredits.createdAt);
+
+      let bonusRemaining = bonusDeducted;
+      for (const bonus of activeBonuses) {
+        if (bonusRemaining <= 0) break;
+        const deductFromThis = Math.min(bonus.remainingAmount, bonusRemaining);
+        await tx
+          .update(bonusCredits)
+          .set({
+            remainingAmount: bonus.remainingAmount - deductFromThis,
+          })
+          .where(eq(bonusCredits.id, bonus.id));
+        bonusRemaining -= deductFromThis;
+      }
+    }
+
+    // 4. Single UPDATE on credit_balances with all changes
     await tx
       .update(creditBalances)
       .set({
-        balance: currentBalance - amount,
+        bonusBalance: originalBonusBalance - bonusDeducted,
+        balance: originalBalance - purchasedDeducted,
         lifetimeCreditsUsed: (row.lifetime_credits_used ?? 0) + amount,
         lastUpdated: new Date(),
       })
       .where(eq(creditBalances.userId, userId));
 
+    // 5. Record transaction with creditSources metadata
     const cost = opts?.costBreakdown;
 
     const [transaction] = await tx
@@ -406,6 +491,10 @@ async function deductCredits(
         billedCostCredits: cost?.billedCostCredits ?? null,
         costMultiplier: cost?.costMultiplier ?? null,
         costBreakdown: cost?.costBreakdown ?? null,
+        metadata: {
+          creditSources,
+          ...(opts?.costBreakdown?.costBreakdown ?? {}),
+        },
       })
       .returning();
 
@@ -414,7 +503,10 @@ async function deductCredits(
 }
 
 /**
- * Add credits to a user's balance (purchase, refund, etc.).
+ * Add credits to a user's balance (purchase, refund, bonus, etc.).
+ *
+ * If type is "bonus", credits are added to bonusBalance.
+ * Otherwise, credits are added to the regular balance.
  */
 async function addCredits(
   userId: string,
@@ -428,11 +520,16 @@ async function addCredits(
     );
     const existing = result.rows?.[0] as unknown as CreditBalanceRow | undefined;
 
+    const isBonus = type === "bonus";
+
     if (existing) {
       await tx
         .update(creditBalances)
         .set({
-          balance: (existing.balance ?? 0) + amount,
+          balance: isBonus ? existing.balance : (existing.balance ?? 0) + amount,
+          bonusBalance: isBonus
+            ? (existing.bonus_balance ?? 0) + amount
+            : existing.bonus_balance,
           lifetimeCreditsReceived:
             (existing.lifetime_credits_received ?? 0) + amount,
           lastUpdated: new Date(),
@@ -441,7 +538,8 @@ async function addCredits(
     } else {
       await tx.insert(creditBalances).values({
         userId,
-        balance: DEFAULT_FREE_CREDITS + amount,
+        balance: isBonus ? DEFAULT_FREE_CREDITS : DEFAULT_FREE_CREDITS + amount,
+        bonusBalance: isBonus ? amount : 0,
         reservedBalance: 0,
         lifetimeCreditsReceived: DEFAULT_FREE_CREDITS + amount,
       });
@@ -454,6 +552,7 @@ async function addCredits(
         type,
         amount,
         description,
+        metadata: isBonus ? { creditType: "bonus" } : null,
       })
       .returning();
 
@@ -464,12 +563,15 @@ async function addCredits(
 /**
  * Grant credits from an admin account. Records the admin user ID in the
  * transaction metadata for auditing.
+ *
+ * @param asBonus - If true, credits are added to bonusBalance instead of regular balance
  */
 async function adminGrantCredits(
   adminUserId: string,
   targetUserId: string,
   amount: number,
-  reason: string
+  reason: string,
+  asBonus = false
 ) {
   return await db.transaction(async (tx) => {
     const result = await tx.execute(
@@ -481,7 +583,10 @@ async function adminGrantCredits(
       await tx
         .update(creditBalances)
         .set({
-          balance: (existing.balance ?? 0) + amount,
+          balance: asBonus ? existing.balance : (existing.balance ?? 0) + amount,
+          bonusBalance: asBonus
+            ? (existing.bonus_balance ?? 0) + amount
+            : existing.bonus_balance,
           lifetimeCreditsReceived:
             (existing.lifetime_credits_received ?? 0) + amount,
           lastUpdated: new Date(),
@@ -490,7 +595,8 @@ async function adminGrantCredits(
     } else {
       await tx.insert(creditBalances).values({
         userId: targetUserId,
-        balance: DEFAULT_FREE_CREDITS + amount,
+        balance: asBonus ? DEFAULT_FREE_CREDITS : DEFAULT_FREE_CREDITS + amount,
+        bonusBalance: asBonus ? amount : 0,
         reservedBalance: 0,
         lifetimeCreditsReceived: DEFAULT_FREE_CREDITS + amount,
       });
@@ -504,7 +610,10 @@ async function adminGrantCredits(
         amount,
         description: reason,
         adminUserId,
-        metadata: { grantedBy: adminUserId },
+        metadata: {
+          grantedBy: adminUserId,
+          creditType: asBonus ? "bonus" : "regular",
+        },
       })
       .returning();
 

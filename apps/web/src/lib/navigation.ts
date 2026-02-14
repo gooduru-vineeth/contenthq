@@ -8,6 +8,7 @@ import {
   FileText,
   Users,
   CreditCard,
+  Crown,
   Settings,
   Server,
   Cpu,
@@ -49,4 +50,5 @@ export const adminNavigation: NavItem[] = [
   { label: "Models", href: "/admin/models", icon: Cpu, iconColor: "text-dash-purple" },
   { label: "Agents", href: "/admin/agents", icon: Bot, iconColor: "text-dash-teal" },
   { label: "Flows", href: "/admin/flows", icon: GitBranch, iconColor: "text-dash-deep-purple" },
+  { label: "Subscriptions", href: "/admin/subscriptions/plans", icon: Crown, iconColor: "text-dash-orange" },
 ];

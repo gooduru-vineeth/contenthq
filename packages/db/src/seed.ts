@@ -1,5 +1,5 @@
 import { db } from "./client";
-import { aiProviders, aiModels } from "./schema";
+import { aiProviders, aiModels, subscriptionPlans } from "./schema";
 import { sql } from "drizzle-orm";
 
 // ── Providers ──────────────────────────────────────────────────────────
@@ -1692,6 +1692,141 @@ async function seedModels() {
   console.warn(`  Upserted ${allModels.length} models`);
 }
 
+// ── Subscription Plans ─────────────────────────────────────────────────
+
+const plans = [
+  {
+    id: "plan_free",
+    name: "Free",
+    slug: "free",
+    description: "Get started with AI content creation",
+    monthlyCredits: 500,
+    price: "0",
+    credits: 500,
+    bonusCredits: 0,
+    priceInr: 0,
+    priceUsd: 0,
+    billingInterval: "monthly" as const,
+    active: true,
+    isDefault: true,
+    popular: false,
+    sortOrder: 0,
+    features: {
+      maxProjects: 3,
+      maxConcurrentPipelines: 1,
+      pipelinesPerDay: 5,
+      pipelinesPerMonth: 30,
+      priorityProcessing: false,
+      dedicatedSupport: false,
+      apiAccess: false,
+    },
+  },
+  {
+    id: "plan_starter",
+    name: "Starter",
+    slug: "starter",
+    description: "For individual creators getting serious about content",
+    monthlyCredits: 5000,
+    price: "999",
+    credits: 5000,
+    bonusCredits: 500,
+    priceInr: 99900,
+    priceUsd: 1200,
+    billingInterval: "monthly" as const,
+    active: true,
+    isDefault: false,
+    popular: false,
+    sortOrder: 1,
+    features: {
+      maxProjects: 15,
+      maxConcurrentPipelines: 2,
+      pipelinesPerDay: 20,
+      pipelinesPerMonth: 200,
+      priorityProcessing: false,
+      dedicatedSupport: false,
+      apiAccess: false,
+    },
+  },
+  {
+    id: "plan_pro",
+    name: "Pro",
+    slug: "pro",
+    description: "For professional creators and small teams",
+    monthlyCredits: 20000,
+    price: "2999",
+    credits: 20000,
+    bonusCredits: 2000,
+    priceInr: 299900,
+    priceUsd: 3600,
+    billingInterval: "monthly" as const,
+    active: true,
+    isDefault: false,
+    popular: true,
+    sortOrder: 2,
+    features: {
+      maxProjects: 50,
+      maxConcurrentPipelines: 5,
+      pipelinesPerDay: 50,
+      pipelinesPerMonth: 500,
+      priorityProcessing: true,
+      dedicatedSupport: false,
+      apiAccess: true,
+    },
+  },
+  {
+    id: "plan_business",
+    name: "Business",
+    slug: "business",
+    description: "For agencies and teams scaling content production",
+    monthlyCredits: 100000,
+    price: "9999",
+    credits: 100000,
+    bonusCredits: 10000,
+    priceInr: 999900,
+    priceUsd: 12000,
+    billingInterval: "monthly" as const,
+    active: true,
+    isDefault: false,
+    popular: false,
+    sortOrder: 3,
+    features: {
+      maxProjects: 200,
+      maxConcurrentPipelines: 10,
+      pipelinesPerDay: 200,
+      pipelinesPerMonth: 2000,
+      priorityProcessing: true,
+      dedicatedSupport: true,
+      apiAccess: true,
+    },
+  },
+];
+
+async function seedSubscriptionPlans() {
+  console.warn("Seeding subscription plans...");
+
+  await db
+    .insert(subscriptionPlans)
+    .values(plans)
+    .onConflictDoUpdate({
+      target: subscriptionPlans.slug,
+      set: {
+        name: sql`excluded.name`,
+        description: sql`excluded.description`,
+        credits: sql`excluded.credits`,
+        bonusCredits: sql`excluded.bonus_credits`,
+        priceInr: sql`excluded.price_inr`,
+        priceUsd: sql`excluded.price_usd`,
+        features: sql`excluded.features`,
+        popular: sql`excluded.popular`,
+        sortOrder: sql`excluded.sort_order`,
+        isDefault: sql`excluded.is_default`,
+        updatedAt: sql`now()`,
+      },
+    });
+
+  console.warn(`  Upserted ${plans.length} subscription plans`);
+}
+
 // ── Main ───────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1700,6 +1835,7 @@ async function main() {
   try {
     await seedProviders();
     await seedModels();
+    await seedSubscriptionPlans();
     console.warn("Seed completed successfully!");
   } catch (error) {
     console.error("Seed failed:", error);

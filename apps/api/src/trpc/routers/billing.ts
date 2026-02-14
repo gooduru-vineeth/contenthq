@@ -4,6 +4,7 @@ import { db } from "@contenthq/db/client";
 import { subscriptions, subscriptionPlans } from "@contenthq/db/schema";
 import { eq } from "drizzle-orm";
 import { creditService } from "../../services/credit.service";
+import { subscriptionService } from "../../services/subscription.service";
 
 export const billingRouter = router({
   /**
@@ -11,7 +12,25 @@ export const billingRouter = router({
    * Creates a default balance with free credits for new users.
    */
   getBalance: protectedProcedure.query(async ({ ctx }) => {
-    return creditService.getBalance(ctx.user.id);
+    const balance = await creditService.getBalance(ctx.user.id);
+    const subscription = await subscriptionService.getCurrentSubscription(ctx.user.id);
+
+    return {
+      ...balance,
+      subscription: subscription
+        ? {
+            planName: subscription.plan.name,
+            planSlug: subscription.plan.slug,
+            creditsGranted: subscription.creditsGranted,
+            creditsUsed: subscription.creditsUsed,
+            creditsRemaining: subscription.creditsGranted - subscription.creditsUsed,
+            currentPeriodStart: subscription.currentPeriodStart,
+            currentPeriodEnd: subscription.currentPeriodEnd,
+            status: subscription.status,
+            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+          }
+        : null,
+    };
   }),
 
   /**

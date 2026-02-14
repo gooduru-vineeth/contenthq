@@ -28,6 +28,8 @@ import { adminBillingRouter } from "./admin-billing";
 import { adminBonusRouter } from "./admin-bonus";
 import { paymentRouter } from "./payment";
 import { analyticsRouter } from "./analytics";
+import { subscriptionRouter } from "./subscription";
+import { adminSubscriptionRouter } from "./admin-subscription";
 
 export const appRouter = router({
   health: healthRouter,
@@ -56,6 +58,8 @@ export const appRouter = router({
   userModelPreference: userModelPreferenceRouter,
   stockMedia: stockMediaRouter,
   adminBilling: adminBillingRouter,
+  subscription: subscriptionRouter,
+  adminSubscription: adminSubscriptionRouter,
   adminBonus: adminBonusRouter,
   payment: paymentRouter,
   analytics: analyticsRouter,

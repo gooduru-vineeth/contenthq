@@ -3,6 +3,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  real,
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
@@ -29,7 +30,7 @@ export const scenes = pgTable(
     narrationScript: text("narration_script"),
     motionSpec: jsonb("motion_spec"),
     transitions: text("transitions"),
-    duration: integer("duration"),
+    duration: real("duration"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

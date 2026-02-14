@@ -1,4 +1,4 @@
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { writeFile, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -71,7 +71,7 @@ import {
 // Animation filters
 import { createAnimationFilter } from "./animation-filters";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const ASS_STYLES = new Set([
   "none",
@@ -378,15 +378,14 @@ export async function embedSubtitles(
       await writeFile(assPath, assContent);
       const escapedPath = escapeFFmpegPath(assPath);
 
-      const cmd = [
-        "ffmpeg -y",
-        `-i "${inputPath}"`,
-        `-vf "ass=${escapedPath}"`,
-        `-c:v libx264 -c:a copy`,
-        `"${outputPath}"`,
-      ].join(" ");
-
-      await execAsync(cmd, { timeout: 600000 });
+      await execFileAsync("ffmpeg", [
+        "-y",
+        "-i", inputPath,
+        "-vf", `ass=${escapedPath}`,
+        "-c:v", "libx264",
+        "-c:a", "copy",
+        outputPath,
+      ], { timeout: 600000 });
     } else {
       // Generate drawtext filter chain
       const filters = generateDrawtextFilters(style, subtitles, options);
@@ -398,15 +397,14 @@ export async function embedSubtitles(
 
       const filterStr = filters.join(",");
 
-      const cmd = [
-        "ffmpeg -y",
-        `-i "${inputPath}"`,
-        `-vf "${filterStr}"`,
-        `-c:v libx264 -c:a copy`,
-        `"${outputPath}"`,
-      ].join(" ");
-
-      await execAsync(cmd, { timeout: 600000 });
+      await execFileAsync("ffmpeg", [
+        "-y",
+        "-i", inputPath,
+        "-vf", filterStr,
+        "-c:v", "libx264",
+        "-c:a", "copy",
+        outputPath,
+      ], { timeout: 600000 });
     }
 
     return readFile(outputPath);

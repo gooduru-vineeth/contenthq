@@ -58,6 +58,33 @@ export async function createTempDir(): Promise<string> {
   return mkdtemp(join(tmpdir(), "contenthq-video-"));
 }
 
+/**
+ * Get accurate audio duration using ffprobe
+ * @param audioBuffer - Audio file buffer
+ * @returns Duration in seconds with millisecond precision
+ */
+export async function getAudioDuration(audioBuffer: Buffer): Promise<number> {
+  const tempDir = await createTempDir();
+  const audioPath = join(tempDir, "temp-audio.mp3");
+
+  try {
+    await writeFile(audioPath, audioBuffer);
+
+    // Use ffprobe to read container metadata
+    const cmd = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`;
+    const { stdout } = await execAsync(cmd, { timeout: 10000 });
+
+    const duration = parseFloat(stdout.trim());
+    if (!Number.isFinite(duration) || duration <= 0) {
+      throw new Error(`Invalid duration from ffprobe: ${stdout}`);
+    }
+
+    return duration;
+  } finally {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 function buildZoompanFilter(
   motionType: MotionType,
   speed: number,

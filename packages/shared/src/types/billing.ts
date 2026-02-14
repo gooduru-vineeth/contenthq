@@ -58,6 +58,7 @@ export interface PlanRateLimits {
 export type CreditTransactionType =
   | "usage"
   | "purchase"
+  | "bonus"
   | "admin_grant"
   | "admin_deduction"
   | "refund"

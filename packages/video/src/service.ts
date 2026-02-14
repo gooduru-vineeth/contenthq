@@ -73,12 +73,13 @@ export class VideoService {
       options.musicVolume ?? 30,
     );
 
-    // Estimate duration from voiceover
-    const estimatedDuration = Math.ceil(options.voiceoverBuffer.length / 16000);
+    // Get accurate duration using ffprobe instead of estimation
+    const { getAudioDuration } = await import("./ffmpeg");
+    const accurateDuration = await getAudioDuration(audioBuffer);
 
     return {
       audioBuffer,
-      duration: estimatedDuration,
+      duration: accurateDuration,
       format: options.outputFormat ?? "mp3",
     };
   }

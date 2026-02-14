@@ -161,7 +161,8 @@ export function createVideoAssemblyWorker(): Worker {
           assemblyScenes.push({
             videoBuffer,
             audioBuffer: Buffer.from(await audioResponse.arrayBuffer()),
-            duration: scene.duration ?? video?.duration ?? 5,
+            // PREFER audio.duration (accurate) over scene.duration (estimated)
+            duration: audio.duration ?? scene.duration ?? video?.duration ?? 5,
           });
         }
 

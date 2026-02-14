@@ -43,7 +43,11 @@ export function convertHexToASS(hexColor: string): string {
 }
 
 export function escapeFFmpegText(text: string): string {
-  return text.replace(/'/g, "\\'").replace(/:/g, "\\:");
+  return text
+    .replace(/\\/g, "\\\\")   // Escape backslashes first
+    .replace(/'/g, "\u2019")  // Replace apostrophes with visually identical Unicode right single quotation mark
+    .replace(/:/g, "\\:")     // Escape colons
+    .replace(/;/g, "\\;");    // Escape semicolons (filter chain separator)
 }
 
 export function calculateWordTimings(subtitle: SubtitleSegment): WordTiming[] {

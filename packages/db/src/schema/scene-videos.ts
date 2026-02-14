@@ -1,4 +1,4 @@
-import { index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, pgTable, real, text, timestamp } from "drizzle-orm/pg-core";
 import { scenes } from "./scenes";
 
 export const sceneVideos = pgTable(
@@ -12,7 +12,7 @@ export const sceneVideos = pgTable(
       .references(() => scenes.id, { onDelete: "cascade" }),
     videoUrl: text("video_url"),
     storageKey: text("storage_key"),
-    duration: integer("duration"),
+    duration: real("duration"),
     voiceoverUrl: text("voiceover_url"),
     ttsProvider: text("tts_provider"),
     ttsVoiceId: text("tts_voice_id"),

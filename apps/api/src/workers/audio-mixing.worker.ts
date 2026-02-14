@@ -106,6 +106,9 @@ export function createAudioMixingWorker(): Worker {
 
         console.warn(`[AudioMix] Uploaded mixed audio for scene ${sceneId}: key=${mixedKey}, outputSize=${formatFileSize(mixResult.audioBuffer.length)}, format=${mixResult.format}`);
 
+        // Get accurate duration from mix result
+        const accurateAudioDuration = mixResult.duration;
+
         // Check if a record already exists for idempotency
         const existing = await db
           .select()
@@ -118,6 +121,7 @@ export function createAudioMixingWorker(): Worker {
             .set({
               mixedAudioUrl,
               storageKey: uploadResult.key,
+              duration: accurateAudioDuration,
               voiceoverVolume: cfgVoiceoverVolume,
               musicVolume: cfgMusicVolume,
               musicDuckingEnabled: cfgMusicDucking,
@@ -129,6 +133,7 @@ export function createAudioMixingWorker(): Worker {
             sceneId,
             mixedAudioUrl,
             storageKey: uploadResult.key,
+            duration: accurateAudioDuration,
             voiceoverVolume: cfgVoiceoverVolume,
             musicVolume: cfgMusicVolume,
             musicDuckingEnabled: cfgMusicDucking,

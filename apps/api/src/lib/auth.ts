@@ -23,5 +23,15 @@ export const auth = betterAuth({
         input: false,
       },
     },
+    onCreate: async (user: any) => {
+      // Import dynamically to avoid circular dependencies
+      const { subscriptionService } = await import("../services/subscription.service");
+      try {
+        await subscriptionService.assignDefaultPlan(user.id);
+        console.log(`[Auth] Assigned default plan to user ${user.id}`);
+      } catch (error) {
+        console.error(`[Auth] Failed to assign default plan:`, error);
+      }
+    },
   },
 });
