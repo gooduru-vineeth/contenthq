@@ -7,6 +7,7 @@ import { stories, scenes, ingestedContent, projects, aiGenerations, generationJo
 import { eq, and } from "drizzle-orm";
 import type { z } from "zod";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
+import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createStoryWritingWorker(): Worker {
   return new Worker<StoryWritingJobData>(
@@ -15,6 +16,16 @@ export function createStoryWritingWorker(): Worker {
       const { projectId, userId, tone, targetDuration, agentId, stageConfig } = job.data;
       const startedAt = new Date();
       console.warn(`[StoryWriting] Processing job ${job.id} for project ${projectId}, tone=${tone}, targetDuration=${targetDuration}s, agentId=${agentId ?? "none"}, hasStageConfig=${!!stageConfig}`);
+
+      try {
+        await assertProjectActive(projectId);
+      } catch (e) {
+        if (e instanceof ProjectDeletedError) {
+          console.warn(`[StoryWriting] Skipping job ${job.id}: ${e.message}`);
+          return { success: false, skipped: true };
+        }
+        throw e;
+      }
 
       // Apply stageConfig overrides if provided
       const effectiveAgentId = stageConfig?.agentId ?? agentId;

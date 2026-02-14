@@ -30,6 +30,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PipelineProgressTracker } from "@/components/projects/pipeline-tracker";
 import { PipelineLog } from "@/components/projects/pipeline-log";
 import { StageDetailPanel } from "@/components/projects/stage-detail-panel";
@@ -37,6 +47,13 @@ import {
   PROJECT_STATUS_TO_STAGE,
   type PipelineStage,
 } from "@contenthq/shared";
+
+const PIPELINE_TEMPLATE_LABELS: Record<string, string> = {
+  "builtin-ai-video": "AI Video",
+  "builtin-presentation": "Presentation Video",
+  "builtin-remotion": "Remotion Video",
+  "builtin-motion-canvas": "Motion Canvas Video",
+};
 
 const statusBadgeVariant: Record<string, "secondary" | "default" | "destructive" | "outline"> = {
   draft: "secondary",
@@ -68,20 +85,30 @@ export default function ProjectDetailPage({
 
   const utils = trpc.useUtils();
 
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
   const isActive = (status: string) =>
     !["draft", "completed", "failed", "cancelled"].includes(status);
 
   const { data: project, isLoading: projectLoading } =
     trpc.project.getById.useQuery(
       { id },
-      { refetchInterval: (query) => isActive(query.state.data?.status ?? "draft") ? 5000 : false },
+      {
+        enabled: !isDeleting,
+        refetchInterval: (query) =>
+          isDeleting ? false : isActive(query.state.data?.status ?? "draft") ? 5000 : false,
+      },
     );
 
   const isProjectActive = project ? isActive(project.status) : false;
 
   const { data: jobs } = trpc.job.getLogsByProject.useQuery(
     { projectId: id },
-    { refetchInterval: isProjectActive ? 5000 : false },
+    {
+      enabled: !isDeleting,
+      refetchInterval: isDeleting ? false : isProjectActive ? 5000 : false,
+    },
   );
 
   const currentStage = project
@@ -118,9 +145,15 @@ export default function ProjectDetailPage({
     },
   });
   const deleteMutation = trpc.project.delete.useMutation({
+    onMutate: () => {
+      setIsDeleting(true);
+    },
     onSuccess: () => {
       utils.project.list.invalidate();
       router.push("/projects");
+    },
+    onError: () => {
+      setIsDeleting(false);
     },
   });
 
@@ -153,6 +186,11 @@ export default function ProjectDetailPage({
   }
 
   function handleDelete() {
+    setShowDeleteDialog(true);
+  }
+
+  function confirmDelete() {
+    setShowDeleteDialog(false);
     deleteMutation.mutate({ id });
   }
 
@@ -176,6 +214,9 @@ export default function ProjectDetailPage({
                 className={statusBadgeClass[project.status] ?? ""}
               >
                 {project.status.replace(/_/g, " ")}
+              </Badge>
+              <Badge variant="outline">
+                {PIPELINE_TEMPLATE_LABELS[project.pipelineTemplateId ?? "builtin-ai-video"] ?? "AI Video"}
               </Badge>
             </div>
             <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
@@ -237,7 +278,7 @@ export default function ProjectDetailPage({
             <div>
               <CardTitle className="text-base">Pipeline Progress</CardTitle>
               <CardDescription>
-                Click a stage to view details
+                {PIPELINE_TEMPLATE_LABELS[project.pipelineTemplateId ?? "builtin-ai-video"] ?? "AI Video"} pipeline — click a stage to view details
               </CardDescription>
             </div>
           </div>
@@ -249,6 +290,7 @@ export default function ProjectDetailPage({
             progressPercent={project.progressPercent ?? undefined}
             selectedStage={selectedStage}
             onStageSelect={handleStageSelect}
+            pipelineTemplateId={project.pipelineTemplateId}
           />
         </CardContent>
       </Card>
@@ -286,6 +328,29 @@ export default function ProjectDetailPage({
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isProjectActive
+                ? "This project has an active pipeline running. Deleting it will cancel all in-progress jobs and remove all generated content. This action cannot be undone."
+                : "This will permanently delete the project and all its generated content. This action cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -13,6 +13,7 @@ export const createProjectSchema = z.object({
   musicTrackId: z.string().nullable().optional(),
   enableVideoGeneration: z.boolean().default(false),
   pipelineMode: pipelineModeSchema.default("simple"),
+  pipelineTemplateId: z.string().optional(),
   visualStyle: z.string().optional(),
   ttsProvider: z.string().optional(),
   ttsVoiceId: z.string().optional(),

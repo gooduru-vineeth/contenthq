@@ -8,6 +8,7 @@ import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { videoService } from "@contenthq/video";
 import { storage, getSceneAudioPath, getAudioContentType } from "@contenthq/storage";
 import { formatFileSize } from "@contenthq/ai";
+import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createAudioMixingWorker(): Worker {
   return new Worker<AudioMixingJobData>(
@@ -16,6 +17,16 @@ export function createAudioMixingWorker(): Worker {
       const { projectId, sceneId, userId, musicTrackId, stageConfig } = job.data;
       const startedAt = new Date();
       console.warn(`[AudioMix] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, musicTrackId=${musicTrackId ?? "none"}, hasStageConfig=${!!stageConfig}`);
+
+      try {
+        await assertProjectActive(projectId);
+      } catch (e) {
+        if (e instanceof ProjectDeletedError) {
+          console.warn(`[AudioMix] Skipping job ${job.id}: ${e.message}`);
+          return { success: false, skipped: true };
+        }
+        throw e;
+      }
 
       // Apply stageConfig overrides for volume and mixing
       const cfgVoiceoverVolume = stageConfig?.voiceoverVolume ?? 100;

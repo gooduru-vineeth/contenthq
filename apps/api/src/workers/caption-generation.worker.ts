@@ -5,6 +5,7 @@ import { db } from "@contenthq/db/client";
 import { scenes, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
+import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 interface CaptionWord {
   word: string;
@@ -101,6 +102,16 @@ export function createCaptionGenerationWorker(): Worker {
       console.warn(
         `[CaptionGeneration] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, scriptLength=${narrationScript?.length ?? 0} chars, audioUrl=${audioUrl ? "present" : "missing"}`
       );
+
+      try {
+        await assertProjectActive(projectId);
+      } catch (e) {
+        if (e instanceof ProjectDeletedError) {
+          console.warn(`[CaptionGeneration] Skipping job ${job.id}: ${e.message}`);
+          return { success: false, skipped: true };
+        }
+        throw e;
+      }
 
       try {
         // Mark generationJob as processing

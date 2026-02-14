@@ -7,6 +7,7 @@ import { db } from "@contenthq/db/client";
 import { scenes, sceneVisuals, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
+import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createVisualVerificationWorker(): Worker {
   return new Worker<VisualVerificationJobData>(
@@ -16,6 +17,16 @@ export function createVisualVerificationWorker(): Worker {
       const stageConfig = (job.data as unknown as Record<string, unknown>).stageConfig as { threshold?: number; autoRetryCount?: number; provider?: string; model?: string } | undefined;
       const startedAt = new Date();
       console.warn(`[VisualVerification] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, imageUrl=${imageUrl?.substring(0, 80)}, agentId=${agentId ?? "none"}, hasStageConfig=${!!stageConfig}`);
+
+      try {
+        await assertProjectActive(projectId);
+      } catch (e) {
+        if (e instanceof ProjectDeletedError) {
+          console.warn(`[VisualVerification] Skipping job ${job.id}: ${e.message}`);
+          return { success: false, skipped: true };
+        }
+        throw e;
+      }
 
       // Apply stageConfig overrides
       const verificationThreshold = stageConfig?.threshold ?? 60;

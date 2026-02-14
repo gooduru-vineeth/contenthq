@@ -26,6 +26,8 @@ export const projects = pgTable(
     thumbnailUrl: text("thumbnail_url"),
     progressPercent: integer("progress_percent").default(0),
     totalCreditsUsed: integer("total_credits_used").default(0),
+    /** Pipeline template ID — NULL defaults to "builtin-ai-video" for backward compat */
+    pipelineTemplateId: text("pipeline_template_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

@@ -39,5 +39,8 @@ export * from "./cloned-voices";
 export * from "./cloned-voice-samples";
 export * from "./pipeline-configs";
 export * from "./pipeline-media-overrides";
+export * from "./pipeline-templates";
+export * from "./pipeline-runs";
+export * from "./pipeline-run-stages";
 export * from "./project-variations";
 export * from "./user-model-preferences";

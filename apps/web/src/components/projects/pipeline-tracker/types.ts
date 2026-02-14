@@ -25,4 +25,5 @@ export interface PipelineProgressTrackerProps {
   progressPercent?: number;
   selectedStage?: PipelineStage | null;
   onStageSelect?: (stage: PipelineStage) => void;
+  pipelineTemplateId?: string | null;
 }

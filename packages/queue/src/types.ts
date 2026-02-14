@@ -202,6 +202,99 @@ export interface CaptionGenerationJobData extends BaseFlowJobData {
   };
 }
 
+export interface GenericStageJobData extends BaseFlowJobData {
+  projectId: string;
+  userId: string;
+  stageId: string;
+  templateId: string;
+  pipelineRunId: string;
+  payload: Record<string, unknown>;
+}
+
+export interface PptIngestionJobData extends BaseFlowJobData {
+  projectId: string;
+  userId: string;
+  inputType: "pptx" | "pdf" | "google_slides" | "keynote" | "url";
+  inputFileId?: string;
+  inputUrl?: string;
+}
+
+export interface SlideRenderingJobData extends BaseFlowJobData {
+  projectId: string;
+  userId: string;
+  slideId: string;
+  slideIndex: number;
+  slidevConfig?: {
+    theme?: string;
+    width?: number;
+    height?: number;
+  };
+}
+
+export interface AudioScriptGenJobData extends BaseFlowJobData {
+  projectId: string;
+  userId: string;
+  presentationId: string;
+  slideIds: string[];
+  stageConfig?: {
+    provider?: string;
+    model?: string;
+    energy?: string;
+    tone?: string;
+  };
+}
+
+export interface RemotionCompositionJobData extends BaseFlowJobData {
+  projectId: string;
+  userId: string;
+  sceneId: string;
+  compositionSpec: {
+    templateId?: string;
+    props?: Record<string, unknown>;
+    durationInFrames?: number;
+    fps?: number;
+    width?: number;
+    height?: number;
+  };
+}
+
+export interface RemotionRenderJobData extends BaseFlowJobData {
+  projectId: string;
+  userId: string;
+  compositionId: string;
+  renderConfig: {
+    codec?: string;
+    quality?: number;
+    fps?: number;
+    outputFormat?: string;
+  };
+}
+
+export interface MotionCanvasSceneJobData extends BaseFlowJobData {
+  projectId: string;
+  userId: string;
+  sceneId: string;
+  sceneSpec: {
+    templateId?: string;
+    animationProps?: Record<string, unknown>;
+    durationInSeconds?: number;
+  };
+}
+
+export interface MotionCanvasRenderJobData extends BaseFlowJobData {
+  projectId: string;
+  userId: string;
+  sceneIds: string[];
+  renderConfig: {
+    codec?: string;
+    quality?: number;
+    fps?: number;
+    outputFormat?: string;
+    width?: number;
+    height?: number;
+  };
+}
+
 export type JobData =
   | IngestionJobData
   | StoryWritingJobData
@@ -214,4 +307,12 @@ export type JobData =
   | VideoAssemblyJobData
   | SpeechGenerationJobData
   | MediaGenerationJobData
-  | CaptionGenerationJobData;
+  | CaptionGenerationJobData
+  | GenericStageJobData
+  | PptIngestionJobData
+  | SlideRenderingJobData
+  | AudioScriptGenJobData
+  | RemotionCompositionJobData
+  | RemotionRenderJobData
+  | MotionCanvasSceneJobData
+  | MotionCanvasRenderJobData;

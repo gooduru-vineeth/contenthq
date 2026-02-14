@@ -21,7 +21,7 @@ export interface InworldTTSConfig {
   baseUrl?: string;
   workspaceId: string;
   apiKey: string;
-  model?: 'inworld-tts-1' | 'inworld-tts-1-max';
+  model?: 'inworld-tts-1' | 'inworld-tts-1-max' | 'inworld-tts-1.5-mini' | 'inworld-tts-1.5-max';
 }
 
 function estimateDurationSeconds(text: string, speakingRate = 1): number {
@@ -62,19 +62,21 @@ export class InworldTTSProvider implements ITTSProvider {
   readonly provider: Extract<SpeechProvider, 'inworld'> = 'inworld';
   readonly capabilities: TTSProviderCapabilities = {
     provider: 'inworld',
-    maxCharactersPerRequest: 5000,
-    supportedFormats: ['wav', 'mp3', 'opus'],
-    supportedLanguages: ['en', 'es', 'fr', 'ko', 'nl', 'zh', 'de', 'it', 'ja', 'pl', 'pt', 'ru'],
+    maxCharactersPerRequest: 2000,
+    supportedFormats: ['wav', 'mp3', 'opus', 'flac'],
+    supportedLanguages: ['en', 'es', 'fr', 'ko', 'nl', 'zh', 'de', 'it', 'ja', 'pl', 'pt', 'ru', 'ar', 'hi', 'he'],
     supportsSSML: false,
     supportsVoiceCloning: true,
     supportsEmotions: true,
     supportsSpeechMarks: false,
-    costPerCharacter: 0,
-    minSpeed: 0.25,
-    maxSpeed: 4,
+    costPerCharacter: 0.00001,
+    minSpeed: 0.5,
+    maxSpeed: 1.5,
     defaultSampleRate: 48000,
     availableQualities: ['premium', 'ultra'],
     models: [
+      { modelId: 'inworld-tts-1.5-max', name: 'Inworld TTS 1.5 Max', supportsEmotionTags: true },
+      { modelId: 'inworld-tts-1.5-mini', name: 'Inworld TTS 1.5 Mini', supportsEmotionTags: true },
       { modelId: 'inworld-tts-1', name: 'Inworld TTS', supportsEmotionTags: true },
       { modelId: 'inworld-tts-1-max', name: 'Inworld TTS Max', supportsEmotionTags: true },
     ],
@@ -85,7 +87,7 @@ export class InworldTTSProvider implements ITTSProvider {
   private defaultFormat: AudioFormat;
   private workspaceId: string;
   private apiKey: string;
-  private model: 'inworld-tts-1' | 'inworld-tts-1-max';
+  private model: 'inworld-tts-1' | 'inworld-tts-1-max' | 'inworld-tts-1.5-mini' | 'inworld-tts-1.5-max';
 
   constructor(config: InworldTTSConfig) {
     this.baseUrl = config.baseUrl || 'https://api.inworld.ai';
@@ -93,7 +95,7 @@ export class InworldTTSProvider implements ITTSProvider {
     this.apiKey = config.apiKey;
     this.defaultVoiceId = config.defaultVoiceId;
     this.defaultFormat = config.defaultFormat || 'wav';
-    this.model = config.model || 'inworld-tts-1';
+    this.model = config.model || 'inworld-tts-1.5-max';
   }
 
   private authHeaders() {
@@ -104,7 +106,7 @@ export class InworldTTSProvider implements ITTSProvider {
 
   async checkAvailability(): Promise<boolean> {
     try {
-      const url = `${this.baseUrl}/voices/v1/workspaces/${this.workspaceId}/voices`;
+      const url = `${this.baseUrl}/voices/v1/voices`;
       const resp = await fetch(url, { headers: this.authHeaders() });
       return resp.ok;
     } catch {
@@ -113,19 +115,22 @@ export class InworldTTSProvider implements ITTSProvider {
   }
 
   async estimateCost(params: CostEstimateParams): Promise<CostEstimate> {
+    const rate = this.model === 'inworld-tts-1.5-mini' ? 0.000005 : 0.00001;
     return {
       provider: 'inworld',
       characterCount: params.textLength,
-      estimatedCost: 0,
-      ratePerCharacter: 0,
+      estimatedCost: params.textLength * rate,
+      ratePerCharacter: rate,
     };
   }
 
   async getVoices(languageCode?: string): Promise<Voice[]> {
-    const qp = languageCode
-      ? `?filter=language=${encodeURIComponent(languageCode.split('-')[0])}`
-      : '';
-    const url = `${this.baseUrl}/tts/v1/voices${qp}`;
+    const params = new URLSearchParams();
+    if (languageCode) {
+      params.set('languages', this.toInworldLanguageCode(languageCode));
+    }
+    const qs = params.toString();
+    const url = `${this.baseUrl}/voices/v1/voices${qs ? `?${qs}` : ''}`;
     const resp = await fetch(url, { headers: this.authHeaders() });
     if (!resp.ok) {
       const text = await resp.text();
@@ -134,11 +139,9 @@ export class InworldTTSProvider implements ITTSProvider {
     const data: any = await resp.json();
     const items: any[] = Array.isArray(data.voices) ? data.voices : [];
     const voices: Voice[] = items.map((v) => {
-      const firstLang =
-        Array.isArray(v.languages) && v.languages.length
-          ? String(v.languages[0]).toLowerCase()
-          : 'en';
-      const lc = firstLang.includes('-') ? firstLang : firstLang;
+      const lc = v.langCode
+        ? this.fromInworldLanguageCode(String(v.langCode))
+        : 'en';
       return {
         id: v.voiceId,
         name: v.displayName || v.voiceId,
@@ -146,12 +149,32 @@ export class InworldTTSProvider implements ITTSProvider {
         language: lc.split('-')[0],
         languageCode: lc,
         description: v.description || undefined,
-        quality: this.model === 'inworld-tts-1-max' ? 'ultra' : 'premium',
+        quality: this.model.includes('max') ? 'ultra' : 'premium',
         supportedFormats: this.capabilities.supportedFormats,
         tags: Array.isArray(v.tags) ? v.tags : undefined,
       } as Voice;
     });
     return voices;
+  }
+
+  private toInworldLanguageCode(lang: string): string {
+    const map: Record<string, string> = {
+      en: 'EN_US', es: 'ES_ES', fr: 'FR_FR', ko: 'KO_KR',
+      nl: 'NL_NL', zh: 'ZH_CN', de: 'DE_DE', it: 'IT_IT',
+      ja: 'JA_JP', pl: 'PL_PL', pt: 'PT_BR', ru: 'RU_RU',
+      ar: 'AR_SA', hi: 'HI_IN', he: 'HE_IL',
+    };
+    return map[lang.split('-')[0].toLowerCase()] || lang.toUpperCase();
+  }
+
+  private fromInworldLanguageCode(code: string): string {
+    const map: Record<string, string> = {
+      EN_US: 'en', ES_ES: 'es', FR_FR: 'fr', KO_KR: 'ko',
+      NL_NL: 'nl', ZH_CN: 'zh', DE_DE: 'de', IT_IT: 'it',
+      JA_JP: 'ja', PL_PL: 'pl', PT_BR: 'pt', RU_RU: 'ru',
+      AR_SA: 'ar', HI_IN: 'hi', HE_IL: 'he',
+    };
+    return map[code] || code.split('_')[0].toLowerCase();
   }
 
   getSupportedLanguages(): string[] {
@@ -164,19 +187,25 @@ export class InworldTTSProvider implements ITTSProvider {
     const voiceId = options.voiceId || this.defaultVoiceId;
     if (!voiceId) throw new Error('Inworld TTS requires voiceId');
 
+    const formatMap: Record<string, string> = {
+      wav: 'LINEAR16',
+      mp3: 'MP3',
+      opus: 'OGG_OPUS',
+      flac: 'FLAC',
+    };
+
     const url = `${this.baseUrl}/tts/v1/voice`;
+    const model = (options.ttsSettings?.model as any) || this.model;
     const payload: any = {
       text: options.text,
       voiceId,
-      modelId: (options.ttsSettings?.model as any) || this.model,
-    };
-    if (format === 'wav') {
-      payload.audioConfig = {
-        audioEncoding: 'LINEAR16',
+      modelId: model,
+      audioConfig: {
+        audioEncoding: formatMap[format] || 'LINEAR16',
         sampleRateHertz: sampleRate,
         speakingRate: Math.max(0.5, Math.min(1.5, options.speed || 1)),
-      };
-    }
+      },
+    };
 
     const resp = await fetch(url, {
       method: 'POST',
@@ -200,6 +229,7 @@ export class InworldTTSProvider implements ITTSProvider {
     }
 
     const duration = estimateDurationSeconds(options.text, options.speed || 1);
+    const rate = model === 'inworld-tts-1.5-mini' ? 0.000005 : 0.00001;
 
     return {
       provider: 'inworld',
@@ -209,11 +239,11 @@ export class InworldTTSProvider implements ITTSProvider {
       sampleRate,
       duration,
       characterCount: options.text.length,
-      estimatedCost: 0,
+      estimatedCost: options.text.length * rate,
       metadata: {
         characterCount: options.text.length,
         generatedAt: new Date(),
-        model: (options.ttsSettings?.model as any) || this.model,
+        model,
       },
     };
   }

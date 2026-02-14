@@ -8,6 +8,7 @@ import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { storage, getSceneAudioPath, getAudioContentType } from "@contenthq/storage";
 import { formatFileSize } from "@contenthq/ai";
 import type { TTSProvider } from "@contenthq/tts";
+import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createTTSGenerationWorker(): Worker {
   return new Worker<TTSGenerationJobData>(
@@ -16,6 +17,16 @@ export function createTTSGenerationWorker(): Worker {
       const { projectId, sceneId, userId, narrationScript, voiceId, provider, mediaOverrideUrl, stageConfig } = job.data;
       const startedAt = new Date();
       console.warn(`[TTS] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, provider=${provider}, voiceId=${voiceId}, scriptLength=${narrationScript?.length ?? 0} chars, hasOverride=${!!mediaOverrideUrl}, hasStageConfig=${!!stageConfig}`);
+
+      try {
+        await assertProjectActive(projectId);
+      } catch (e) {
+        if (e instanceof ProjectDeletedError) {
+          console.warn(`[TTS] Skipping job ${job.id}: ${e.message}`);
+          return { success: false, skipped: true };
+        }
+        throw e;
+      }
 
       try {
         // Mark generationJob as processing

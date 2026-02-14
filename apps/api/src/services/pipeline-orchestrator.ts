@@ -1,6 +1,6 @@
 import { db } from "@contenthq/db/client";
-import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals, sceneVideos, voiceProfiles } from "@contenthq/db/schema";
-import { eq, asc, inArray } from "drizzle-orm";
+import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals, sceneVideos, voiceProfiles, pipelineRuns } from "@contenthq/db/schema";
+import { eq, asc, inArray, and } from "drizzle-orm";
 import {
   addIngestionJob,
   addStoryWritingJob,
@@ -12,12 +12,42 @@ import {
   addVideoAssemblyJob,
 } from "@contenthq/queue";
 import type { PipelineStage, FullStageConfigs } from "@contenthq/shared";
-import { STAGE_PROGRESS_PERCENT } from "@contenthq/shared";
+import { STAGE_PROGRESS_PERCENT, DEFAULT_TEMPLATE_ID } from "@contenthq/shared";
 import { FlowEngine } from "./flow-engine";
 import { pipelineConfigService } from "./pipeline-config.service";
+import { genericPipelineOrchestrator } from "./generic-pipeline-orchestrator";
 
 export class PipelineOrchestrator {
   private flowEngine = new FlowEngine();
+
+  /**
+   * Determine if a project should use the generic orchestrator.
+   * Projects with non-default template IDs use the generic orchestrator.
+   * Legacy (null template) and "builtin-ai-video" use the legacy orchestrator.
+   */
+  private shouldUseGenericOrchestrator(
+    pipelineTemplateId: string | null | undefined
+  ): boolean {
+    if (!pipelineTemplateId) return false;
+    return pipelineTemplateId !== DEFAULT_TEMPLATE_ID;
+  }
+
+  /**
+   * Check if a project has an active generic pipeline run.
+   */
+  private async hasActiveGenericRun(projectId: string): Promise<boolean> {
+    const [run] = await db
+      .select({ id: pipelineRuns.id })
+      .from(pipelineRuns)
+      .where(
+        and(
+          eq(pipelineRuns.projectId, projectId),
+          eq(pipelineRuns.status, "running")
+        )
+      )
+      .limit(1);
+    return !!run;
+  }
 
   /**
    * Walk PIPELINE_STAGE_ORDER from the current stage and return the
@@ -88,6 +118,13 @@ export class PipelineOrchestrator {
       throw new Error("Project not found");
     }
 
+    // Delegate to generic orchestrator for non-default pipeline templates
+    if (this.shouldUseGenericOrchestrator(project.pipelineTemplateId)) {
+      console.warn(`[Pipeline] Delegating to generic orchestrator for project ${projectId} (template=${project.pipelineTemplateId})`);
+      await genericPipelineOrchestrator.startPipeline(projectId, userId);
+      return;
+    }
+
     console.warn(`[Pipeline] Starting pipeline for project ${projectId}, userId=${userId}, inputType=${project.inputType ?? "url"}, sourceUrl=${project.inputContent?.substring(0, 100) ?? "none"}`);
 
     // Freeze the pipeline config so it stays immutable during this run
@@ -95,6 +132,11 @@ export class PipelineOrchestrator {
     if (frozenResult) {
       console.warn(`[Pipeline] Froze pipeline config for project ${projectId} (mode=${frozenResult.mode})`);
     }
+
+    // Also create a generic pipeline run for tracking purposes
+    await genericPipelineOrchestrator.startPipeline(projectId, userId).catch((err) => {
+      console.warn(`[Pipeline] Generic run tracking failed (non-critical): ${err.message}`);
+    });
 
     await db
       .update(projects)
@@ -652,6 +694,78 @@ export class PipelineOrchestrator {
     completedStage: string
   ): Promise<void> {
     console.warn(`[Pipeline] checkAndAdvancePipeline called: stage=${completedStage}, projectId=${projectId}, userId=${userId}`);
+
+    // Guard: stop advancing if the project was deleted or cancelled
+    const [project] = await db
+      .select({ id: projects.id, status: projects.status, pipelineTemplateId: projects.pipelineTemplateId })
+      .from(projects)
+      .where(eq(projects.id, projectId));
+
+    if (!project) {
+      console.warn(`[Pipeline] Project ${projectId} no longer exists, skipping pipeline advancement`);
+      return;
+    }
+
+    if (project.status === "cancelled") {
+      console.warn(`[Pipeline] Project ${projectId} is cancelled, skipping pipeline advancement`);
+      return;
+    }
+
+    // Delegate to generic orchestrator for non-default pipeline templates
+    if (this.shouldUseGenericOrchestrator(project.pipelineTemplateId)) {
+      console.warn(`[Pipeline] Delegating checkAndAdvance to generic orchestrator for project ${projectId}`);
+      // Map legacy stage names to DAG stage IDs
+      const stageIdMap: Record<string, string> = {
+        INGESTION: "ingestion",
+        STORY_WRITING: "story-writing",
+        SCENE_GENERATION: "scene-generation",
+        VISUAL_GENERATION: "visual-generation",
+        VISUAL_VERIFICATION: "visual-verification",
+        VIDEO_GENERATION: "video-generation",
+        TTS_GENERATION: "tts-generation",
+        AUDIO_MIXING: "audio-mixing",
+        CAPTION_GENERATION: "caption-generation",
+        VIDEO_ASSEMBLY: "video-assembly",
+        // New pipeline-specific stages pass through as-is
+        PPT_INGESTION: "ppt-ingestion",
+        PPT_GENERATION: "ppt-generation",
+        SLIDE_RENDERING: "slide-rendering",
+        AUDIO_SCRIPT_GEN: "audio-script-gen",
+        REMOTION_COMPOSITION: "remotion-composition",
+        REMOTION_RENDER: "remotion-render",
+        MOTION_CANVAS_SCENE: "motion-canvas-scene",
+        MOTION_CANVAS_RENDER: "motion-canvas-render",
+      };
+      const stageId = stageIdMap[completedStage] ?? completedStage;
+      await genericPipelineOrchestrator.checkAndAdvancePipeline(
+        projectId,
+        userId,
+        stageId
+      );
+      return;
+    }
+
+    // Also update generic pipeline run tracking (non-critical)
+    const stageIdMapForTracking: Record<string, string> = {
+      INGESTION: "ingestion",
+      STORY_WRITING: "story-writing",
+      SCENE_GENERATION: "scene-generation",
+      VISUAL_GENERATION: "visual-generation",
+      VISUAL_VERIFICATION: "visual-verification",
+      VIDEO_GENERATION: "video-generation",
+      TTS_GENERATION: "tts-generation",
+      AUDIO_MIXING: "audio-mixing",
+      CAPTION_GENERATION: "caption-generation",
+      VIDEO_ASSEMBLY: "video-assembly",
+    };
+    const trackingStageId = stageIdMapForTracking[completedStage];
+    if (trackingStageId) {
+      genericPipelineOrchestrator
+        .checkAndAdvancePipeline(projectId, userId, trackingStageId)
+        .catch((err) => {
+          console.warn(`[Pipeline] Generic tracking update failed (non-critical): ${err.message}`);
+        });
+    }
 
     switch (completedStage) {
       case "INGESTION":

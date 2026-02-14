@@ -14,6 +14,14 @@ export const QUEUE_NAMES = {
   SPEECH_GENERATION: "speech-generation",
   MEDIA_GENERATION: "media-generation",
   CAPTION_GENERATION: "caption-generation",
+  PPT_INGESTION: "ppt-ingestion",
+  PPT_GENERATION: "ppt-generation",
+  SLIDE_RENDERING: "slide-rendering",
+  AUDIO_SCRIPT_GEN: "audio-script-gen",
+  REMOTION_COMPOSITION: "remotion-composition",
+  REMOTION_RENDER: "remotion-render",
+  MOTION_CANVAS_SCENE: "motion-canvas-scene",
+  MOTION_CANVAS_RENDER: "motion-canvas-render",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -33,6 +41,14 @@ const DEFAULT_JOB_OPTIONS: Record<string, { attempts: number; backoff: { type: s
   [QUEUE_NAMES.SPEECH_GENERATION]: { attempts: 3, backoff: { type: "exponential", delay: 5000 } },
   [QUEUE_NAMES.MEDIA_GENERATION]: { attempts: 3, backoff: { type: "exponential", delay: 10000 } },
   [QUEUE_NAMES.CAPTION_GENERATION]: { attempts: 3, backoff: { type: "exponential", delay: 1000 } },
+  [QUEUE_NAMES.PPT_INGESTION]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
+  [QUEUE_NAMES.PPT_GENERATION]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
+  [QUEUE_NAMES.SLIDE_RENDERING]: { attempts: 3, backoff: { type: "exponential", delay: 5000 } },
+  [QUEUE_NAMES.AUDIO_SCRIPT_GEN]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
+  [QUEUE_NAMES.REMOTION_COMPOSITION]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
+  [QUEUE_NAMES.REMOTION_RENDER]: { attempts: 2, backoff: { type: "exponential", delay: 10000 } },
+  [QUEUE_NAMES.MOTION_CANVAS_SCENE]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
+  [QUEUE_NAMES.MOTION_CANVAS_RENDER]: { attempts: 2, backoff: { type: "exponential", delay: 10000 } },
 };
 
 export function getQueue(name: QueueName): Queue {

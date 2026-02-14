@@ -13,6 +13,13 @@ import type {
   SpeechGenerationJobData,
   MediaGenerationJobData,
   CaptionGenerationJobData,
+  PptIngestionJobData,
+  SlideRenderingJobData,
+  AudioScriptGenJobData,
+  RemotionCompositionJobData,
+  RemotionRenderJobData,
+  MotionCanvasSceneJobData,
+  MotionCanvasRenderJobData,
 } from "./types";
 
 export async function addIngestionJob(data: IngestionJobData, priority?: number): Promise<Job> {
@@ -75,6 +82,51 @@ export async function addCaptionGenerationJob(data: CaptionGenerationJobData, pr
   return queue.add("generate-caption", data, { priority });
 }
 
+export async function addGenericJob(
+  queueName: string,
+  jobName: string,
+  data: Record<string, unknown>,
+  priority?: number
+): Promise<Job> {
+  const queue = getQueue(queueName as any);
+  return queue.add(jobName, data, { priority });
+}
+
+export async function addPptIngestionJob(data: PptIngestionJobData, priority?: number): Promise<Job> {
+  const queue = getQueue(QUEUE_NAMES.PPT_INGESTION);
+  return queue.add("ingest-ppt", data, { priority });
+}
+
+export async function addSlideRenderingJob(data: SlideRenderingJobData, priority?: number): Promise<Job> {
+  const queue = getQueue(QUEUE_NAMES.SLIDE_RENDERING);
+  return queue.add("render-slide", data, { priority });
+}
+
+export async function addAudioScriptGenJob(data: AudioScriptGenJobData, priority?: number): Promise<Job> {
+  const queue = getQueue(QUEUE_NAMES.AUDIO_SCRIPT_GEN);
+  return queue.add("generate-audio-script", data, { priority });
+}
+
+export async function addRemotionCompositionJob(data: RemotionCompositionJobData, priority?: number): Promise<Job> {
+  const queue = getQueue(QUEUE_NAMES.REMOTION_COMPOSITION);
+  return queue.add("compose-remotion", data, { priority });
+}
+
+export async function addRemotionRenderJob(data: RemotionRenderJobData, priority?: number): Promise<Job> {
+  const queue = getQueue(QUEUE_NAMES.REMOTION_RENDER);
+  return queue.add("render-remotion", data, { priority });
+}
+
+export async function addMotionCanvasSceneJob(data: MotionCanvasSceneJobData, priority?: number): Promise<Job> {
+  const queue = getQueue(QUEUE_NAMES.MOTION_CANVAS_SCENE);
+  return queue.add("create-motion-scene", data, { priority });
+}
+
+export async function addMotionCanvasRenderJob(data: MotionCanvasRenderJobData, priority?: number): Promise<Job> {
+  const queue = getQueue(QUEUE_NAMES.MOTION_CANVAS_RENDER);
+  return queue.add("render-motion-canvas", data, { priority });
+}
+
 export async function getQueueStats(queueName: string) {
   const queue = getQueue(queueName as any);
   const [waiting, active, completed, failed] = await Promise.all([
@@ -84,4 +136,53 @@ export async function getQueueStats(queueName: string) {
     queue.getFailedCount(),
   ]);
   return { waiting, active, completed, failed };
+}
+
+/**
+ * Remove all waiting and delayed jobs for a given projectId across all pipeline queues.
+ * Active jobs cannot be removed from BullMQ — those are handled by the worker-side guard.
+ */
+const PIPELINE_QUEUE_NAMES: readonly (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES][] = [
+  QUEUE_NAMES.INGESTION,
+  QUEUE_NAMES.STORY_WRITING,
+  QUEUE_NAMES.SCENE_GENERATION,
+  QUEUE_NAMES.VISUAL_GENERATION,
+  QUEUE_NAMES.VISUAL_VERIFICATION,
+  QUEUE_NAMES.VIDEO_GENERATION,
+  QUEUE_NAMES.TTS_GENERATION,
+  QUEUE_NAMES.AUDIO_MIXING,
+  QUEUE_NAMES.CAPTION_GENERATION,
+  QUEUE_NAMES.VIDEO_ASSEMBLY,
+];
+
+export async function removeJobsByProjectId(projectId: string): Promise<number> {
+  let removed = 0;
+
+  await Promise.all(
+    PIPELINE_QUEUE_NAMES.map(async (queueName) => {
+      const queue = getQueue(queueName);
+      const [waiting, delayed] = await Promise.all([
+        queue.getJobs(["waiting"]),
+        queue.getJobs(["delayed"]),
+      ]);
+
+      const jobs = [...waiting, ...delayed];
+      for (const job of jobs) {
+        if (job.data?.projectId === projectId) {
+          try {
+            await job.remove();
+            removed++;
+          } catch {
+            // Job may have already been picked up — safe to ignore
+          }
+        }
+      }
+    })
+  );
+
+  if (removed > 0) {
+    console.warn(`[Queue] Removed ${removed} queued/delayed job(s) for project ${projectId}`);
+  }
+
+  return removed;
 }

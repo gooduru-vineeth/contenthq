@@ -20,6 +20,14 @@ const STAGE_TO_CONFIG_KEY: Record<string, keyof FullStageConfigs> = {
   AUDIO_MIXING: "audioMixing",
   CAPTION_GENERATION: "captionGeneration",
   VIDEO_ASSEMBLY: "assembly",
+  PPT_INGESTION: "pptIngestion",
+  PPT_GENERATION: "aiPresentationGen",
+  SLIDE_RENDERING: "slideRendering",
+  AUDIO_SCRIPT_GEN: "audioScriptGen",
+  REMOTION_COMPOSITION: "remotionComposition",
+  REMOTION_RENDER: "remotionRender",
+  MOTION_CANVAS_SCENE: "motionCanvasScene",
+  MOTION_CANVAS_RENDER: "motionCanvasRender",
 };
 
 export const pipelineConfigService = {

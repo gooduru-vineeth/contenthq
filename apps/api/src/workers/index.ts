@@ -45,6 +45,44 @@ export async function initWorkers(): Promise<void> {
   );
   workers.push(createCaptionGenerationWorker());
 
+  // Presentation pipeline workers
+  const { createPptIngestionWorker } = await import(
+    "./ppt-ingestion.worker"
+  );
+  const { createPptGenerationWorker } = await import(
+    "./ppt-generation.worker"
+  );
+  const { createSlideRenderingWorker } = await import(
+    "./slide-rendering.worker"
+  );
+  const { createAudioScriptGenWorker } = await import(
+    "./audio-script-gen.worker"
+  );
+  workers.push(createPptIngestionWorker());
+  workers.push(createPptGenerationWorker());
+  workers.push(createSlideRenderingWorker());
+  workers.push(createAudioScriptGenWorker());
+
+  // Remotion pipeline workers
+  const { createRemotionCompositionWorker } = await import(
+    "./remotion-composition.worker"
+  );
+  const { createRemotionRenderWorker } = await import(
+    "./remotion-render.worker"
+  );
+  workers.push(createRemotionCompositionWorker());
+  workers.push(createRemotionRenderWorker());
+
+  // Motion Canvas pipeline workers
+  const { createMotionCanvasSceneWorker } = await import(
+    "./motion-canvas-scene.worker"
+  );
+  const { createMotionCanvasRenderWorker } = await import(
+    "./motion-canvas-render.worker"
+  );
+  workers.push(createMotionCanvasSceneWorker());
+  workers.push(createMotionCanvasRenderWorker());
+
   console.warn(`[Workers] ${workers.length} workers initialized`);
 }
 

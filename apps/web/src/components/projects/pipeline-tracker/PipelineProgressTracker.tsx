@@ -315,12 +315,14 @@ export function PipelineProgressTracker({
   progressPercent,
   selectedStage,
   onStageSelect,
+  pipelineTemplateId,
 }: PipelineProgressTrackerProps) {
   const reducedMotion = usePrefersReducedMotion();
   const stages = usePipelineStageStatus(
     currentStage,
     projectStatus,
     selectedStage ?? null,
+    pipelineTemplateId,
   );
   const percent = progressPercent ?? 0;
 

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { PipelineStage } from "@contenthq/shared";
 import { getStageStatus } from "../pipeline-progress";
-import { CONSOLIDATED_STAGES } from "./constants";
+import { getConsolidatedStages } from "./constants";
 import type { ConsolidatedStageWithStatus, StageStatus } from "./types";
 
 function resolveConsolidatedStatus(
@@ -17,9 +17,11 @@ export function usePipelineStageStatus(
   currentStage: PipelineStage | null,
   projectStatus: string,
   selectedStage: PipelineStage | null,
+  pipelineTemplateId?: string | null,
 ): ConsolidatedStageWithStatus[] {
   return useMemo(() => {
-    return CONSOLIDATED_STAGES.map((stage) => {
+    const stages = getConsolidatedStages(pipelineTemplateId);
+    return stages.map((stage) => {
       const rawStatuses = stage.rawStages.map((raw) =>
         getStageStatus(raw, currentStage, projectStatus),
       );
@@ -30,5 +32,5 @@ export function usePipelineStageStatus(
 
       return { ...stage, status, isSelected };
     });
-  }, [currentStage, projectStatus, selectedStage]);
+  }, [currentStage, projectStatus, selectedStage, pipelineTemplateId]);
 }

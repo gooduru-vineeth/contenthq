@@ -173,6 +173,75 @@ export const assemblyStageConfigSchema = baseStageConfigSchema.extend({
   brandingOutroUrl: z.string().optional(),
 });
 
+// ─── PPT Ingestion Stage ───────────────────────────────────────────
+export const pptIngestionStageConfigSchema = baseStageConfigSchema.extend({
+  inputType: z.enum(["pptx", "pdf", "google_slides", "keynote", "url"]).optional(),
+  extractNotes: z.boolean().default(true),
+  extractImages: z.boolean().default(true),
+  maxSlides: z.number().int().min(1).max(200).optional(),
+});
+
+// ─── AI Presentation Generation Stage ──────────────────────────────
+export const aiPresentationGenStageConfigSchema = baseStageConfigSchema.extend({
+  provider: z.string().optional(),
+  model: z.string().optional(),
+  templateId: z.string().optional(),
+  slideCount: z.number().int().min(1).max(100).default(10),
+  includeNotesScript: z.boolean().default(true),
+  temperature: z.number().min(0).max(2).default(0.7),
+});
+
+// ─── Slide Rendering Stage ─────────────────────────────────────────
+export const slideRenderingStageConfigSchema = baseStageConfigSchema.extend({
+  format: z.enum(["png", "jpg", "webp"]).default("png"),
+  quality: z.number().int().min(1).max(100).default(90),
+  width: z.number().int().min(320).max(3840).default(1920),
+  height: z.number().int().min(240).max(2160).default(1080),
+  theme: z.string().optional(),
+});
+
+// ─── Audio Script Generation Stage ─────────────────────────────────
+export const audioScriptGenStageConfigSchema = baseStageConfigSchema.extend({
+  provider: z.string().optional(),
+  model: z.string().optional(),
+  energy: z.enum(["low", "medium", "high"]).default("medium"),
+  tone: z.string().optional(),
+  maxWordsPerSlide: z.number().int().min(10).max(500).default(150),
+});
+
+// ─── Remotion Composition Stage ────────────────────────────────────
+export const remotionCompositionStageConfigSchema = baseStageConfigSchema.extend({
+  templateId: z.string().optional(),
+  compositionProps: z.record(z.unknown()).optional(),
+  durationInFrames: z.number().int().min(1).optional(),
+  fps: z.number().int().min(1).max(120).default(30),
+  width: z.number().int().min(320).max(3840).default(1920),
+  height: z.number().int().min(240).max(2160).default(1080),
+});
+
+// ─── Remotion Render Stage ─────────────────────────────────────────
+export const remotionRenderStageConfigSchema = baseStageConfigSchema.extend({
+  codec: z.enum(["h264", "h265", "vp8", "vp9", "prores"]).default("h264"),
+  quality: z.number().int().min(1).max(100).default(80),
+  fps: z.number().int().min(1).max(120).default(30),
+  outputFormat: z.enum(["mp4", "webm", "mov"]).default("mp4"),
+});
+
+// ─── Motion Canvas Scene Stage ─────────────────────────────────────
+export const motionCanvasSceneStageConfigSchema = baseStageConfigSchema.extend({
+  templateId: z.string().optional(),
+  animationSpeed: z.number().min(0.1).max(5.0).default(1.0),
+  resolution: z.enum(["720p", "1080p", "4k"]).default("1080p"),
+});
+
+// ─── Motion Canvas Render Stage ────────────────────────────────────
+export const motionCanvasRenderStageConfigSchema = baseStageConfigSchema.extend({
+  codec: z.enum(["h264", "h265", "vp8", "vp9"]).default("h264"),
+  quality: z.number().int().min(1).max(100).default(80),
+  fps: z.number().int().min(1).max(120).default(60),
+  outputFormat: z.enum(["mp4", "webm"]).default("mp4"),
+});
+
 // ─── Full Pipeline Stage Configs ────────────────────────────────────
 
 export const fullStageConfigsSchema = z.object({
@@ -186,6 +255,14 @@ export const fullStageConfigsSchema = z.object({
   audioMixing: audioMixingStageConfigSchema.optional(),
   captionGeneration: captionGenerationStageConfigSchema.optional(),
   assembly: assemblyStageConfigSchema.optional(),
+  pptIngestion: pptIngestionStageConfigSchema.optional(),
+  aiPresentationGen: aiPresentationGenStageConfigSchema.optional(),
+  slideRendering: slideRenderingStageConfigSchema.optional(),
+  audioScriptGen: audioScriptGenStageConfigSchema.optional(),
+  remotionComposition: remotionCompositionStageConfigSchema.optional(),
+  remotionRender: remotionRenderStageConfigSchema.optional(),
+  motionCanvasScene: motionCanvasSceneStageConfigSchema.optional(),
+  motionCanvasRender: motionCanvasRenderStageConfigSchema.optional(),
 });
 
 // ─── Pipeline Config Schema ─────────────────────────────────────────
@@ -302,6 +379,14 @@ export type CaptionGenerationStageConfig = z.input<
   typeof captionGenerationStageConfigSchema
 >;
 export type AssemblyStageConfig = z.input<typeof assemblyStageConfigSchema>;
+export type PptIngestionStageConfig = z.input<typeof pptIngestionStageConfigSchema>;
+export type AiPresentationGenStageConfig = z.input<typeof aiPresentationGenStageConfigSchema>;
+export type SlideRenderingStageConfig = z.input<typeof slideRenderingStageConfigSchema>;
+export type AudioScriptGenStageConfig = z.input<typeof audioScriptGenStageConfigSchema>;
+export type RemotionCompositionStageConfig = z.input<typeof remotionCompositionStageConfigSchema>;
+export type RemotionRenderStageConfig = z.input<typeof remotionRenderStageConfigSchema>;
+export type MotionCanvasSceneStageConfig = z.input<typeof motionCanvasSceneStageConfigSchema>;
+export type MotionCanvasRenderStageConfig = z.input<typeof motionCanvasRenderStageConfigSchema>;
 
 export type OverrideType = z.infer<typeof overrideTypeSchema>;
 export type CreateMediaOverrideInput = z.infer<

@@ -296,19 +296,21 @@ export const TTS_PROVIDER_CAPABILITIES: Record<SpeechProvider, TTSProviderCapabi
   },
   inworld: {
     provider: 'inworld',
-    maxCharactersPerRequest: 5000,
-    supportedFormats: ['wav', 'mp3', 'opus'],
-    supportedLanguages: ['en','es','fr','ko','nl','zh','de','it','ja','pl','pt','ru'],
+    maxCharactersPerRequest: 2000,
+    supportedFormats: ['wav', 'mp3', 'opus', 'flac'],
+    supportedLanguages: ['en', 'es', 'fr', 'ko', 'nl', 'zh', 'de', 'it', 'ja', 'pl', 'pt', 'ru', 'ar', 'hi', 'he'],
     supportsSSML: false,
     supportsVoiceCloning: true,
     supportsEmotions: true,
     supportsSpeechMarks: false,
-    costPerCharacter: 0,
-    minSpeed: 0.25,
-    maxSpeed: 4,
+    costPerCharacter: 0.00001,
+    minSpeed: 0.5,
+    maxSpeed: 1.5,
     defaultSampleRate: 24000,
     availableQualities: ['premium', 'ultra'],
     models: [
+      { modelId: 'inworld-tts-1.5-max', name: 'Inworld TTS 1.5 Max', supportsEmotionTags: true },
+      { modelId: 'inworld-tts-1.5-mini', name: 'Inworld TTS 1.5 Mini', supportsEmotionTags: true },
       { modelId: 'inworld-tts-1', name: 'Inworld TTS', supportsEmotionTags: true },
       { modelId: 'inworld-tts-1-max', name: 'Inworld TTS Max', supportsEmotionTags: true },
     ],
@@ -499,7 +501,7 @@ export class TTSProviderService {
         defaultQuality: (config?.defaultQuality || 'ultra') as VoiceQuality,
         defaultVoiceId: config?.defaultVoiceId as any,
         baseUrl: (config as any)?.baseUrl,
-        model: (process.env.INWORLD_TTS_MODEL as 'inworld-tts-1' | 'inworld-tts-1-max') || 'inworld-tts-1',
+        model: (process.env.INWORLD_TTS_MODEL as 'inworld-tts-1' | 'inworld-tts-1-max' | 'inworld-tts-1.5-mini' | 'inworld-tts-1.5-max') || 'inworld-tts-1.5-max',
       });
     } else if (providerType === 'elevenlabs') {
       const apiKey = config.apiKey || process.env.ELEVENLABS_API_KEY;

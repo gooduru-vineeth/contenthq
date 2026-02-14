@@ -11,6 +11,7 @@ import { pickRandomMotion, mapLegacyMotionSpec } from "@contenthq/video";
 import type { MotionType } from "@contenthq/video";
 import { storage, getSceneVideoPath, getVideoContentType } from "@contenthq/storage";
 import { mediaProviderRegistry, truncateForLog, formatFileSize } from "@contenthq/ai";
+import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createVideoGenerationWorker(): Worker {
   return new Worker<VideoGenerationJobData>(
@@ -19,6 +20,16 @@ export function createVideoGenerationWorker(): Worker {
       const { projectId, sceneId, userId, imageUrl, motionSpec, mediaOverrideUrl, stageConfig } = job.data;
       const startedAt = new Date();
       console.warn(`[VideoGeneration] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, imageUrl=${imageUrl ? "present" : "missing"}, hasMotionSpec=${!!motionSpec}, hasOverride=${!!mediaOverrideUrl}, hasStageConfig=${!!stageConfig}`);
+
+      try {
+        await assertProjectActive(projectId);
+      } catch (e) {
+        if (e instanceof ProjectDeletedError) {
+          console.warn(`[VideoGeneration] Skipping job ${job.id}: ${e.message}`);
+          return { success: false, skipped: true };
+        }
+        throw e;
+      }
 
       try {
         // Mark generationJob as processing

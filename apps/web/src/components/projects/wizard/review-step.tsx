@@ -11,6 +11,13 @@ import {
 } from "@/components/ui/card";
 import { LANGUAGES } from "./options-step";
 
+const PIPELINE_TEMPLATE_LABELS: Record<string, string> = {
+  "builtin-ai-video": "AI Video",
+  "builtin-presentation": "Presentation Video",
+  "builtin-remotion": "Remotion Video",
+  "builtin-motion-canvas": "Motion Canvas Video",
+};
+
 interface ReviewStepProps {
   error?: { message: string };
 }
@@ -44,6 +51,12 @@ export function ReviewStep({ error }: ReviewStepProps) {
             <dt className="text-muted-foreground">Content</dt>
             <dd className="max-w-[60%] truncate font-medium">
               {form.watch("inputContent")}
+            </dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">Pipeline Template</dt>
+            <dd className="font-medium">
+              {PIPELINE_TEMPLATE_LABELS[form.watch("pipelineTemplateId") ?? "builtin-ai-video"] ?? "AI Video"}
             </dd>
           </div>
           <div className="flex justify-between">

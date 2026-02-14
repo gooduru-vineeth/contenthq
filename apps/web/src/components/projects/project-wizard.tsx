@@ -39,6 +39,7 @@ export function ProjectWizard() {
       language: "en",
       enableVideoGeneration: false,
       pipelineMode: "simple",
+      pipelineTemplateId: "builtin-ai-video",
       enableCaptions: false,
     },
   });

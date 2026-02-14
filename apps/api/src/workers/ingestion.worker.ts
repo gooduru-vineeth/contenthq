@@ -6,6 +6,7 @@ import { db } from "@contenthq/db/client";
 import { ingestedContent, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
+import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createIngestionWorker(): Worker {
   return new Worker<IngestionJobData>(
@@ -14,6 +15,16 @@ export function createIngestionWorker(): Worker {
       const { projectId, userId, sourceUrl } = job.data;
       const startedAt = new Date();
       console.warn(`[Ingestion] Processing job ${job.id} for project ${projectId}, userId=${userId}, sourceUrl=${sourceUrl?.substring(0, 100)}`);
+
+      try {
+        await assertProjectActive(projectId);
+      } catch (e) {
+        if (e instanceof ProjectDeletedError) {
+          console.warn(`[Ingestion] Skipping job ${job.id}: ${e.message}`);
+          return { success: false, skipped: true };
+        }
+        throw e;
+      }
 
       try {
         // Mark generationJob as processing

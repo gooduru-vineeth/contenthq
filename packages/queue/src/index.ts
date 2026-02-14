@@ -13,7 +13,16 @@ export {
   addSpeechGenerationJob,
   addMediaGenerationJob,
   addCaptionGenerationJob,
+  addGenericJob,
+  addPptIngestionJob,
+  addSlideRenderingJob,
+  addAudioScriptGenJob,
+  addRemotionCompositionJob,
+  addRemotionRenderJob,
+  addMotionCanvasSceneJob,
+  addMotionCanvasRenderJob,
   getQueueStats,
+  removeJobsByProjectId,
 } from "./helpers";
 export { createQueueEvents, closeAllQueueEvents } from "./events";
 export {
@@ -34,5 +43,13 @@ export type {
   SpeechGenerationJobData,
   MediaGenerationJobData,
   CaptionGenerationJobData,
+  GenericStageJobData,
+  PptIngestionJobData,
+  SlideRenderingJobData,
+  AudioScriptGenJobData,
+  RemotionCompositionJobData,
+  RemotionRenderJobData,
+  MotionCanvasSceneJobData,
+  MotionCanvasRenderJobData,
   JobData,
 } from "./types";

@@ -12,6 +12,20 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const PIPELINE_TEMPLATES = [
+  { value: "builtin-ai-video", label: "AI Video" },
+  { value: "builtin-presentation", label: "Presentation Video" },
+  { value: "builtin-remotion", label: "Remotion Video" },
+  { value: "builtin-motion-canvas", label: "Motion Canvas Video" },
+];
 
 function detectInputType(value: string): "url" | "topic" {
   try {
@@ -97,6 +111,28 @@ export function SourceStep() {
               {form.formState.errors.inputContent.message}
             </p>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <Label>Pipeline Template</Label>
+          <Select
+            value={form.watch("pipelineTemplateId") ?? "builtin-ai-video"}
+            onValueChange={(v) => form.setValue("pipelineTemplateId", v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select pipeline template" />
+            </SelectTrigger>
+            <SelectContent>
+              {PIPELINE_TEMPLATES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Choose the rendering pipeline for your video project.
+          </p>
         </div>
       </CardContent>
     </Card>

@@ -9,6 +9,7 @@ import { storage, getOutputPath, getSceneVideoPath, getVideoContentType } from "
 import { formatFileSize } from "@contenthq/ai";
 import type { TransitionSpec, TransitionType } from "@contenthq/video";
 import { pickRandomTransition, mapAiTransitionName } from "@contenthq/video";
+import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createVideoAssemblyWorker(): Worker {
   return new Worker<VideoAssemblyJobData>(
@@ -17,6 +18,16 @@ export function createVideoAssemblyWorker(): Worker {
       const { projectId, userId, sceneIds, stageConfig, captionConfig } = job.data;
       const startedAt = new Date();
       console.warn(`[VideoAssembly] Processing job ${job.id} for project ${projectId}, sceneCount=${sceneIds?.length ?? 0}, hasStageConfig=${!!stageConfig}, hasCaptionConfig=${!!captionConfig}`);
+
+      try {
+        await assertProjectActive(projectId);
+      } catch (e) {
+        if (e instanceof ProjectDeletedError) {
+          console.warn(`[VideoAssembly] Skipping job ${job.id}: ${e.message}`);
+          return { success: false, skipped: true };
+        }
+        throw e;
+      }
 
       // Apply stageConfig overrides for assembly
       const outputResolution = stageConfig?.resolution ?? "1920x1080";

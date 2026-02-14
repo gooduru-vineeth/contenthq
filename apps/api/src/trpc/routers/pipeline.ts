@@ -480,6 +480,11 @@ export const pipelineRouter = router({
         .where(
           and(eq(projects.id, input.projectId), eq(projects.userId, ctx.user.id))
         );
+
+      // Remove queued/delayed BullMQ jobs so workers don't pick them up
+      const { removeJobsByProjectId } = await import("@contenthq/queue");
+      await removeJobsByProjectId(input.projectId);
+
       console.warn(`[PipelineRouter] Pipeline cancelled for project ${input.projectId}`);
       return { success: true };
     }),

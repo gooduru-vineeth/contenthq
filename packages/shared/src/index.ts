@@ -1,4 +1,6 @@
 export * from "./types/pipeline";
+export * from "./types/pipeline-template";
+export * from "./types/stage-handler";
 export * from "./types/project";
 export * from "./types/ai";
 export * from "./types/media";
@@ -20,3 +22,4 @@ export * from "./schemas/flow.schema";
 export * from "./schemas/speech-generation.schema";
 export * from "./constants/credits";
 export * from "./constants/pipeline";
+export * from "./templates";

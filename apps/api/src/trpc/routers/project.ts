@@ -9,11 +9,12 @@ export const projectRouter = router({
   create: protectedProcedure
     .input(createProjectSchema)
     .mutation(async ({ ctx, input }) => {
-      const { pipelineMode, stageConfigs, visualStyle, ttsProvider, ttsVoiceId, enableCaptions, captionStyle, captionPosition, ...projectData } = input;
+      const { pipelineMode, stageConfigs, visualStyle, ttsProvider, ttsVoiceId, enableCaptions, captionStyle, captionPosition, pipelineTemplateId, ...projectData } = input;
       const [project] = await db
         .insert(projects)
         .values({
           ...projectData,
+          pipelineTemplateId: pipelineTemplateId ?? null,
           userId: ctx.user.id,
         })
         .returning();
@@ -78,6 +79,22 @@ export const projectRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Check if the project has an active pipeline — clean up BullMQ jobs first
+      const [project] = await db
+        .select({ status: projects.status })
+        .from(projects)
+        .where(
+          and(eq(projects.id, input.id), eq(projects.userId, ctx.user.id))
+        );
+
+      if (
+        project &&
+        !["draft", "completed", "failed", "cancelled"].includes(project.status)
+      ) {
+        const { removeJobsByProjectId } = await import("@contenthq/queue");
+        await removeJobsByProjectId(input.id);
+      }
+
       await db
         .delete(projects)
         .where(

@@ -11,6 +11,8 @@ async function generateInworldTTS(options: TTSOptions): Promise<TTSResult> {
     enabled: true,
     workspaceId: process.env.INWORLD_WORKSPACE_ID ?? "",
     apiKey: process.env.INWORLD_API_KEY ?? "",
+    model: (process.env.INWORLD_TTS_MODEL as any) || 'inworld-tts-1.5-max',
+    baseUrl: process.env.INWORLD_API_BASE_URL,
   });
   const result = await provider.generateAudio({ text: options.text, voiceId: options.voiceId, speed: options.speed });
   return { audioBuffer: result.audioBuffer, duration: result.duration, provider: "inworld", voiceId: result.voiceId, format: result.format };
@@ -73,6 +75,10 @@ export function getDefaultVoice(provider: TTSProvider): string {
       return "21m00Tcm4TlvDq8ikWAM";
     case "google":
       return "alloy";
+    case "google-gemini":
+      return "Kore";
+    case "inworld":
+      return "";
     case "sarvam":
       return "shubh";
     default:

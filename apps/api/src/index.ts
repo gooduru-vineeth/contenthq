@@ -7,11 +7,13 @@ import { serve } from "@hono/node-server";
 import { app } from "./app";
 import { env } from "./lib/env";
 import { initWorkers, shutdownWorkers } from "./workers/index";
+import { registerBuiltinStageHandlers } from "./stage-handlers";
 import { closeRedisConnection } from "@contenthq/queue";
 import { langsmithClient } from "@contenthq/ai";
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, async (info) => {
   console.warn(`Server running on http://localhost:${info.port}`);
+  registerBuiltinStageHandlers();
   await initWorkers();
 });
 

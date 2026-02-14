@@ -6,6 +6,7 @@ import { db } from "@contenthq/db/client";
 import { scenes, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
+import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createSceneGenerationWorker(): Worker {
   return new Worker<SceneGenerationJobData>(
@@ -14,6 +15,16 @@ export function createSceneGenerationWorker(): Worker {
       const { projectId, storyId, userId, agentId, stageConfig } = job.data;
       const startedAt = new Date();
       console.warn(`[SceneGeneration] Processing job ${job.id} for project ${projectId}, storyId=${storyId}, agentId=${agentId ?? "none"}, hasStageConfig=${!!stageConfig}`);
+
+      try {
+        await assertProjectActive(projectId);
+      } catch (e) {
+        if (e instanceof ProjectDeletedError) {
+          console.warn(`[SceneGeneration] Skipping job ${job.id}: ${e.message}`);
+          return { success: false, skipped: true };
+        }
+        throw e;
+      }
 
       // Apply stageConfig overrides if provided
       const effectiveAgentId = stageConfig?.agentId ?? agentId;

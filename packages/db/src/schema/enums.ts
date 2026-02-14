@@ -76,3 +76,19 @@ export const personaCategoryEnum = pgEnum("persona_category", [
   "visual_style",
   "narrative_style",
 ]);
+
+export const pipelineRunStatusEnum = pgEnum("pipeline_run_status", [
+  "pending",
+  "running",
+  "completed",
+  "failed",
+  "cancelled",
+]);
+
+export const pipelineRunStageStatusEnum = pgEnum("pipeline_run_stage_status", [
+  "pending",
+  "running",
+  "completed",
+  "failed",
+  "skipped",
+]);

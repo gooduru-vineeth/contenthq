@@ -6,6 +6,7 @@ import { db } from "@contenthq/db/client";
 import { scenes, sceneVisuals, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { storage, getSceneVisualPath } from "@contenthq/storage";
+import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
 export function createVisualGenerationWorker(): Worker {
   return new Worker<VisualGenerationJobData>(
@@ -14,6 +15,16 @@ export function createVisualGenerationWorker(): Worker {
       const { projectId, sceneId, userId, imagePrompt, agentId, mediaOverrideUrl, stageConfig } = job.data;
       const startedAt = new Date();
       console.warn(`[VisualGeneration] Processing job ${job.id} for scene ${sceneId}, projectId=${projectId}, promptLength=${imagePrompt?.length ?? 0} chars, agentId=${agentId ?? "none"}, hasOverride=${!!mediaOverrideUrl}, hasStageConfig=${!!stageConfig}`);
+
+      try {
+        await assertProjectActive(projectId);
+      } catch (e) {
+        if (e instanceof ProjectDeletedError) {
+          console.warn(`[VisualGeneration] Skipping job ${job.id}: ${e.message}`);
+          return { success: false, skipped: true };
+        }
+        throw e;
+      }
 
       try {
         // Mark generationJob as processing

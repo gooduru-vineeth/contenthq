@@ -37,3 +37,6 @@ export type {
   AnimationCategory,
   AnimationStyle,
 } from "./subtitles";
+
+// Rendering Backends
+export * from "./backends";
