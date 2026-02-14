@@ -61,5 +61,6 @@ export { buildAnthropicToolsAndOptions } from "./services/anthropic-tools";
 export { composePrompt, extractVariables } from "./prompts/composer";
 export { resolvePromptForStage } from "./prompts/resolver";
 export { truncateForLog, formatFileSize } from "./utils/log-helpers";
+export { withSystemCacheControl, getCallLevelCacheOptions, mergeProviderOptions } from "./utils/cache-control";
 export { DEFAULT_PROMPT_TEMPLATES, DEFAULT_PERSONAS, DEFAULT_AGENTS, DEFAULT_FLOW } from "./prompts/seed-data";
 export type { SeedPromptTemplate, SeedPersona, SeedAgent } from "./prompts/seed-data";

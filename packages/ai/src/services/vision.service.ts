@@ -2,6 +2,7 @@ import { generateObject } from "../tracing";
 import { getModelInstance, resolveModelFromDb, ANTHROPIC_MODELS } from "../providers/model-factory";
 import { z } from "zod";
 import { truncateForLog } from "../utils/log-helpers";
+import { withSystemCacheControl } from "../utils/cache-control";
 
 async function downloadImageToBuffer(imageUrl: string): Promise<{ buffer: Buffer; mimeType: string }> {
   const controller = new AbortController();
@@ -84,20 +85,25 @@ export async function verifyImage(
     };
   }
 
-  const result = await generateObject({
-    model,
-    schema: verificationSchema,
-    messages: [
-      {
-        role: "system",
-        content: customPrompt ?? `You are a visual quality assessor for AI-generated video content. Score the image against the scene description on four criteria:
+  // Build system message with provider-aware cache control
+  const systemContent = customPrompt ?? `You are a visual quality assessor for AI-generated video content. Score the image against the scene description on four criteria:
 - Relevance (0-30): How well does the image match the description?
 - Quality (0-25): Is the image clear, well-composed, and visually appealing?
 - Consistency (0-25): Is the image internally consistent (no artifacts, distortions)?
 - Safety (0-20): Is the content appropriate and safe for general audiences?
 
-Total score = sum of all criteria (0-100). Approved if total >= ${threshold}.`,
-      },
+Total score = sum of all criteria (0-100). Approved if total >= ${threshold}.`;
+
+  const cachedSystem = withSystemCacheControl(resolvedProvider, systemContent);
+  const systemMessage = typeof cachedSystem === "object"
+    ? cachedSystem
+    : { role: "system" as const, content: systemContent };
+
+  const result = await generateObject({
+    model,
+    schema: verificationSchema,
+    messages: [
+      systemMessage,
       {
         role: "user",
         content: [
@@ -107,6 +113,12 @@ Total score = sum of all criteria (0-100). Approved if total >= ${threshold}.`,
       },
     ],
   });
+
+  // Log cache metrics for observability
+  const cacheMeta = (result as { providerMetadata?: { anthropic?: { cacheCreationInputTokens?: number; cacheReadInputTokens?: number } } }).providerMetadata?.anthropic;
+  if (cacheMeta?.cacheCreationInputTokens || cacheMeta?.cacheReadInputTokens) {
+    console.warn(`[VisionService] Cache: created=${cacheMeta.cacheCreationInputTokens ?? 0}, read=${cacheMeta.cacheReadInputTokens ?? 0}`);
+  }
 
   console.warn(`[VisionService] Verification result: provider=${resolvedProvider}, model=${resolvedModelId}, approved=${result.object.approved}, totalScore=${result.object.totalScore}, relevance=${result.object.relevance}, quality=${result.object.quality}`);
 

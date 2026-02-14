@@ -8,6 +8,7 @@ import type {
   StreamingGenerationResult,
 } from "../types";
 import { truncateForLog } from "../utils/log-helpers";
+import { withSystemCacheControl, getCallLevelCacheOptions, mergeProviderOptions } from "../utils/cache-control";
 import { buildAnthropicToolsAndOptions, extractSourcesFromResult } from "./anthropic-tools";
 
 async function getModel(options?: GenerationOptions) {
@@ -50,16 +51,27 @@ export async function generateTextContent(
       ? buildAnthropicToolsAndOptions(options.anthropic)
       : undefined;
 
+  // Add provider-level prompt caching
+  const systemParam = withSystemCacheControl(provider, options?.systemPrompt);
+  const callCacheOpts = getCallLevelCacheOptions(provider);
+  const mergedProviderOpts = mergeProviderOptions(callCacheOpts, anthropicExtras?.providerOptions);
+
   const result = await generateText({
     model,
     prompt,
-    system: options?.systemPrompt,
+    system: systemParam,
     temperature: options?.temperature,
     maxOutputTokens: options?.maxTokens,
     ...(anthropicExtras?.tools && { tools: anthropicExtras.tools }),
     ...(anthropicExtras?.maxSteps && { maxSteps: anthropicExtras.maxSteps }),
-    ...(anthropicExtras?.providerOptions && { providerOptions: anthropicExtras.providerOptions }),
+    ...(mergedProviderOpts && { providerOptions: mergedProviderOpts }),
   });
+
+  // Log cache metrics for observability
+  const cacheMeta = (result as { providerMetadata?: { anthropic?: { cacheCreationInputTokens?: number; cacheReadInputTokens?: number } } }).providerMetadata?.anthropic;
+  if (cacheMeta?.cacheCreationInputTokens || cacheMeta?.cacheReadInputTokens) {
+    console.warn(`[LLMService] Cache: created=${cacheMeta.cacheCreationInputTokens ?? 0}, read=${cacheMeta.cacheReadInputTokens ?? 0}`);
+  }
 
   console.warn(`[LLMService] generateTextContent complete: provider=${provider}, model=${modelId}, inputTokens=${result.usage?.inputTokens ?? 0}, outputTokens=${result.usage?.outputTokens ?? 0}, responseLength=${result.text.length}`);
 
@@ -72,6 +84,14 @@ export async function generateTextContent(
     provider,
     model: modelId,
   };
+
+  // Attach cache metrics if available
+  if (cacheMeta?.cacheCreationInputTokens || cacheMeta?.cacheReadInputTokens) {
+    extendedResult.cacheMetrics = {
+      cacheCreationInputTokens: cacheMeta.cacheCreationInputTokens,
+      cacheReadInputTokens: cacheMeta.cacheReadInputTokens,
+    };
+  }
 
   // Extract reasoning text if thinking was enabled
   if (anthropicExtras?.providerOptions) {
@@ -107,16 +127,27 @@ export async function generateStructuredContent<T>(
   // When thinking is enabled, omit mode: 'json' to let AI SDK auto-select
   const hasThinking = !!anthropicExtras?.providerOptions;
 
+  // Add provider-level prompt caching
+  const systemParam = withSystemCacheControl(provider, options?.systemPrompt);
+  const callCacheOpts = getCallLevelCacheOptions(provider);
+  const mergedProviderOpts = mergeProviderOptions(callCacheOpts, anthropicExtras?.providerOptions);
+
   const result = await generateObject({
     model,
     prompt,
     schema,
     ...(!hasThinking && { mode: 'json' as const }),
-    system: options?.systemPrompt,
+    system: systemParam,
     temperature: options?.temperature,
     maxOutputTokens: options?.maxTokens,
-    ...(anthropicExtras?.providerOptions && { providerOptions: anthropicExtras.providerOptions }),
+    ...(mergedProviderOpts && { providerOptions: mergedProviderOpts }),
   });
+
+  // Log cache metrics for observability
+  const cacheMeta = (result as { providerMetadata?: { anthropic?: { cacheCreationInputTokens?: number; cacheReadInputTokens?: number } } }).providerMetadata?.anthropic;
+  if (cacheMeta?.cacheCreationInputTokens || cacheMeta?.cacheReadInputTokens) {
+    console.warn(`[LLMService] Cache: created=${cacheMeta.cacheCreationInputTokens ?? 0}, read=${cacheMeta.cacheReadInputTokens ?? 0}`);
+  }
 
   console.warn(`[LLMService] generateStructuredContent complete: provider=${provider}, model=${modelId}, inputTokens=${result.usage?.inputTokens ?? 0}, outputTokens=${result.usage?.outputTokens ?? 0}`);
 
@@ -143,15 +174,20 @@ export async function streamTextContent(
       ? buildAnthropicToolsAndOptions(options.anthropic)
       : undefined;
 
+  // Add provider-level prompt caching
+  const systemParam = withSystemCacheControl(provider, options?.systemPrompt);
+  const callCacheOpts = getCallLevelCacheOptions(provider);
+  const mergedProviderOpts = mergeProviderOptions(callCacheOpts, anthropicExtras?.providerOptions);
+
   const result = streamText({
     model,
     prompt,
-    system: options?.systemPrompt,
+    system: systemParam,
     temperature: options?.temperature,
     maxOutputTokens: options?.maxTokens,
     ...(anthropicExtras?.tools && { tools: anthropicExtras.tools }),
     ...(anthropicExtras?.maxSteps && { maxSteps: anthropicExtras.maxSteps }),
-    ...(anthropicExtras?.providerOptions && { providerOptions: anthropicExtras.providerOptions }),
+    ...(mergedProviderOpts && { providerOptions: mergedProviderOpts }),
   });
 
   return {
@@ -181,15 +217,20 @@ export async function streamStructuredContent<T>(
 
   const hasThinking = !!anthropicExtras?.providerOptions;
 
+  // Add provider-level prompt caching
+  const systemParam = withSystemCacheControl(provider, options?.systemPrompt);
+  const callCacheOpts = getCallLevelCacheOptions(provider);
+  const mergedProviderOpts = mergeProviderOptions(callCacheOpts, anthropicExtras?.providerOptions);
+
   const result = streamObject({
     model,
     prompt,
     schema,
     ...(!hasThinking && { mode: 'json' as const }),
-    system: options?.systemPrompt,
+    system: systemParam,
     temperature: options?.temperature,
     maxOutputTokens: options?.maxTokens,
-    ...(anthropicExtras?.providerOptions && { providerOptions: anthropicExtras.providerOptions }),
+    ...(mergedProviderOpts && { providerOptions: mergedProviderOpts }),
   });
 
   return {

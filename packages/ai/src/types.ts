@@ -94,4 +94,8 @@ export interface AnthropicCapabilities {
 export interface ExtendedGenerationResult extends GenerationResult {
   reasoningText?: string;
   sources?: Array<{ url: string; title: string | null; snippet?: string }>;
+  cacheMetrics?: {
+    cacheCreationInputTokens?: number;
+    cacheReadInputTokens?: number;
+  };
 }

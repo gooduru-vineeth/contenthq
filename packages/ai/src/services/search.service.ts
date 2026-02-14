@@ -3,6 +3,7 @@ import { getAnthropicProvider } from "../providers/anthropic";
 import { ANTHROPIC_MODELS } from "../providers/model-factory";
 import { buildAnthropicToolsAndOptions, extractSourcesFromResult } from "./anthropic-tools";
 import { truncateForLog } from "../utils/log-helpers";
+import { withSystemCacheControl, mergeProviderOptions } from "../utils/cache-control";
 
 export interface WebSearchRequest {
   query: string;
@@ -51,17 +52,27 @@ export async function searchWeb(request: WebSearchRequest): Promise<WebSearchRes
     }),
   });
 
+  // Add provider-level prompt caching for Anthropic
+  const systemParam = withSystemCacheControl("anthropic", request.systemPrompt);
+  const mergedOpts = mergeProviderOptions(providerOptions);
+
   const result = await generateText({
     model: anthropic(modelId),
     prompt: request.query,
-    system: request.systemPrompt,
+    system: systemParam,
     maxOutputTokens: request.maxTokens,
     ...(tools && { tools }),
     ...(maxSteps && { maxSteps }),
-    ...(providerOptions && { providerOptions }),
+    ...(mergedOpts && { providerOptions: mergedOpts }),
   });
 
   const sources = extractSourcesFromResult(result);
+
+  // Log cache metrics for observability
+  const cacheMeta = (result as { providerMetadata?: { anthropic?: { cacheCreationInputTokens?: number; cacheReadInputTokens?: number } } }).providerMetadata?.anthropic;
+  if (cacheMeta?.cacheCreationInputTokens || cacheMeta?.cacheReadInputTokens) {
+    console.warn(`[SearchService] Cache: created=${cacheMeta.cacheCreationInputTokens ?? 0}, read=${cacheMeta.cacheReadInputTokens ?? 0}`);
+  }
 
   console.warn(
     `[SearchService] searchWeb complete: model=${modelId}, inputTokens=${result.usage?.inputTokens ?? 0}, outputTokens=${result.usage?.outputTokens ?? 0}, sources=${sources.length}`
@@ -113,17 +124,27 @@ export async function fetchAndAnalyze(
 
   const prompt = `${analysisPrompt}\n\nURL: ${url}`;
 
+  // Add provider-level prompt caching for Anthropic
+  const systemParam = withSystemCacheControl("anthropic", options?.systemPrompt);
+  const mergedOpts = mergeProviderOptions(providerOptions);
+
   const result = await generateText({
     model: anthropic(modelId),
     prompt,
-    system: options?.systemPrompt,
+    system: systemParam,
     maxOutputTokens: options?.maxTokens,
     ...(tools && { tools }),
     ...(maxSteps && { maxSteps }),
-    ...(providerOptions && { providerOptions }),
+    ...(mergedOpts && { providerOptions: mergedOpts }),
   });
 
   const sources = extractSourcesFromResult(result);
+
+  // Log cache metrics for observability
+  const cacheMeta = (result as { providerMetadata?: { anthropic?: { cacheCreationInputTokens?: number; cacheReadInputTokens?: number } } }).providerMetadata?.anthropic;
+  if (cacheMeta?.cacheCreationInputTokens || cacheMeta?.cacheReadInputTokens) {
+    console.warn(`[SearchService] Cache: created=${cacheMeta.cacheCreationInputTokens ?? 0}, read=${cacheMeta.cacheReadInputTokens ?? 0}`);
+  }
 
   console.warn(
     `[SearchService] fetchAndAnalyze complete: model=${modelId}, inputTokens=${result.usage?.inputTokens ?? 0}, outputTokens=${result.usage?.outputTokens ?? 0}`
