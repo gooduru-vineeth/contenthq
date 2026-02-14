@@ -17,17 +17,18 @@ interface AdminNavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  iconColor: string;
 }
 
 const adminNavigation: AdminNavItem[] = [
-  { label: "Prompts", href: "/admin/prompts", icon: FileText },
-  { label: "Personas", href: "/admin/personas", icon: Users },
-  { label: "Agents", href: "/admin/agents", icon: Bot },
-  { label: "Flows", href: "/admin/flows", icon: GitBranch },
-  { label: "Models", href: "/admin/models", icon: Box },
-  { label: "Providers", href: "/admin/providers", icon: Server },
-  { label: "Defaults", href: "/admin/default-models", icon: Settings },
-  { label: "Billing", href: "/admin/billing", icon: CreditCard },
+  { label: "Prompts", href: "/admin/prompts", icon: FileText, iconColor: "text-dash-orange" },
+  { label: "Personas", href: "/admin/personas", icon: Users, iconColor: "text-dash-purple" },
+  { label: "Agents", href: "/admin/agents", icon: Bot, iconColor: "text-dash-teal" },
+  { label: "Flows", href: "/admin/flows", icon: GitBranch, iconColor: "text-dash-deep-purple" },
+  { label: "Models", href: "/admin/models", icon: Box, iconColor: "text-dash-blue" },
+  { label: "Providers", href: "/admin/providers", icon: Server, iconColor: "text-dash-dark-teal" },
+  { label: "Defaults", href: "/admin/default-models", icon: Settings, iconColor: "text-dash-charcoal" },
+  { label: "Billing", href: "/admin/billing", icon: CreditCard, iconColor: "text-dash-blue" },
 ];
 
 export default function AdminLayout({
@@ -108,7 +109,7 @@ export default function AdminLayout({
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className={cn("h-4 w-4", !isActive && item.iconColor)} />
                   {item.label}
                 </Link>
               );
@@ -120,7 +121,7 @@ export default function AdminLayout({
               href="/"
               className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 text-dash-blue" />
               Back to App
             </Link>
           </nav>
