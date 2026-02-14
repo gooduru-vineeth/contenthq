@@ -18,8 +18,8 @@ export const scenes = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     storyId: text("story_id")
-      .notNull()
       .references(() => stories.id, { onDelete: "cascade" }),
+    scriptId: text("script_id"),
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
@@ -32,6 +32,8 @@ export const scenes = pgTable(
     transitions: text("transitions"),
     duration: real("duration"),
     audioDuration: real("audio_duration"),
+    startMs: integer("start_ms"),
+    endMs: integer("end_ms"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

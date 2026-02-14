@@ -20,6 +20,7 @@ export const createProjectSchema = z.object({
   enableCaptions: z.boolean().default(false),
   captionStyle: z.string().optional(),
   captionPosition: z.string().optional(),
+  averageSceneDurationHint: z.number().min(3).max(30).nullable().optional(),
   stageConfigs: fullStageConfigsSchema.optional(),
 });
 

@@ -2,20 +2,25 @@ import { PipelineStage, ProjectStatus } from "../types/pipeline";
 
 export const PIPELINE_STAGE_ORDER: PipelineStage[] = [
   PipelineStage.INGESTION,
-  PipelineStage.STORY_WRITING,
+  PipelineStage.SCRIPT_GENERATION,
+  PipelineStage.TTS_GENERATION,
+  PipelineStage.STT_TIMESTAMPS,
   PipelineStage.SCENE_GENERATION,
   PipelineStage.VISUAL_GENERATION,
   PipelineStage.VISUAL_VERIFICATION,
-  PipelineStage.TTS_GENERATION,
-  PipelineStage.AUDIO_MIXING,
   PipelineStage.VIDEO_GENERATION,
-  PipelineStage.CAPTION_GENERATION,
   PipelineStage.VIDEO_ASSEMBLY,
+  // Legacy stages kept for backward compatibility
+  PipelineStage.STORY_WRITING,
+  PipelineStage.AUDIO_MIXING,
+  PipelineStage.CAPTION_GENERATION,
 ];
 
 export const PIPELINE_STAGE_LABELS: Record<string, string> = {
   [PipelineStage.INGESTION]: "Content Ingestion",
   [PipelineStage.STORY_WRITING]: "Story Writing",
+  [PipelineStage.SCRIPT_GENERATION]: "Script Generation",
+  [PipelineStage.STT_TIMESTAMPS]: "Audio Transcription",
   [PipelineStage.SCENE_GENERATION]: "Scene Generation",
   [PipelineStage.VISUAL_GENERATION]: "Visual Generation",
   [PipelineStage.VISUAL_VERIFICATION]: "Visual Verification",
@@ -30,6 +35,8 @@ export const PIPELINE_STAGE_LABELS: Record<string, string> = {
 export const PROJECT_STATUS_TO_STAGE: Record<string, PipelineStage | null> = {
   [ProjectStatus.DRAFT]: null,
   [ProjectStatus.INGESTING]: PipelineStage.INGESTION,
+  [ProjectStatus.GENERATING_SCRIPT]: PipelineStage.SCRIPT_GENERATION,
+  [ProjectStatus.TRANSCRIBING]: PipelineStage.STT_TIMESTAMPS,
   [ProjectStatus.WRITING]: PipelineStage.STORY_WRITING,
   [ProjectStatus.GENERATING_SCENES]: PipelineStage.SCENE_GENERATION,
   [ProjectStatus.GENERATING_VISUALS]: PipelineStage.VISUAL_GENERATION,
@@ -47,14 +54,16 @@ export const PROJECT_STATUS_TO_STAGE: Record<string, PipelineStage | null> = {
 /** Progress percentage for each stage start */
 export const STAGE_PROGRESS_PERCENT: Record<string, number> = {
   [PipelineStage.INGESTION]: 0,
+  [PipelineStage.SCRIPT_GENERATION]: 10,
   [PipelineStage.STORY_WRITING]: 10,
-  [PipelineStage.SCENE_GENERATION]: 20,
-  [PipelineStage.VISUAL_GENERATION]: 30,
-  [PipelineStage.VISUAL_VERIFICATION]: 40,
-  [PipelineStage.TTS_GENERATION]: 50,
-  [PipelineStage.AUDIO_MIXING]: 60,
-  [PipelineStage.VIDEO_GENERATION]: 70,
-  [PipelineStage.CAPTION_GENERATION]: 80,
+  [PipelineStage.TTS_GENERATION]: 25,
+  [PipelineStage.STT_TIMESTAMPS]: 35,
+  [PipelineStage.SCENE_GENERATION]: 45,
+  [PipelineStage.VISUAL_GENERATION]: 60,
+  [PipelineStage.VISUAL_VERIFICATION]: 70,
+  [PipelineStage.VIDEO_GENERATION]: 80,
+  [PipelineStage.AUDIO_MIXING]: 77,
+  [PipelineStage.CAPTION_GENERATION]: 85,
   [PipelineStage.VIDEO_ASSEMBLY]: 90,
 };
 
@@ -72,6 +81,8 @@ export interface JobResultLog {
 export const QUEUE_CONFIG = {
   INGESTION: { concurrency: 5, retries: 2 },
   STORY_WRITING: { concurrency: 3, retries: 2 },
+  SCRIPT_GENERATION: { concurrency: 3, retries: 2 },
+  STT_TIMESTAMPS: { concurrency: 5, retries: 3 },
   SCENE_GENERATION: { concurrency: 10, retries: 3 },
   VISUAL_GENERATION: { concurrency: 5, retries: 3 },
   VISUAL_VERIFICATION: { concurrency: 10, retries: 2 },

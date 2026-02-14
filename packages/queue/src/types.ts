@@ -32,10 +32,41 @@ export interface StoryWritingJobData extends BaseFlowJobData {
   };
 }
 
+export interface ScriptGenerationJobData extends BaseFlowJobData {
+  projectId: string;
+  userId: string;
+  ingestedContentIds: string[];
+  tone: string;
+  targetDuration: number;
+  language?: string;
+  stageConfig?: {
+    provider?: string;
+    model?: string;
+    temperature?: number;
+    maxTokens?: number;
+    agentId?: string;
+  };
+}
+
+export interface STTTimestampsJobData extends BaseFlowJobData {
+  projectId: string;
+  userId: string;
+  projectAudioId: string;
+  audioUrl: string;
+  language?: string;
+  stageConfig?: {
+    provider?: string;
+    model?: string;
+  };
+}
+
 export interface SceneGenerationJobData extends BaseFlowJobData {
   projectId: string;
-  storyId: string;
+  storyId?: string;
   userId: string;
+  transcriptId?: string;
+  averageSceneDurationSec?: number;
+  scriptId?: string;
   stageConfig?: {
     provider?: string;
     model?: string;
@@ -89,12 +120,14 @@ export interface VideoGenerationJobData extends BaseFlowJobData {
 
 export interface TTSGenerationJobData extends BaseFlowJobData {
   projectId: string;
-  sceneId: string;
+  sceneId?: string;
   userId: string;
   narrationScript: string;
   voiceId: string;
   provider: string;
   mediaOverrideUrl?: string;
+  scriptId?: string;
+  fullScript?: string;
   stageConfig?: {
     model?: string;
     quality?: string;
@@ -124,6 +157,8 @@ export interface VideoAssemblyJobData extends BaseFlowJobData {
   projectId: string;
   userId: string;
   sceneIds: string[];
+  projectAudioId?: string;
+  musicTrackId?: string;
   stageConfig?: {
     transitions?: string;
     transitionType?: string;
@@ -300,6 +335,8 @@ export interface MotionCanvasRenderJobData extends BaseFlowJobData {
 export type JobData =
   | IngestionJobData
   | StoryWritingJobData
+  | ScriptGenerationJobData
+  | STTTimestampsJobData
   | SceneGenerationJobData
   | VisualGenerationJobData
   | VisualVerificationJobData

@@ -3,6 +3,8 @@ import { getQueue, QUEUE_NAMES } from "./queues";
 import type {
   IngestionJobData,
   StoryWritingJobData,
+  ScriptGenerationJobData,
+  STTTimestampsJobData,
   SceneGenerationJobData,
   VisualGenerationJobData,
   VisualVerificationJobData,
@@ -30,6 +32,16 @@ export async function addIngestionJob(data: IngestionJobData, priority?: number)
 export async function addStoryWritingJob(data: StoryWritingJobData, priority?: number): Promise<Job> {
   const queue = getQueue(QUEUE_NAMES.STORY_WRITING);
   return queue.add("write-story", data, { priority });
+}
+
+export async function addScriptGenerationJob(data: ScriptGenerationJobData, priority?: number): Promise<Job> {
+  const queue = getQueue(QUEUE_NAMES.SCRIPT_GENERATION);
+  return queue.add("generate-script", data, { priority });
+}
+
+export async function addSTTTimestampsJob(data: STTTimestampsJobData, priority?: number): Promise<Job> {
+  const queue = getQueue(QUEUE_NAMES.STT_TIMESTAMPS);
+  return queue.add("stt-timestamps", data, { priority });
 }
 
 export async function addSceneGenerationJob(data: SceneGenerationJobData, priority?: number): Promise<Job> {
@@ -145,6 +157,8 @@ export async function getQueueStats(queueName: string) {
 const PIPELINE_QUEUE_NAMES: readonly (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES][] = [
   QUEUE_NAMES.INGESTION,
   QUEUE_NAMES.STORY_WRITING,
+  QUEUE_NAMES.SCRIPT_GENERATION,
+  QUEUE_NAMES.STT_TIMESTAMPS,
   QUEUE_NAMES.SCENE_GENERATION,
   QUEUE_NAMES.VISUAL_GENERATION,
   QUEUE_NAMES.VISUAL_VERIFICATION,

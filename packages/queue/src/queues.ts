@@ -4,6 +4,8 @@ import { getRedisConnection } from "./connection";
 export const QUEUE_NAMES = {
   INGESTION: "ingestion",
   STORY_WRITING: "story-writing",
+  SCRIPT_GENERATION: "script-generation",
+  STT_TIMESTAMPS: "stt-timestamps",
   SCENE_GENERATION: "scene-generation",
   VISUAL_GENERATION: "visual-generation",
   VISUAL_VERIFICATION: "visual-verification",
@@ -34,6 +36,8 @@ const queues = new Map<string, Queue>();
 const DEFAULT_JOB_OPTIONS: Record<string, { attempts: number; backoff: { type: string; delay: number } }> = {
   [QUEUE_NAMES.INGESTION]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
   [QUEUE_NAMES.STORY_WRITING]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
+  [QUEUE_NAMES.SCRIPT_GENERATION]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
+  [QUEUE_NAMES.STT_TIMESTAMPS]: { attempts: 3, backoff: { type: "exponential", delay: 5000 } },
   [QUEUE_NAMES.SCENE_GENERATION]: { attempts: 3, backoff: { type: "exponential", delay: 5000 } },
   [QUEUE_NAMES.VISUAL_GENERATION]: { attempts: 3, backoff: { type: "exponential", delay: 5000 } },
   [QUEUE_NAMES.VISUAL_VERIFICATION]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },

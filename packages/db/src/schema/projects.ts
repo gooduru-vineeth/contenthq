@@ -1,4 +1,4 @@
-import { boolean, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, real, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./users";
 import { projectStatusEnum } from "./enums";
 
@@ -28,6 +28,7 @@ export const projects = pgTable(
     totalCreditsUsed: integer("total_credits_used").default(0),
     /** Pipeline template ID — NULL defaults to "builtin-ai-video" for backward compat */
     pipelineTemplateId: text("pipeline_template_id"),
+    averageSceneDurationHint: real("average_scene_duration_hint"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

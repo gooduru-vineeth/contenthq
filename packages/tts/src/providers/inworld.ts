@@ -33,6 +33,86 @@ function estimateDurationSeconds(text: string, speakingRate = 1): number {
   return minutes * 60;
 }
 
+/**
+ * Split text into chunks that respect the Inworld 2000-character limit.
+ * Splits at sentence boundaries (. ! ?) to maintain natural speech flow.
+ * Falls back to splitting at word boundaries if a single sentence exceeds the limit.
+ */
+function splitTextIntoChunks(text: string, maxChars: number): string[] {
+  if (text.length <= maxChars) return [text];
+
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= maxChars) {
+      chunks.push(remaining);
+      break;
+    }
+
+    // Find the last sentence boundary within the limit
+    let splitAt = -1;
+    for (let i = maxChars - 1; i >= 0; i--) {
+      if (remaining[i] === '.' || remaining[i] === '!' || remaining[i] === '?') {
+        // Include the punctuation and any trailing space
+        splitAt = i + 1;
+        break;
+      }
+    }
+
+    // No sentence boundary found — fall back to last space
+    if (splitAt <= 0) {
+      const lastSpace = remaining.lastIndexOf(' ', maxChars - 1);
+      splitAt = lastSpace > 0 ? lastSpace : maxChars;
+    }
+
+    chunks.push(remaining.slice(0, splitAt).trim());
+    remaining = remaining.slice(splitAt).trim();
+  }
+
+  return chunks.filter((c) => c.length > 0);
+}
+
+/**
+ * Concatenate WAV buffers by combining PCM data and rewriting the header.
+ * Assumes all buffers share the same format (sample rate, bit depth, channels).
+ */
+function concatWavBuffers(buffers: Buffer[]): Buffer {
+  if (buffers.length === 1) return buffers[0];
+
+  // Extract PCM data from each WAV (skip 44-byte header)
+  const pcmChunks = buffers.map((buf) => {
+    // Standard WAV header is 44 bytes; find the 'data' sub-chunk for safety
+    const dataOffset = buf.indexOf('data', 0, 'ascii');
+    if (dataOffset !== -1) {
+      const chunkSize = buf.readUInt32LE(dataOffset + 4);
+      return buf.subarray(dataOffset + 8, dataOffset + 8 + chunkSize);
+    }
+    // Fallback: assume 44-byte header
+    return buf.subarray(44);
+  });
+
+  const totalPcmSize = pcmChunks.reduce((sum, c) => sum + c.length, 0);
+  const header = Buffer.from(buffers[0].subarray(0, 44));
+
+  // Update RIFF chunk size (file size - 8)
+  header.writeUInt32LE(36 + totalPcmSize, 4);
+  // Update data sub-chunk size
+  header.writeUInt32LE(totalPcmSize, 40);
+
+  return Buffer.concat([header, ...pcmChunks]);
+}
+
+/**
+ * Concatenate audio buffers. WAV requires header rewriting;
+ * MP3/OGG_OPUS/FLAC frames are self-synchronizing and can be appended directly.
+ */
+function concatAudioBuffers(buffers: Buffer[], format: string): Buffer {
+  if (buffers.length === 1) return buffers[0];
+  if (format === 'wav') return concatWavBuffers(buffers);
+  return Buffer.concat(buffers);
+}
+
 export interface InworldVoiceCloneRequest {
   displayName: string;
   langCode: string;
@@ -184,15 +264,14 @@ export class InworldTTSProvider implements ITTSProvider {
     return this.capabilities.supportedLanguages;
   }
 
-  async generateAudio(options: GenerateAudioOptions): Promise<AudioGenerationResult> {
-    const format = options.format || this.defaultFormat;
-    const sampleRate = options.sampleRate || this.capabilities.defaultSampleRate;
-    let voiceId = options.voiceId || this.defaultVoiceId || DEFAULT_INWORLD_VOICE_ID;
-    // "alloy" is an OpenAI voice, not valid for Inworld — fall back to default
-    if (voiceId === 'alloy') {
-      voiceId = DEFAULT_INWORLD_VOICE_ID;
-    }
-
+  private async synthesizeChunk(
+    text: string,
+    voiceId: string,
+    model: string,
+    format: string,
+    sampleRate: number,
+    speed: number,
+  ): Promise<{ audioBuffer: Buffer; format: AudioFormat }> {
     const formatMap: Record<string, string> = {
       wav: 'LINEAR16',
       mp3: 'MP3',
@@ -201,15 +280,14 @@ export class InworldTTSProvider implements ITTSProvider {
     };
 
     const url = `${this.baseUrl}/tts/v1/voice`;
-    const model = (options.ttsSettings?.model as any) || this.model;
     const payload: any = {
-      text: options.text,
+      text,
       voiceId,
       modelId: model,
       audioConfig: {
         audioEncoding: formatMap[format] || 'LINEAR16',
         sampleRateHertz: sampleRate,
-        speakingRate: Math.max(0.5, Math.min(1.5, options.speed || 1)),
+        speakingRate: Math.max(0.5, Math.min(1.5, speed)),
       },
     };
 
@@ -219,11 +297,11 @@ export class InworldTTSProvider implements ITTSProvider {
       body: JSON.stringify(payload),
     });
     if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`Inworld TTS synthesis failed: ${resp.status} ${text}`);
+      const errText = await resp.text();
+      throw new Error(`Inworld TTS synthesis failed: ${resp.status} ${errText}`);
     }
+
     let audioBuffer: Buffer;
-    let fmt = format;
     try {
       const data: any = await resp.json();
       if (!data || !data.audioContent) throw new Error('No audioContent in response');
@@ -231,17 +309,44 @@ export class InworldTTSProvider implements ITTSProvider {
     } catch {
       const arr = await resp.arrayBuffer();
       audioBuffer = Buffer.from(arr);
-      if (format === 'wav') fmt = 'wav';
     }
 
-    const duration = estimateDurationSeconds(options.text, options.speed || 1);
+    return { audioBuffer, format: format as AudioFormat };
+  }
+
+  async generateAudio(options: GenerateAudioOptions): Promise<AudioGenerationResult> {
+    const format = options.format || this.defaultFormat;
+    const sampleRate = options.sampleRate || this.capabilities.defaultSampleRate;
+    let voiceId = options.voiceId || this.defaultVoiceId || DEFAULT_INWORLD_VOICE_ID;
+    // "alloy" is an OpenAI voice, not valid for Inworld — fall back to default
+    if (voiceId === 'alloy') {
+      voiceId = DEFAULT_INWORLD_VOICE_ID;
+    }
+
+    const model = (options.ttsSettings?.model as any) || this.model;
+    const speed = options.speed || 1;
+
+    // Split text into chunks that respect the 2000-character API limit
+    const chunks = splitTextIntoChunks(options.text, this.capabilities.maxCharactersPerRequest);
+
+    // Synthesize each chunk sequentially to preserve ordering
+    const chunkResults: Buffer[] = [];
+    let finalFormat = format;
+    for (const chunk of chunks) {
+      const result = await this.synthesizeChunk(chunk, voiceId, model, format, sampleRate, speed);
+      chunkResults.push(result.audioBuffer);
+      finalFormat = result.format;
+    }
+
+    const audioBuffer = concatAudioBuffers(chunkResults, finalFormat);
+    const duration = estimateDurationSeconds(options.text, speed);
     const rate = model === 'inworld-tts-1.5-mini' ? 0.000005 : 0.00001;
 
     return {
       provider: 'inworld',
       voiceId,
       audioBuffer,
-      format: fmt,
+      format: finalFormat,
       sampleRate,
       duration,
       characterCount: options.text.length,

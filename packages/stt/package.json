@@ -1,0 +1,17 @@
+{
+  "name": "@contenthq/stt",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "groq-sdk": "^0.8.0"
+  },
+  "devDependencies": {
+    "@contenthq/typescript-config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

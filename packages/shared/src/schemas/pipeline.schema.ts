@@ -9,6 +9,8 @@ export const retryStageSchema = z.object({
   stage: z.enum([
     "INGESTION",
     "STORY_WRITING",
+    "SCRIPT_GENERATION",
+    "STT_TIMESTAMPS",
     "SCENE_GENERATION",
     "VISUAL_GENERATION",
     "VISUAL_VERIFICATION",

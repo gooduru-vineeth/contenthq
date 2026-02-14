@@ -23,6 +23,7 @@
     "@contenthq/shared": "workspace:*",
     "@contenthq/stock-media": "workspace:*",
     "@contenthq/storage": "workspace:*",
+    "@contenthq/stt": "workspace:*",
     "@contenthq/tts": "workspace:*",
     "@contenthq/video": "workspace:*",
     "@hono/node-server": "^1.13.0",

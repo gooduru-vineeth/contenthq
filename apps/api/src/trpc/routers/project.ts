@@ -110,9 +110,12 @@ export const projectRouter = router({
         status: z.enum([
           "draft",
           "ingesting",
+          "generating_script",
           "writing",
           "generating_scenes",
           "verifying",
+          "generating_tts",
+          "transcribing",
           "generating_video",
           "mixing_audio",
           "assembling",

@@ -1,6 +1,6 @@
 import { db } from "./client";
-import { aiProviders, aiModels, subscriptionPlans } from "./schema";
-import { sql } from "drizzle-orm";
+import { aiProviders, aiModels, subscriptionPlans, promptTemplates, personas } from "./schema";
+import { sql, eq, and, isNull } from "drizzle-orm";
 
 // ── Providers ──────────────────────────────────────────────────────────
 
@@ -1827,6 +1827,65 @@ async function seedSubscriptionPlans() {
   console.warn(`  Upserted ${plans.length} subscription plans`);
 }
 
+// ── Prompt Templates & Personas ──────────────────────────────────────
+
+async function seedPromptTemplatesAndPersonas() {
+  console.warn("Seeding prompt templates & personas...");
+
+  const { DEFAULT_PROMPT_TEMPLATES, DEFAULT_PERSONAS } = await import(
+    "../../ai/src/prompts/seed-data"
+  );
+
+  let templatesSeeded = 0;
+  for (const tmpl of DEFAULT_PROMPT_TEMPLATES) {
+    const [existing] = await db
+      .select({ id: promptTemplates.id })
+      .from(promptTemplates)
+      .where(
+        and(
+          eq(promptTemplates.type, tmpl.type),
+          isNull(promptTemplates.createdBy)
+        )
+      )
+      .limit(1);
+
+    if (!existing) {
+      await db.insert(promptTemplates).values({
+        ...tmpl,
+        createdBy: null,
+        isActive: true,
+        version: 1,
+      });
+      templatesSeeded++;
+    }
+  }
+  console.warn(`  Seeded ${templatesSeeded} new prompt templates (${DEFAULT_PROMPT_TEMPLATES.length - templatesSeeded} already existed)`);
+
+  let personasSeeded = 0;
+  for (const p of DEFAULT_PERSONAS) {
+    const [existing] = await db
+      .select({ id: personas.id })
+      .from(personas)
+      .where(
+        and(
+          eq(personas.category, p.category),
+          eq(personas.name, p.name),
+          isNull(personas.createdBy)
+        )
+      )
+      .limit(1);
+
+    if (!existing) {
+      await db.insert(personas).values({
+        ...p,
+        createdBy: null,
+      });
+      personasSeeded++;
+    }
+  }
+  console.warn(`  Seeded ${personasSeeded} new personas (${DEFAULT_PERSONAS.length - personasSeeded} already existed)`);
+}
+
 // ── Main ───────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1836,6 +1895,7 @@ async function main() {
     await seedProviders();
     await seedModels();
     await seedSubscriptionPlans();
+    await seedPromptTemplatesAndPersonas();
     console.warn("Seed completed successfully!");
   } catch (error) {
     console.error("Seed failed:", error);

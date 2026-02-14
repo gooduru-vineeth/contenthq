@@ -11,6 +11,7 @@ import {
   sceneVideos,
   ingestedContent,
   voiceProfiles,
+  projectAudio,
 } from "@contenthq/db/schema";
 import { eq, and, desc, asc, inArray } from "drizzle-orm";
 import {
@@ -24,6 +25,8 @@ import {
   addAudioMixingJob,
   addVideoAssemblyJob,
   addCaptionGenerationJob,
+  addScriptGenerationJob,
+  addSTTTimestampsJob,
 } from "@contenthq/queue";
 import { startPipelineSchema, retryStageSchema } from "@contenthq/shared";
 import { createRateLimitMiddleware } from "../middleware/rate-limit.middleware";
@@ -160,6 +163,8 @@ export const pipelineRouter = router({
       const stageStatusMap = {
         INGESTION: "ingesting",
         STORY_WRITING: "writing",
+        SCRIPT_GENERATION: "generating_script",
+        STT_TIMESTAMPS: "transcribing",
         SCENE_GENERATION: "generating_scenes",
         VISUAL_GENERATION: "generating_visuals",
         VISUAL_VERIFICATION: "verifying",
@@ -211,6 +216,45 @@ export const pipelineRouter = router({
               agentId: sw.agentId as string | undefined,
               customInstructions: sw.customInstructions as string | undefined,
             } : undefined,
+          });
+          break;
+        }
+
+        case "SCRIPT_GENERATION": {
+          const ingestedForScript = await db
+            .select()
+            .from(ingestedContent)
+            .where(eq(ingestedContent.projectId, input.projectId));
+          const swConfig = stageConfigs.storyWriting as Record<string, unknown> | undefined;
+          await addScriptGenerationJob({
+            projectId: input.projectId,
+            userId: ctx.user.id,
+            ingestedContentIds: ingestedForScript.map((i) => i.id),
+            tone: project.tone || "professional",
+            targetDuration: project.targetDuration || 60,
+            language: project.language || "en",
+            stageConfig: swConfig ? {
+              provider: swConfig.provider as string | undefined,
+              model: swConfig.model as string | undefined,
+              temperature: swConfig.temperature as number | undefined,
+              agentId: swConfig.agentId as string | undefined,
+            } : undefined,
+          });
+          break;
+        }
+
+        case "STT_TIMESTAMPS": {
+          const [pa] = await db
+            .select()
+            .from(projectAudio)
+            .where(eq(projectAudio.projectId, input.projectId));
+          if (!pa) throw new Error("No project audio found");
+          await addSTTTimestampsJob({
+            projectId: input.projectId,
+            userId: ctx.user.id,
+            projectAudioId: pa.id,
+            audioUrl: pa.audioUrl || "",
+            language: project.language || "en",
           });
           break;
         }
@@ -500,6 +544,14 @@ export const pipelineRouter = router({
       await removeJobsByProjectId(input.projectId);
 
       console.warn(`[PipelineRouter] Pipeline cancelled for project ${input.projectId}`);
+      return { success: true };
+    }),
+
+  retryFromScene: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { pipelineOrchestrator } = await import("../../services/pipeline-orchestrator");
+      await pipelineOrchestrator.retryFromScene(input.projectId, ctx.user.id);
       return { success: true };
     }),
 });

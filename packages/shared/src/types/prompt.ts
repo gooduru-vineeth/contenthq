@@ -1,6 +1,8 @@
 export const PROMPT_TYPES = [
   "story_writing",
   "scene_generation",
+  "script_generation",
+  "audio_scene_generation",
   "image_generation",
   "image_refinement",
   "visual_verification",
@@ -108,6 +110,8 @@ export interface ResolvedPromptConfig {
 export const PROMPT_TYPE_LABELS: Record<PromptType, string> = {
   story_writing: "Story Writing",
   scene_generation: "Scene Generation",
+  script_generation: "Script Generation",
+  audio_scene_generation: "Audio Scene Generation",
   image_generation: "Image Generation",
   image_refinement: "Image Refinement",
   visual_verification: "Visual Verification",

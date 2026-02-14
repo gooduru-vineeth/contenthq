@@ -1,9 +1,10 @@
 import { db } from "@contenthq/db/client";
-import { projects, scenes, stories, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals, sceneVideos, sceneAudioMixes, voiceProfiles, pipelineRuns } from "@contenthq/db/schema";
+import { projects, scenes, stories, scripts, projectFlowConfigs, flows, ingestedContent, generationJobs, sceneVisuals, sceneVideos, sceneAudioMixes, voiceProfiles, pipelineRuns, projectAudio, projectAudioTranscripts } from "@contenthq/db/schema";
 import { eq, asc, inArray, and } from "drizzle-orm";
 import {
   addIngestionJob,
-  addStoryWritingJob,
+  addScriptGenerationJob,
+  addSTTTimestampsJob,
   addSceneGenerationJob,
   addVisualGenerationJob,
   addVideoGenerationJob,
@@ -178,25 +179,41 @@ export class PipelineOrchestrator {
       .from(ingestedContent)
       .where(eq(ingestedContent.projectId, projectId));
 
-    console.warn(`[Pipeline] Found ${content.length} ingested content item(s) for project ${projectId}, queuing STORY_WRITING (tone=${project.tone ?? "professional"}, targetDuration=${project.targetDuration ?? 60}s)`);
+    console.warn(`[Pipeline] Found ${content.length} ingested content item(s) for project ${projectId}, queuing SCRIPT_GENERATION (tone=${project.tone ?? "professional"}, targetDuration=${project.targetDuration ?? 60}s)`);
 
     // Create generationJob record for the next stage
     await db.insert(generationJobs).values({
       userId,
       projectId,
-      jobType: "STORY_WRITING",
+      jobType: "SCRIPT_GENERATION",
       status: "queued",
     });
 
-    await addStoryWritingJob({
+    // Read frozen config to pass provider/model settings
+    const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
+    const storyConfig = frozenConfig?.storyWriting;
+
+    await addScriptGenerationJob({
       projectId,
       userId,
       ingestedContentIds: content.map((c) => c.id),
       tone: project.tone ?? "professional",
       targetDuration: project.targetDuration ?? 60,
+      language: project.language ?? "en",
+      stageConfig: {
+        provider: storyConfig?.provider,
+        model: storyConfig?.model,
+        temperature: storyConfig?.temperature,
+        agentId: storyConfig?.agentId,
+      },
     });
 
-    console.warn(`[Pipeline] STORY_WRITING job queued for project ${projectId}`);
+    await db
+      .update(projects)
+      .set({ status: "generating_script", progressPercent: 10, updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+
+    console.warn(`[Pipeline] SCRIPT_GENERATION job queued for project ${projectId}`);
   }
 
   async advanceAfterStoryWriting(
@@ -215,6 +232,246 @@ export class PipelineOrchestrator {
 
     await addSceneGenerationJob({ projectId, storyId, userId });
     console.warn(`[Pipeline] SCENE_GENERATION job queued for project ${projectId}, storyId=${storyId}`);
+  }
+
+  async advanceAfterScriptGeneration(
+    projectId: string,
+    userId: string,
+    scriptId: string
+  ): Promise<void> {
+    console.warn(`[Pipeline] Advancing after script generation for ${projectId}, scriptId=${scriptId}`);
+
+    const [script] = await db
+      .select()
+      .from(scripts)
+      .where(eq(scripts.id, scriptId));
+
+    if (!script) {
+      console.error(`[Pipeline] Script ${scriptId} not found for project ${projectId}`);
+      return;
+    }
+
+    // Resolve TTS provider and voice
+    let resolvedProvider = "openai";
+    let resolvedVoiceId = "alloy";
+
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
+
+    if (project?.voiceProfileId) {
+      const [profile] = await db
+        .select()
+        .from(voiceProfiles)
+        .where(eq(voiceProfiles.id, project.voiceProfileId))
+        .limit(1);
+      if (profile) {
+        resolvedProvider = profile.provider;
+        resolvedVoiceId = profile.providerVoiceId;
+      }
+    }
+
+    if (!project?.voiceProfileId || resolvedProvider === "openai") {
+      const frozenConfig = await pipelineConfigService.getFrozenConfig(projectId);
+      const ttsConfig = frozenConfig?.tts;
+      if (ttsConfig?.provider) {
+        resolvedProvider = ttsConfig.provider;
+      }
+      if (ttsConfig?.voiceId) {
+        resolvedVoiceId = ttsConfig.voiceId;
+      }
+    }
+
+    await db.insert(generationJobs).values({
+      userId,
+      projectId,
+      jobType: "TTS_GENERATION",
+      status: "queued",
+    });
+
+    await addTTSGenerationJob({
+      projectId,
+      userId,
+      scriptId,
+      fullScript: script.fullScript,
+      narrationScript: script.fullScript,
+      voiceId: resolvedVoiceId,
+      provider: resolvedProvider,
+    });
+
+    await db
+      .update(projects)
+      .set({
+        status: "generating_tts",
+        progressPercent: 25,
+        updatedAt: new Date(),
+      })
+      .where(eq(projects.id, projectId));
+
+    console.warn(`[Pipeline] TTS_GENERATION job queued for project ${projectId} (project-level TTS, provider=${resolvedProvider}, voice=${resolvedVoiceId})`);
+  }
+
+  async advanceAfterProjectTTS(
+    projectId: string,
+    userId: string,
+    projectAudioId: string
+  ): Promise<void> {
+    console.warn(`[Pipeline] Advancing after project TTS for ${projectId}, projectAudioId=${projectAudioId}`);
+
+    const [pa] = await db
+      .select()
+      .from(projectAudio)
+      .where(eq(projectAudio.id, projectAudioId));
+
+    if (!pa || !pa.audioUrl) {
+      console.error(`[Pipeline] Project audio ${projectAudioId} not found or missing audioUrl`);
+      return;
+    }
+
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
+
+    await db.insert(generationJobs).values({
+      userId,
+      projectId,
+      jobType: "STT_TIMESTAMPS",
+      status: "queued",
+    });
+
+    await addSTTTimestampsJob({
+      projectId,
+      userId,
+      projectAudioId,
+      audioUrl: pa.audioUrl,
+      language: project?.language ?? "en",
+    });
+
+    await db
+      .update(projects)
+      .set({
+        status: "transcribing",
+        progressPercent: 35,
+        updatedAt: new Date(),
+      })
+      .where(eq(projects.id, projectId));
+
+    console.warn(`[Pipeline] STT_TIMESTAMPS job queued for project ${projectId}`);
+  }
+
+  async advanceAfterSTTTimestamps(
+    projectId: string,
+    userId: string,
+    transcriptId: string
+  ): Promise<void> {
+    console.warn(`[Pipeline] Advancing after STT timestamps for ${projectId}, transcriptId=${transcriptId}`);
+
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
+
+    const averageSceneDurationSec = project?.averageSceneDurationHint ?? 7;
+
+    const [script] = await db
+      .select()
+      .from(scripts)
+      .where(eq(scripts.projectId, projectId));
+
+    await db.insert(generationJobs).values({
+      userId,
+      projectId,
+      jobType: "SCENE_GENERATION",
+      status: "queued",
+    });
+
+    await addSceneGenerationJob({
+      projectId,
+      userId,
+      transcriptId,
+      averageSceneDurationSec,
+      scriptId: script?.id,
+    });
+
+    await db
+      .update(projects)
+      .set({
+        status: "generating_scenes",
+        progressPercent: 45,
+        updatedAt: new Date(),
+      })
+      .where(eq(projects.id, projectId));
+
+    console.warn(`[Pipeline] SCENE_GENERATION job queued for project ${projectId} (transcriptId=${transcriptId}, avgDuration=${averageSceneDurationSec}s)`);
+  }
+
+  async retryFromScene(
+    projectId: string,
+    userId: string
+  ): Promise<void> {
+    console.warn(`[Pipeline] Retrying from scene generation for ${projectId}`);
+
+    const [transcript] = await db
+      .select()
+      .from(projectAudioTranscripts)
+      .where(eq(projectAudioTranscripts.projectId, projectId));
+
+    if (!transcript) {
+      throw new Error("No transcript found - generate audio first");
+    }
+
+    // Delete existing scenes and related data
+    const existingScenes = await db
+      .select({ id: scenes.id })
+      .from(scenes)
+      .where(eq(scenes.projectId, projectId));
+
+    if (existingScenes.length > 0) {
+      const sceneIds = existingScenes.map((s) => s.id);
+      await db.delete(sceneVisuals).where(inArray(sceneVisuals.sceneId, sceneIds));
+      await db.delete(sceneVideos).where(inArray(sceneVideos.sceneId, sceneIds));
+      await db.delete(scenes).where(eq(scenes.projectId, projectId));
+    }
+
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
+
+    const averageSceneDurationSec = project?.averageSceneDurationHint ?? 7;
+
+    const [script] = await db
+      .select()
+      .from(scripts)
+      .where(eq(scripts.projectId, projectId));
+
+    await db.insert(generationJobs).values({
+      userId,
+      projectId,
+      jobType: "SCENE_GENERATION",
+      status: "queued",
+    });
+
+    await addSceneGenerationJob({
+      projectId,
+      userId,
+      transcriptId: transcript.id,
+      averageSceneDurationSec,
+      scriptId: script?.id,
+    });
+
+    await db
+      .update(projects)
+      .set({
+        status: "generating_scenes",
+        progressPercent: 45,
+        updatedAt: new Date(),
+      })
+      .where(eq(projects.id, projectId));
+
+    console.warn(`[Pipeline] Retry SCENE_GENERATION job queued for project ${projectId}`);
   }
 
   async advanceAfterSceneGeneration(
@@ -859,11 +1116,13 @@ export class PipelineOrchestrator {
       const stageIdMap: Record<string, string> = {
         INGESTION: "ingestion",
         STORY_WRITING: "story-writing",
+        SCRIPT_GENERATION: "script-generation",
         SCENE_GENERATION: "scene-generation",
         VISUAL_GENERATION: "visual-generation",
         VISUAL_VERIFICATION: "visual-verification",
         VIDEO_GENERATION: "video-generation",
         TTS_GENERATION: "tts-generation",
+        STT_TIMESTAMPS: "stt-timestamps",
         AUDIO_MIXING: "audio-mixing",
         CAPTION_GENERATION: "caption-generation",
         VIDEO_ASSEMBLY: "video-assembly",
@@ -890,11 +1149,13 @@ export class PipelineOrchestrator {
     const stageIdMapForTracking: Record<string, string> = {
       INGESTION: "ingestion",
       STORY_WRITING: "story-writing",
+      SCRIPT_GENERATION: "script-generation",
       SCENE_GENERATION: "scene-generation",
       VISUAL_GENERATION: "visual-generation",
       VISUAL_VERIFICATION: "visual-verification",
       VIDEO_GENERATION: "video-generation",
       TTS_GENERATION: "tts-generation",
+      STT_TIMESTAMPS: "stt-timestamps",
       AUDIO_MIXING: "audio-mixing",
       CAPTION_GENERATION: "caption-generation",
       VIDEO_ASSEMBLY: "video-assembly",
@@ -925,6 +1186,19 @@ export class PipelineOrchestrator {
           }
         }
         break;
+      case "SCRIPT_GENERATION":
+        {
+          const [script] = await db
+            .select()
+            .from(scripts)
+            .where(eq(scripts.projectId, projectId));
+          if (script) {
+            await this.advanceAfterScriptGeneration(projectId, userId, script.id);
+          } else {
+            console.error(`[Pipeline] No script found for project ${projectId} after SCRIPT_GENERATION stage completed`);
+          }
+        }
+        break;
       case "SCENE_GENERATION":
         await this.advanceAfterSceneGeneration(projectId, userId);
         break;
@@ -939,7 +1213,33 @@ export class PipelineOrchestrator {
         await this.advanceAfterVideoGeneration(projectId, userId);
         break;
       case "TTS_GENERATION":
-        await this.advanceAfterTTS(projectId, userId);
+        {
+          // Check if this is the new audio-first pipeline (projectAudio exists)
+          const [pa] = await db
+            .select()
+            .from(projectAudio)
+            .where(eq(projectAudio.projectId, projectId));
+          if (pa) {
+            // New pipeline: advance to STT
+            await this.advanceAfterProjectTTS(projectId, userId, pa.id);
+          } else {
+            // Legacy pipeline: per-scene TTS
+            await this.advanceAfterTTS(projectId, userId);
+          }
+        }
+        break;
+      case "STT_TIMESTAMPS":
+        {
+          const [transcript] = await db
+            .select()
+            .from(projectAudioTranscripts)
+            .where(eq(projectAudioTranscripts.projectId, projectId));
+          if (transcript) {
+            await this.advanceAfterSTTTimestamps(projectId, userId, transcript.id);
+          } else {
+            console.error(`[Pipeline] No transcript found for project ${projectId} after STT_TIMESTAMPS stage completed`);
+          }
+        }
         break;
       case "AUDIO_MIXING":
         await this.advanceAfterAudioMixing(projectId, userId);

@@ -51,3 +51,6 @@ export * from "./bonus-credits";
 export * from "./daily-usage-summaries";
 export * from "./credit-alerts";
 export * from "./subscription-changes";
+export * from "./scripts";
+export * from "./project-audio";
+export * from "./project-audio-transcripts";

@@ -2,10 +2,10 @@ import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { TTSGenerationJobData } from "@contenthq/queue";
 import { db } from "@contenthq/db/client";
-import { sceneVideos, scenes, projects, generationJobs } from "@contenthq/db/schema";
+import { sceneVideos, scenes, projects, projectAudio, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
-import { storage, getSceneAudioPath, getAudioContentType } from "@contenthq/storage";
+import { storage, getSceneAudioPath, getOutputPath, getAudioContentType } from "@contenthq/storage";
 import { formatFileSize } from "@contenthq/ai";
 import type { TTSProvider } from "@contenthq/tts";
 import { creditService, type CostBreakdownOpts } from "../services/credit.service";
@@ -47,6 +47,7 @@ export function createTTSGenerationWorker(): Worker {
 
         // Check for media override - skip TTS generation if user provided voiceover
         if (mediaOverrideUrl) {
+          if (!sceneId) throw new Error("sceneId is required for media override TTS path");
           console.warn(`[TTS] Using media override for scene ${sceneId}: ${mediaOverrideUrl.substring(0, 80)}`);
           const overrideResponse = await fetch(mediaOverrideUrl);
           if (!overrideResponse.ok) throw new Error(`Failed to fetch TTS override: ${overrideResponse.statusText}`);
@@ -77,6 +78,140 @@ export function createTTSGenerationWorker(): Worker {
           return { success: true, override: true };
         }
 
+        // NEW PATH: Project-level TTS (audio-first pipeline)
+        if (job.data.fullScript && job.data.scriptId) {
+          const { fullScript, scriptId } = job.data;
+          console.warn(`[TTS] Project-level TTS for project ${projectId}, scriptId=${scriptId}, scriptLength=${fullScript.length} chars`);
+
+          const { generateSpeech } = await import("@contenthq/tts");
+
+          // Handle chunking for long scripts
+          let audioBuffer: Buffer;
+          let audioDuration = 0;
+          let audioFormat = "mp3";
+
+          if (fullScript.length > 4000) {
+            // Split at sentence boundaries and generate chunks
+            const chunks = splitAtSentenceBoundaries(fullScript, 3500);
+            console.warn(`[TTS] Script exceeds 4000 chars, splitting into ${chunks.length} chunks`);
+            const chunkBuffers: Buffer[] = [];
+
+            for (let i = 0; i < chunks.length; i++) {
+              console.warn(`[TTS] Generating chunk ${i + 1}/${chunks.length} (${chunks[i].length} chars)`);
+              const chunkResult = await generateSpeech({
+                text: chunks[i],
+                voiceId,
+                provider: provider as TTSProvider,
+              });
+              chunkBuffers.push(chunkResult.audioBuffer);
+              audioDuration += chunkResult.duration;
+              audioFormat = chunkResult.format;
+              await job.updateProgress(20 + Math.round(((i + 1) / chunks.length) * 40));
+            }
+
+            // Concatenate audio chunks (mp3 is frame-based, direct concat is valid)
+            audioBuffer = Buffer.concat(chunkBuffers);
+          } else {
+            const result = await generateSpeech({
+              text: fullScript,
+              voiceId,
+              provider: provider as TTSProvider,
+            });
+            audioBuffer = result.audioBuffer;
+            audioDuration = result.duration;
+            audioFormat = result.format;
+          }
+
+          console.warn(`[TTS] Project audio generated: duration=${audioDuration}s, format=${audioFormat}, size=${formatFileSize(audioBuffer.length)}`);
+          await job.updateProgress(60);
+
+          // Upload to R2 at project level
+          const audioKey = getOutputPath(userId, projectId, `narration.${audioFormat}`);
+          const uploadResult = await storage.uploadFileWithRetry(audioKey, audioBuffer, getAudioContentType(audioFormat));
+
+          // Store in projectAudio table
+          const [audio] = await db
+            .insert(projectAudio)
+            .values({
+              projectId,
+              scriptId,
+              audioUrl: uploadResult.url,
+              storageKey: audioKey,
+              durationSec: audioDuration,
+              format: audioFormat,
+              ttsProvider: provider,
+              ttsVoiceId: voiceId,
+            })
+            .returning();
+
+          // Update project status
+          await db
+            .update(projects)
+            .set({ status: "generating_tts", progressPercent: 25, updatedAt: new Date() })
+            .where(eq(projects.id, projectId));
+
+          // Deduct credits
+          try {
+            const credits = costCalculationService.getOperationCredits("TTS_GENERATION", { provider });
+            const costData: CostBreakdownOpts = {
+              billedCostCredits: String(credits),
+              costBreakdown: {
+                stage: "TTS_GENERATION",
+                provider,
+                voiceId,
+                characterCount: fullScript.length,
+                audioDuration,
+                format: audioFormat,
+              },
+            };
+            await creditService.deductCredits(userId, credits, `Project TTS for project ${projectId}`, {
+              projectId,
+              operationType: "TTS_GENERATION",
+              provider,
+              jobId: job.id,
+              costBreakdown: costData,
+            });
+          } catch (err) {
+            console.warn(`[TTS] Credit deduction failed (non-fatal):`, err);
+          }
+
+          await job.updateProgress(100);
+          const completedAt = new Date();
+          const durationMs = completedAt.getTime() - startedAt.getTime();
+          console.warn(`[TTS] Project-level TTS completed for project ${projectId}: audioId=${audio.id}, duration=${audioDuration}s (${durationMs}ms)`);
+
+          await db
+            .update(generationJobs)
+            .set({
+              status: "completed",
+              progressPercent: 100,
+              result: {
+                projectAudioId: audio.id,
+                duration: audioDuration,
+                log: {
+                  stage: "TTS_GENERATION",
+                  status: "completed",
+                  startedAt: startedAt.toISOString(),
+                  completedAt: completedAt.toISOString(),
+                  durationMs,
+                  details: `Generated project-level TTS (${audioDuration}s)`,
+                },
+              },
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(generationJobs.projectId, projectId),
+                eq(generationJobs.jobType, "TTS_GENERATION"),
+                eq(generationJobs.status, "processing")
+              )
+            );
+
+          await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "TTS_GENERATION");
+          return { success: true, projectAudioId: audio.id, duration: audioDuration };
+        }
+
+        // LEGACY PATH: Per-scene TTS
         // Apply stageConfig overrides for TTS quality/speed/format
         const _ttsSpeed = stageConfig?.speed;
         const _ttsPitch = stageConfig?.pitch;
@@ -95,7 +230,7 @@ export function createTTSGenerationWorker(): Worker {
         await job.updateProgress(70);
 
         // Upload voiceover to R2
-        const voiceoverKey = getSceneAudioPath(userId, projectId, sceneId, `voiceover.${result.format}`);
+        const voiceoverKey = getSceneAudioPath(userId, projectId, sceneId!, `voiceover.${result.format}`);
         const uploadResult = await storage.uploadFileWithRetry(voiceoverKey, result.audioBuffer, getAudioContentType(result.format));
         const voiceoverUrl = uploadResult.url;
 
@@ -104,7 +239,7 @@ export function createTTSGenerationWorker(): Worker {
           const existing = await tx
             .select()
             .from(sceneVideos)
-            .where(eq(sceneVideos.sceneId, sceneId));
+            .where(eq(sceneVideos.sceneId, sceneId!));
 
           if (existing.length > 0) {
             await tx
@@ -117,10 +252,10 @@ export function createTTSGenerationWorker(): Worker {
                 duration: result.duration,
                 updatedAt: new Date(),
               })
-              .where(eq(sceneVideos.sceneId, sceneId));
+              .where(eq(sceneVideos.sceneId, sceneId!));
           } else {
             await tx.insert(sceneVideos).values({
-              sceneId,
+              sceneId: sceneId!,
               voiceoverUrl,
               storageKey: voiceoverKey,
               ttsProvider: provider,
@@ -134,13 +269,13 @@ export function createTTSGenerationWorker(): Worker {
         await db
           .update(scenes)
           .set({ audioDuration: result.duration, updatedAt: new Date() })
-          .where(eq(scenes.id, sceneId));
+          .where(eq(scenes.id, sceneId!));
 
         // Update scene status to video_generated (Fix 5)
         await db
           .update(scenes)
           .set({ status: "video_generated", updatedAt: new Date() })
-          .where(eq(scenes.id, sceneId));
+          .where(eq(scenes.id, sceneId!));
 
         // Update project status to generating_tts
         await db
@@ -255,4 +390,24 @@ export function createTTSGenerationWorker(): Worker {
       concurrency: 5,
     }
   );
+}
+
+/** Split text at sentence boundaries into chunks of approximately maxChars */
+function splitAtSentenceBoundaries(text: string, maxChars: number): string[] {
+  const sentences = text.match(/[^.!?]+[.!?]+[\s]*/g) ?? [text];
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const sentence of sentences) {
+    if (current.length + sentence.length > maxChars && current.length > 0) {
+      chunks.push(current.trim());
+      current = "";
+    }
+    current += sentence;
+  }
+  if (current.trim()) {
+    chunks.push(current.trim());
+  }
+
+  return chunks.length > 0 ? chunks : [text];
 }

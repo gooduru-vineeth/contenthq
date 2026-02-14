@@ -88,6 +88,74 @@ Make each scene visually distinct and compelling. Ensure narration timing matche
     variables: ["title", "hook", "synopsis"],
   },
   {
+    type: "script_generation",
+    name: "Script Generation",
+    description:
+      "Generate a continuous narration script from source content. The script is a single flowing text — scene boundaries are determined later from audio timing.",
+    content: `You are a professional script writer creating narrated video content.
+
+Based on the following source content, create a compelling continuous narration script.
+
+SOURCE CONTENT:
+{{content}}
+
+REQUIREMENTS:
+- Tone: {{tone}}
+- Target duration: {{targetDuration}} seconds
+- Target word count: approximately {{wordCount}} words
+- Language: {{language}}
+- Create a strong opening hook in the first sentence
+- Write continuous, flowing narration (do NOT split into scenes)
+- The script should be engaging, concise, and well-paced
+- Include natural pauses and transitions in the text
+- Use short sentences for punchier delivery
+- Vary sentence length for rhythm
+
+OUTPUT STRUCTURE:
+1. A compelling title
+2. An attention-grabbing hook (first line the viewer hears)
+3. A brief synopsis (1-2 sentences)
+4. A narrative arc breakdown (setup, rising action, climax, resolution)
+5. The full continuous narration script
+
+The full script should be a single continuous text, not divided into scenes. Scene boundaries will be determined later based on audio timing.`,
+    variables: ["content", "tone", "targetDuration", "language"],
+  },
+  {
+    type: "audio_scene_generation",
+    name: "Audio Scene Generation",
+    description:
+      "Split a timestamped audio transcript into visual scenes for video production. Scene boundaries align with word-level timestamps from STT.",
+    content: `You are a video scene director. Split the following timestamped narration into visual scenes for video production.
+
+TIMESTAMPED TRANSCRIPT:
+{{transcript}}
+
+TOTAL DURATION: {{totalDurationSec}} seconds
+SUGGESTED SCENE COUNT: ~{{suggestedSceneCount}} scenes (aim for {{averageSceneDurationSec}}s average per scene)
+Visual style: {{visualStyle}}
+
+RULES FOR SCENE BOUNDARIES:
+1. Scene boundaries MUST align with word timestamps from the transcript
+2. Each scene's startMs and endMs must correspond to actual word start/end times
+3. Place scene breaks at natural pauses: sentence endings, topic shifts, or dramatic beats
+4. Minimum scene duration: 3 seconds
+5. Maximum scene duration: 15 seconds
+6. Every word in the transcript must belong to exactly one scene (no gaps, no overlaps)
+
+For each scene, provide:
+1. index: Scene number (starting at 0)
+2. startMs: Start time in milliseconds (must match a word's startMs)
+3. endMs: End time in milliseconds (must match a word's endMs)
+4. visualDescription: Detailed description of what appears on screen
+5. imagePrompt: Optimized prompt for AI image generation (include art style, lighting, mood, composition; keep under 300 chars; no text/watermarks)
+6. motionSpec: Camera movement {type, speed} — choose from: zoom_in, zoom_out, pan_left, pan_right, pan_up, pan_down, kenburns_in, kenburns_out, static. Speed: 0.1-1.0
+7. transition: How this scene transitions to next (fade, fadeblack, dissolve, wipeleft, slideleft, circleopen, none for last scene)
+
+Make each scene visually distinct. Vary motion types and transitions across scenes.`,
+    variables: ["transcript", "totalDurationSec", "suggestedSceneCount", "averageSceneDurationSec", "visualStyle"],
+  },
+  {
     type: "image_refinement",
     name: "Image Prompt Refinement",
     description:
@@ -350,6 +418,28 @@ export const DEFAULT_AGENTS: SeedAgent[] = [
     outputConfig: { outputType: "object", schemaName: "scene_output" },
     expectedVariables: ["title", "hook", "synopsis"],
     promptType: "scene_generation",
+  },
+  {
+    name: "Script Writer",
+    slug: "script-writer",
+    description:
+      "Generates a continuous narration script from source content. Audio-first pipeline: script is generated before TTS and scene splitting.",
+    agentType: "llm_structured",
+    modelConfig: { temperature: 0.7, maxTokens: 6000 },
+    outputConfig: { outputType: "object", schemaName: "script_output" },
+    expectedVariables: ["content", "tone", "targetDuration", "language"],
+    promptType: "script_generation",
+  },
+  {
+    name: "Audio Scene Director",
+    slug: "audio-scene-director",
+    description:
+      "Splits a timestamped audio transcript into visual scenes with boundaries aligned to word-level timestamps from STT.",
+    agentType: "llm_structured",
+    modelConfig: { temperature: 0.7, maxTokens: 8000 },
+    outputConfig: { outputType: "object", schemaName: "audio_scene_output" },
+    expectedVariables: ["transcript", "totalDurationSec", "suggestedSceneCount", "averageSceneDurationSec", "visualStyle"],
+    promptType: "audio_scene_generation",
   },
   {
     name: "Image Prompt Refiner",

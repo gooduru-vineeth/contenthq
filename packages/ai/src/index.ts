@@ -31,6 +31,8 @@ export {
   registerDefaultSchemas,
 } from "./schemas/default-schemas";
 export { getStoryWritingPrompt, getStoryOutputSchema } from "./prompts/story-writing";
+export { getScriptGenerationPrompt, getScriptOutputSchema } from "./prompts/script-generation";
+export { getAudioSceneGenerationPrompt, getAudioSceneOutputSchema } from "./prompts/audio-scene-generation";
 export { getSceneBreakdownPrompt, getImagePromptRefinementPrompt } from "./prompts/scene-generation";
 export { getImageGenerationPrompt, refineImagePrompt } from "./prompts/image-generation";
 export { getVerificationPrompt } from "./prompts/visual-verification";

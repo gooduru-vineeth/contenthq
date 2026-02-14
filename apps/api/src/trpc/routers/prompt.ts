@@ -30,6 +30,8 @@ import { composePrompt } from "@contenthq/ai";
 const promptTypeEnum = z.enum([
   "story_writing",
   "scene_generation",
+  "script_generation",
+  "audio_scene_generation",
   "image_generation",
   "image_refinement",
   "visual_verification",

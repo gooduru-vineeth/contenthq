@@ -2,10 +2,10 @@ import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { VideoAssemblyJobData } from "@contenthq/queue";
 import { db } from "@contenthq/db/client";
-import { projects, scenes, sceneVideos, sceneVisuals, sceneAudioMixes, generationJobs } from "@contenthq/db/schema";
+import { projects, scenes, sceneVideos, sceneVisuals, sceneAudioMixes, projectAudio, projectAudioTranscripts, musicTracks, generationJobs } from "@contenthq/db/schema";
 import { eq, and, inArray, asc } from "drizzle-orm";
 import { videoService } from "@contenthq/video";
-import { storage, getOutputPath, getSceneVideoPath, getVideoContentType } from "@contenthq/storage";
+import { storage, getOutputPath, getSceneVideoPath, getVideoContentType, getAudioContentType } from "@contenthq/storage";
 import { formatFileSize } from "@contenthq/ai";
 import type { TransitionSpec, TransitionType } from "@contenthq/video";
 import { pickRandomTransition, mapAiTransitionName } from "@contenthq/video";
@@ -58,6 +58,243 @@ export function createVideoAssemblyWorker(): Worker {
 
         await job.updateProgress(10);
 
+        // NEW PATH: Audio-first assembly (when projectAudioId is present)
+        if (job.data.projectAudioId) {
+          const { projectAudioId, musicTrackId } = job.data;
+          console.warn(`[VideoAssembly] Audio-first path: projectAudioId=${projectAudioId}`);
+
+          // Fetch project audio
+          const [audio] = await db.select().from(projectAudio).where(eq(projectAudio.id, projectAudioId));
+          if (!audio?.audioUrl) throw new Error(`Project audio ${projectAudioId} not found or has no URL`);
+
+          // Download project audio
+          const audioResponse = await fetch(audio.audioUrl);
+          if (!audioResponse.ok) throw new Error(`Failed to download project audio: ${audioResponse.statusText}`);
+          let audioBuffer = Buffer.from(await audioResponse.arrayBuffer());
+
+          await job.updateProgress(20);
+
+          // Mix background music if musicTrackId provided
+          if (musicTrackId) {
+            console.warn(`[VideoAssembly] Mixing background music (trackId=${musicTrackId})`);
+            try {
+              const [musicTrack] = await db.select().from(musicTracks).where(eq(musicTracks.id, musicTrackId));
+              if (!musicTrack?.url) throw new Error(`Music track ${musicTrackId} not found`);
+              const musicResp = await fetch(musicTrack.url);
+              if (!musicResp.ok) throw new Error(`Failed to download music track: ${musicResp.statusText}`);
+              const musicBuffer = Buffer.from(await musicResp.arrayBuffer()) as Buffer<ArrayBuffer>;
+              const mixResult = await videoService.mixSceneAudio({
+                voiceoverBuffer: audioBuffer,
+                musicBuffer: musicBuffer,
+                voiceoverVolume: 100,
+                musicVolume: 15,
+              });
+              audioBuffer = mixResult.audioBuffer as Buffer<ArrayBuffer>;
+
+              // Upload mixed audio
+              const mixedKey = getOutputPath(userId, projectId, `narration-mixed.${audio.format ?? "mp3"}`);
+              const mixedUpload = await storage.uploadFileWithRetry(mixedKey, audioBuffer, getAudioContentType(audio.format ?? "mp3"));
+
+              await db.update(projectAudio).set({
+                mixedAudioUrl: mixedUpload.url,
+                mixedAudioStorageKey: mixedKey,
+                updatedAt: new Date(),
+              }).where(eq(projectAudio.id, projectAudioId));
+            } catch (err) {
+              console.warn(`[VideoAssembly] Music mixing failed (non-fatal, using plain audio):`, err);
+            }
+          }
+
+          await job.updateProgress(30);
+
+          // Fetch scenes in order
+          const sceneList = await db
+            .select()
+            .from(scenes)
+            .where(eq(scenes.projectId, projectId))
+            .orderBy(asc(scenes.index));
+
+          // Generate caption segments from transcript words
+          const subtitleSegments: Array<{
+            text: string;
+            startTime: number;
+            endTime: number;
+            wordTimings?: Array<{ word: string; start: number; end: number }>;
+          }> = [];
+
+          const [transcript] = await db
+            .select()
+            .from(projectAudioTranscripts)
+            .where(eq(projectAudioTranscripts.projectId, projectId));
+
+          if (transcript?.words) {
+            const words = transcript.words as Array<{ word: string; startMs: number; endMs: number }>;
+            // Group words into subtitle segments (4-5 words per line)
+            const wordsPerLine = captionConfig?.wordsPerLine ?? 4;
+            for (let i = 0; i < words.length; i += wordsPerLine) {
+              const group = words.slice(i, i + wordsPerLine);
+              subtitleSegments.push({
+                text: group.map((w) => w.word).join(" "),
+                startTime: group[0].startMs / 1000,
+                endTime: group[group.length - 1].endMs / 1000,
+                wordTimings: group.map((w) => ({
+                  word: w.word,
+                  start: w.startMs / 1000,
+                  end: w.endMs / 1000,
+                })),
+              });
+            }
+            console.warn(`[VideoAssembly] Generated ${subtitleSegments.length} caption segments from transcript`);
+          }
+
+          await job.updateProgress(40);
+
+          // Build scene video buffers
+          const assemblyScenes: Array<{ videoBuffer: Buffer; duration: number; transition?: TransitionSpec }> = [];
+          for (const scene of sceneList) {
+            const [video] = await db.select().from(sceneVideos).where(eq(sceneVideos.sceneId, scene.id));
+            let videoUrl = video?.videoUrl ?? null;
+            let videoBuffer: Buffer | null = null;
+
+            if (!videoUrl) {
+              const [visual] = await db.select().from(sceneVisuals).where(eq(sceneVisuals.sceneId, scene.id));
+              if (!visual?.imageUrl) {
+                console.warn(`[VideoAssembly] Skipping scene ${scene.id}: no video or image`);
+                continue;
+              }
+
+              const duration = scene.duration ?? 5;
+              const videoResult = await videoService.generateSceneVideo({
+                imageUrl: visual.imageUrl,
+                duration,
+                width: assemblyWidth,
+                height: assemblyHeight,
+              });
+
+              const videoKey = getSceneVideoPath(userId, projectId, scene.id, `video.${videoResult.format}`);
+              const uploadResult = await storage.uploadFileWithRetry(videoKey, videoResult.videoBuffer, getVideoContentType(videoResult.format));
+              videoUrl = uploadResult.url;
+              videoBuffer = videoResult.videoBuffer;
+            }
+
+            if (!videoBuffer) {
+              const resp = await fetch(videoUrl);
+              if (!resp.ok) continue;
+              videoBuffer = Buffer.from(await resp.arrayBuffer());
+            }
+
+            // Resolve transition
+            const transitionDuration = stageConfig?.transitionDuration ?? 0.5;
+            const defaultTransitionType = (stageConfig?.transitionType ?? "fade") as TransitionType;
+            let transition: TransitionSpec;
+            if (assemblyScenes.length === sceneList.length - 1) {
+              transition = { type: "none" };
+            } else if (scene.transitions) {
+              transition = { type: mapAiTransitionName(scene.transitions), duration: transitionDuration };
+            } else {
+              transition = { type: defaultTransitionType, duration: transitionDuration };
+            }
+
+            assemblyScenes.push({
+              videoBuffer,
+              duration: scene.duration ?? (scene.endMs && scene.startMs ? (scene.endMs - scene.startMs) / 1000 : 5),
+              transition,
+            });
+          }
+
+          if (assemblyScenes.length === 0) throw new Error("No valid scenes to assemble");
+
+          await job.updateProgress(60);
+
+          // Assemble video (without per-scene audio - we'll overlay the single project audio)
+          console.warn(`[VideoAssembly] Assembling ${assemblyScenes.length} scene(s) with single audio track`);
+          const transitionDuration = stageConfig?.transitionDuration ?? 0.5;
+          const defaultTransitionType = (stageConfig?.transitionType ?? "fade") as TransitionType;
+
+          const result = await videoService.assembleProject({
+            scenes: assemblyScenes.map((s) => ({ ...s, audioBuffer: Buffer.alloc(0) })),
+            defaultTransition: { type: defaultTransitionType, duration: transitionDuration },
+            width: assemblyWidth,
+            height: assemblyHeight,
+          });
+
+          await job.updateProgress(70);
+
+          // Overlay single project audio onto assembled video
+          // Mux assembled video with single project audio using FFmpeg
+          const { tmpdir } = await import("os");
+          const { join: pathJoin } = await import("path");
+          const { mkdtemp, writeFile: fsWrite, readFile: fsRead, rm: fsRm } = await import("fs/promises");
+          const { promisify } = await import("util");
+          const { execFile: execFileCb } = await import("child_process");
+          const muxExec = promisify(execFileCb);
+          const muxDir = await mkdtemp(pathJoin(tmpdir(), "va-mux-"));
+          const muxVidFile = pathJoin(muxDir, "video.mp4");
+          const muxAudFile = pathJoin(muxDir, `audio.${audio.format ?? "mp3"}`);
+          const muxOutFile = pathJoin(muxDir, "output.mp4");
+          await fsWrite(muxVidFile, result.videoBuffer);
+          await fsWrite(muxAudFile, audioBuffer);
+          await muxExec("ffmpeg", ["-i", muxVidFile, "-i", muxAudFile, "-c:v", "copy", "-c:a", "aac", "-shortest", "-y", muxOutFile]);
+          let finalVideoBuffer: Buffer = await fsRead(muxOutFile);
+          await fsRm(muxDir, { recursive: true, force: true }).catch(() => {});
+
+          // Embed subtitles if configured
+          if (captionConfig?.animationStyle && captionConfig.animationStyle !== "none" && subtitleSegments.length > 0) {
+            const { embedSubtitles } = await import("@contenthq/video");
+            console.warn(`[VideoAssembly] Embedding ${subtitleSegments.length} subtitle segments with style "${captionConfig.animationStyle}"`);
+            finalVideoBuffer = await embedSubtitles(finalVideoBuffer, subtitleSegments, {
+              font: captionConfig.font ?? "Arial",
+              fontSize: captionConfig.fontSize ?? 24,
+              fontColor: captionConfig.fontColor ?? "#FFFFFF",
+              backgroundColor: captionConfig.backgroundColor ?? "#00000080",
+              position: captionConfig.position ?? "bottom-center",
+              animationStyle: captionConfig.animationStyle,
+              highlightColor: captionConfig.highlightColor ?? "#FFD700",
+              wordsPerLine: captionConfig.wordsPerLine ?? 4,
+            });
+          }
+
+          await job.updateProgress(80);
+
+          // Upload final video
+          const outputKey = getOutputPath(userId, projectId, `final-video.${result.format}`);
+          const uploadResult = await storage.uploadFileWithRetry(outputKey, finalVideoBuffer, getVideoContentType(result.format));
+          const finalVideoUrl = uploadResult.url;
+
+          console.warn(`[VideoAssembly] Uploaded final video: key=${outputKey}, size=${formatFileSize(finalVideoBuffer.length)}`);
+
+          // Deduct credits
+          try {
+            const credits = costCalculationService.getOperationCredits("VIDEO_ASSEMBLY");
+            await creditService.deductCredits(userId, credits, `Video assembly for project ${projectId}`, {
+              projectId, operationType: "VIDEO_ASSEMBLY", jobId: job.id,
+              costBreakdown: { billedCostCredits: String(credits), costBreakdown: { stage: "VIDEO_ASSEMBLY" } },
+            });
+          } catch (err) {
+            console.warn(`[VideoAssembly] Credit deduction failed (non-fatal):`, err);
+          }
+
+          // Mark project as completed
+          await db.update(projects).set({ status: "completed", progressPercent: 100, finalVideoUrl, updatedAt: new Date() }).where(eq(projects.id, projectId));
+
+          await job.updateProgress(100);
+          const completedAt = new Date();
+          const durationMs = completedAt.getTime() - startedAt.getTime();
+          console.warn(`[VideoAssembly] Audio-first assembly completed for project ${projectId}: ${assemblyScenes.length} scenes (${durationMs}ms)`);
+
+          await db.update(generationJobs).set({
+            status: "completed", progressPercent: 100,
+            result: {
+              sceneCount: assemblyScenes.length, finalVideoUrl,
+              log: { stage: "VIDEO_ASSEMBLY", status: "completed", startedAt: startedAt.toISOString(), completedAt: completedAt.toISOString(), durationMs, details: `Audio-first: assembled ${assemblyScenes.length} scenes` },
+            },
+            updatedAt: new Date(),
+          }).where(and(eq(generationJobs.projectId, projectId), eq(generationJobs.jobType, "VIDEO_ASSEMBLY"), eq(generationJobs.status, "processing")));
+
+          return { success: true, sceneCount: assemblyScenes.length };
+        }
+
+        // LEGACY PATH: Per-scene assembly
         // Fetch all scenes in order
         const sceneList = await db
           .select()

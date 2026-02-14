@@ -3,6 +3,8 @@ export { getQueue, closeAllQueues, QUEUE_NAMES, type QueueName } from "./queues"
 export {
   addIngestionJob,
   addStoryWritingJob,
+  addScriptGenerationJob,
+  addSTTTimestampsJob,
   addSceneGenerationJob,
   addVisualGenerationJob,
   addVisualVerificationJob,
@@ -33,6 +35,8 @@ export type {
   BaseFlowJobData,
   IngestionJobData,
   StoryWritingJobData,
+  ScriptGenerationJobData,
+  STTTimestampsJobData,
   SceneGenerationJobData,
   VisualGenerationJobData,
   VisualVerificationJobData,

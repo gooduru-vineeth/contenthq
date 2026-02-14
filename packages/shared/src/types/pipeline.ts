@@ -1,6 +1,8 @@
 export const PipelineStage = {
   INGESTION: "INGESTION",
   STORY_WRITING: "STORY_WRITING",
+  SCRIPT_GENERATION: "SCRIPT_GENERATION",
+  STT_TIMESTAMPS: "STT_TIMESTAMPS",
   SCENE_GENERATION: "SCENE_GENERATION",
   VISUAL_GENERATION: "VISUAL_GENERATION",
   VISUAL_VERIFICATION: "VISUAL_VERIFICATION",
@@ -15,6 +17,8 @@ export type PipelineStage = (typeof PipelineStage)[keyof typeof PipelineStage];
 export const ProjectStatus = {
   DRAFT: "draft",
   INGESTING: "ingesting",
+  GENERATING_SCRIPT: "generating_script",
+  TRANSCRIBING: "transcribing",
   WRITING: "writing",
   GENERATING_SCENES: "generating_scenes",
   GENERATING_VISUALS: "generating_visuals",

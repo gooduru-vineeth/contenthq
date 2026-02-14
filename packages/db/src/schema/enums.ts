@@ -3,6 +3,8 @@ import { pgEnum } from "drizzle-orm/pg-core";
 export const projectStatusEnum = pgEnum("project_status", [
   "draft",
   "ingesting",
+  "generating_script",
+  "transcribing",
   "writing",
   "generating_scenes",
   "generating_visuals",
@@ -58,6 +60,8 @@ export const mediaTypeEnum = pgEnum("media_type", [
 export const promptTypeEnum = pgEnum("prompt_type", [
   "story_writing",
   "scene_generation",
+  "script_generation",
+  "audio_scene_generation",
   "image_generation",
   "image_refinement",
   "visual_verification",

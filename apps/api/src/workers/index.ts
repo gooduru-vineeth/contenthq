@@ -30,6 +30,12 @@ export async function initWorkers(): Promise<void> {
   workers.push(createAudioMixingWorker());
   workers.push(createVideoAssemblyWorker());
 
+  // Audio-first pipeline workers
+  const { createScriptGenerationWorker } = await import("./script-generation.worker");
+  const { createSTTTimestampsWorker } = await import("./stt-timestamps.worker");
+  workers.push(createScriptGenerationWorker());
+  workers.push(createSTTTimestampsWorker());
+
   const { createSpeechGenerationWorker } = await import(
     "./speech-generation.worker"
   );

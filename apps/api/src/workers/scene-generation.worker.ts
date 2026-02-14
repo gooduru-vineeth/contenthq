@@ -1,9 +1,9 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { SceneGenerationJobData } from "@contenthq/queue";
-import { generateTextContent, resolvePromptForStage, executeAgent, truncateForLog } from "@contenthq/ai";
+import { generateTextContent, resolvePromptForStage, executeAgent, truncateForLog, getAudioSceneGenerationPrompt } from "@contenthq/ai";
 import { db } from "@contenthq/db/client";
-import { scenes, projects, generationJobs } from "@contenthq/db/schema";
+import { scenes, projects, projectAudioTranscripts, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
 import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
@@ -47,11 +47,126 @@ export function createSceneGenerationWorker(): Worker {
         // Update project status
         await db
           .update(projects)
-          .set({ status: "generating_scenes", updatedAt: new Date() })
+          .set({ status: "generating_scenes", progressPercent: 45, updatedAt: new Date() })
           .where(eq(projects.id, projectId));
 
         await job.updateProgress(10);
 
+        // NEW PATH: Audio-driven scene generation (when transcriptId is present)
+        if (job.data.transcriptId) {
+          const { transcriptId, averageSceneDurationSec, scriptId } = job.data;
+          console.warn(`[SceneGeneration] Audio-driven path: transcriptId=${transcriptId}, averageSceneDurationSec=${averageSceneDurationSec ?? 7}`);
+
+          // Fetch transcript words
+          const [transcript] = await db
+            .select()
+            .from(projectAudioTranscripts)
+            .where(eq(projectAudioTranscripts.id, transcriptId));
+
+          if (!transcript?.words) {
+            throw new Error(`Transcript ${transcriptId} not found or has no words`);
+          }
+
+          const words = transcript.words as Array<{ word: string; startMs: number; endMs: number }>;
+          console.warn(`[SceneGeneration] Loaded ${words.length} timestamped words from transcript`);
+
+          await job.updateProgress(20);
+
+          // Generate scene breakdown from timestamped transcript
+          const prompt = getAudioSceneGenerationPrompt(
+            words,
+            averageSceneDurationSec ?? 7,
+            visualStyle ?? "photorealistic",
+            imagePromptStyle ?? undefined,
+          );
+
+          console.warn(`[SceneGeneration] Calling LLM for audio-driven scene breakdown`);
+          const result = await generateTextContent(prompt, {
+            temperature: 0.7,
+            maxTokens: 8000,
+            db,
+            userId,
+          });
+
+          await job.updateProgress(60);
+
+          let sceneData: {
+            scenes: Array<{
+              index: number;
+              startMs: number;
+              endMs: number;
+              narrationScript: string;
+              visualDescription: string;
+              imagePrompt: string;
+              motionSpec: { type: string; speed: number };
+              transition: string;
+            }>;
+          };
+
+          try {
+            sceneData = JSON.parse(result.content);
+          } catch {
+            throw new Error(`Failed to parse AI scene output as JSON: ${result.content.substring(0, 200)}`);
+          }
+
+          console.warn(`[SceneGeneration] AI generated ${sceneData.scenes.length} scenes from transcript`);
+
+          // Insert scenes into database
+          await db.transaction(async (tx) => {
+            for (const scene of sceneData.scenes) {
+              await tx.insert(scenes).values({
+                projectId,
+                scriptId: scriptId ?? null,
+                index: scene.index,
+                startMs: scene.startMs,
+                endMs: scene.endMs,
+                narrationScript: scene.narrationScript,
+                visualDescription: scene.visualDescription,
+                imagePrompt: scene.imagePrompt,
+                duration: (scene.endMs - scene.startMs) / 1000,
+                status: "scripted",
+                motionSpec: scene.motionSpec,
+                transitions: scene.transition,
+              });
+            }
+          });
+
+          await job.updateProgress(100);
+          const completedAt = new Date();
+          const durationMs = completedAt.getTime() - startedAt.getTime();
+          console.warn(`[SceneGeneration] Audio-driven complete for project ${projectId}: ${sceneData.scenes.length} scenes (${durationMs}ms)`);
+
+          await db.update(projects).set({ progressPercent: 50, updatedAt: new Date() }).where(eq(projects.id, projectId));
+
+          await db.update(generationJobs).set({
+            status: "completed",
+            progressPercent: 100,
+            result: {
+              transcriptId,
+              scenesCreated: sceneData.scenes.length,
+              log: {
+                stage: "SCENE_GENERATION",
+                status: "completed",
+                startedAt: startedAt.toISOString(),
+                completedAt: completedAt.toISOString(),
+                durationMs,
+                details: `Audio-driven: created ${sceneData.scenes.length} scenes from transcript`,
+              },
+            },
+            updatedAt: new Date(),
+          }).where(
+            and(
+              eq(generationJobs.projectId, projectId),
+              eq(generationJobs.jobType, "SCENE_GENERATION"),
+              eq(generationJobs.status, "processing")
+            )
+          );
+
+          await pipelineOrchestrator.checkAndAdvancePipeline(projectId, userId, "SCENE_GENERATION");
+          return { success: true, transcriptId, scenesCreated: sceneData.scenes.length };
+        }
+
+        // LEGACY PATH: Story-based scene generation
         // Fetch all scenes for the project
         const projectScenes = await db
           .select()
