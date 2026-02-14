@@ -22,6 +22,9 @@ export const QUEUE_NAMES = {
   REMOTION_RENDER: "remotion-render",
   MOTION_CANVAS_SCENE: "motion-canvas-scene",
   MOTION_CANVAS_RENDER: "motion-canvas-render",
+  BONUS_EXPIRY: "bonus-expiry",
+  DAILY_SUMMARY: "daily-summary",
+  CREDIT_ALERT: "credit-alert",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -49,6 +52,9 @@ const DEFAULT_JOB_OPTIONS: Record<string, { attempts: number; backoff: { type: s
   [QUEUE_NAMES.REMOTION_RENDER]: { attempts: 2, backoff: { type: "exponential", delay: 10000 } },
   [QUEUE_NAMES.MOTION_CANVAS_SCENE]: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
   [QUEUE_NAMES.MOTION_CANVAS_RENDER]: { attempts: 2, backoff: { type: "exponential", delay: 10000 } },
+  [QUEUE_NAMES.BONUS_EXPIRY]: { attempts: 3, backoff: { type: "exponential", delay: 10000 } },
+  [QUEUE_NAMES.DAILY_SUMMARY]: { attempts: 5, backoff: { type: "exponential", delay: 30000 } },
+  [QUEUE_NAMES.CREDIT_ALERT]: { attempts: 3, backoff: { type: "exponential", delay: 10000 } },
 };
 
 export function getQueue(name: QueueName): Queue {

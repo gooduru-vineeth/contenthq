@@ -25,7 +25,9 @@ import { variationRouter } from "./variation";
 import { userModelPreferenceRouter } from "./user-model-preferences";
 import { stockMediaRouter } from "./stock-media";
 import { adminBillingRouter } from "./admin-billing";
+import { adminBonusRouter } from "./admin-bonus";
 import { paymentRouter } from "./payment";
+import { analyticsRouter } from "./analytics";
 
 export const appRouter = router({
   health: healthRouter,
@@ -54,7 +56,9 @@ export const appRouter = router({
   userModelPreference: userModelPreferenceRouter,
   stockMedia: stockMediaRouter,
   adminBilling: adminBillingRouter,
+  adminBonus: adminBonusRouter,
   payment: paymentRouter,
+  analytics: analyticsRouter,
 });
 
 export type AppRouter = typeof appRouter;

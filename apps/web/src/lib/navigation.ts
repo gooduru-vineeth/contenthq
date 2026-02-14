@@ -16,6 +16,7 @@ import {
   GitBranch,
   Wand2,
   Globe,
+  BarChart3,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -37,6 +38,7 @@ export const navigation: NavItem[] = [
   { label: "Personas", href: "/personas", icon: Users, iconColor: "text-dash-purple" },
   { label: "Stock Media", href: "/stock-media", icon: Globe, iconColor: "text-dash-orange" },
   { label: "Media Studio", href: "/media-studio", icon: Wand2, iconColor: "text-dash-deep-purple" },
+  { label: "Analytics", href: "/analytics", icon: BarChart3, iconColor: "text-dash-teal" },
   { label: "Billing", href: "/billing", icon: CreditCard, iconColor: "text-dash-teal" },
   { label: "Settings", href: "/settings", icon: Settings, iconColor: "text-dash-dark-teal" },
 ];

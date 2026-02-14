@@ -83,6 +83,20 @@ export async function initWorkers(): Promise<void> {
   workers.push(createMotionCanvasSceneWorker());
   workers.push(createMotionCanvasRenderWorker());
 
+  // Scheduled maintenance workers
+  const { createBonusExpiryWorker } = await import(
+    "./bonus-expiry.worker"
+  );
+  const { createDailySummaryWorker } = await import(
+    "./daily-summary.worker"
+  );
+  const { createCreditAlertWorker } = await import(
+    "./credit-alert.worker"
+  );
+  workers.push(createBonusExpiryWorker());
+  workers.push(createDailySummaryWorker());
+  workers.push(createCreditAlertWorker());
+
   console.warn(`[Workers] ${workers.length} workers initialized`);
 }
 
