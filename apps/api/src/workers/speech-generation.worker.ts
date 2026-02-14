@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { getRedisConnection, QUEUE_NAMES } from "@contenthq/queue";
 import type { SpeechGenerationJobData } from "@contenthq/queue";
-import { creditService } from "../services/credit.service";
+import { creditService, type CostBreakdownOpts } from "../services/credit.service";
 import { costCalculationService } from "../services/cost-calculation.service";
 
 export function createSpeechGenerationWorker(): Worker {
@@ -25,14 +25,26 @@ export function createSpeechGenerationWorker(): Worker {
         const result =
           await speechGenerationService.processGeneration(speechGenerationId);
 
-        // Deduct credits for speech generation
+        // Deduct credits for speech generation with cost breakdown
         try {
-          const credits = costCalculationService.getOperationCredits("SPEECH_GENERATION", { provider: result.provider ?? provider, model });
+          const usedProvider = result.provider ?? provider;
+          const credits = costCalculationService.getOperationCredits("SPEECH_GENERATION", { provider: usedProvider, model });
+          const costData: CostBreakdownOpts = {
+            billedCostCredits: String(credits),
+            costBreakdown: {
+              stage: "SPEECH_GENERATION",
+              provider: usedProvider,
+              model,
+              audioDuration: result.duration,
+              format: result.format,
+            },
+          };
           await creditService.deductCredits(userId, credits, `Speech generation ${speechGenerationId}`, {
             operationType: "SPEECH_GENERATION",
-            provider: result.provider ?? provider,
+            provider: usedProvider,
             model,
             jobId: job.id,
+            costBreakdown: costData,
           });
         } catch (err) {
           console.warn(`[SpeechGen] Credit deduction failed (non-fatal):`, err);

@@ -7,7 +7,7 @@ import { stories, scenes, ingestedContent, projects, aiGenerations, generationJo
 import { eq, and } from "drizzle-orm";
 import type { z } from "zod";
 import { pipelineOrchestrator } from "../services/pipeline-orchestrator";
-import { creditService } from "../services/credit.service";
+import { creditService, type CostBreakdownOpts } from "../services/credit.service";
 import { costCalculationService } from "../services/cost-calculation.service";
 import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
@@ -74,6 +74,8 @@ export function createStoryWritingWorker(): Worker {
         let templateId: string | undefined;
         let composedPrompt: string | undefined;
         let usedModel: string | undefined;
+        let usedProvider: string | undefined;
+        let tokenUsage: { input: number; output: number } | undefined;
 
         if (effectiveAgentId) {
           // New path: use agent executor
@@ -92,6 +94,8 @@ export function createStoryWritingWorker(): Worker {
           });
           storyData = result.data as z.infer<typeof storyOutputSchema>;
           usedModel = result.model;
+          usedProvider = result.provider;
+          tokenUsage = result.tokens;
           console.warn(`[StoryWriting] Agent execution complete: provider=${result.provider}, model=${result.model}, inputTokens=${result.tokens.input}, outputTokens=${result.tokens.output}, durationMs=${result.durationMs}`);
         } else {
           // Existing path: resolvePromptForStage + generateStructuredContent
@@ -119,6 +123,8 @@ export function createStoryWritingWorker(): Worker {
           });
           storyData = result.data;
           usedModel = result.model;
+          usedProvider = result.provider;
+          tokenUsage = result.tokens;
           console.warn(`[StoryWriting] LLM generation complete: provider=${result.provider}, model=${result.model}, inputTokens=${result.tokens.input}, outputTokens=${result.tokens.output}, temperature=${effectiveTemperature}, maxTokens=${effectiveMaxTokens}, promptTemplateId=${templateId ?? "none"}`);
         }
 
@@ -174,14 +180,30 @@ export function createStoryWritingWorker(): Worker {
 
         await job.updateProgress(100);
 
-        // Deduct credits for story writing
+        // Deduct credits for story writing with cost breakdown
         try {
           const credits = costCalculationService.getOperationCredits("STORY_WRITING", { model: usedModel });
+          const costData: CostBreakdownOpts | undefined = tokenUsage
+            ? {
+                inputTokens: tokenUsage.input,
+                outputTokens: tokenUsage.output,
+                billedCostCredits: String(credits),
+                costBreakdown: {
+                  stage: "STORY_WRITING",
+                  provider: usedProvider,
+                  model: usedModel,
+                  inputTokens: tokenUsage.input,
+                  outputTokens: tokenUsage.output,
+                },
+              }
+            : undefined;
           await creditService.deductCredits(userId, credits, `Story writing for project ${projectId}`, {
             projectId,
             operationType: "STORY_WRITING",
+            provider: usedProvider,
             model: usedModel,
             jobId: job.id,
+            costBreakdown: costData,
           });
         } catch (err) {
           console.warn(`[StoryWriting] Credit deduction failed (non-fatal):`, err);

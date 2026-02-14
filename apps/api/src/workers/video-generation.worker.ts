@@ -128,7 +128,7 @@ export function createVideoGenerationWorker(): Worker {
           await db.insert(sceneVideos).values({ sceneId, videoUrl, storageKey: videoKey, duration });
           await db.update(scenes).set({ status: "video_generated", updatedAt: new Date() }).where(eq(scenes.id, sceneId));
 
-          // Deduct credits for AI video generation
+          // Deduct credits for AI video generation with cost breakdown
           try {
             const credits = costCalculationService.getOperationCredits("VIDEO_GENERATION", { provider: aiProvider.name, model: stageConfig.model });
             await creditService.deductCredits(userId, credits, `Video generation for scene ${sceneId}`, {
@@ -137,6 +137,15 @@ export function createVideoGenerationWorker(): Worker {
               provider: aiProvider.name,
               model: stageConfig.model,
               jobId: job.id,
+              costBreakdown: {
+                billedCostCredits: String(credits),
+                costBreakdown: {
+                  stage: "VIDEO_GENERATION",
+                  provider: aiProvider.name,
+                  model: stageConfig.model,
+                  method: "ai",
+                },
+              },
             });
           } catch (err) {
             console.warn(`[VideoGeneration] Credit deduction failed (non-fatal):`, err);
@@ -249,7 +258,7 @@ export function createVideoGenerationWorker(): Worker {
           .set({ status: "video_generated", updatedAt: new Date() })
           .where(eq(scenes.id, sceneId));
 
-        // Deduct credits for FFmpeg video generation
+        // Deduct credits for FFmpeg video generation with cost breakdown
         try {
           const credits = costCalculationService.getOperationCredits("VIDEO_GENERATION", { provider: "ffmpeg" });
           await creditService.deductCredits(userId, credits, `Video generation for scene ${sceneId}`, {
@@ -257,6 +266,14 @@ export function createVideoGenerationWorker(): Worker {
             operationType: "VIDEO_GENERATION",
             provider: "ffmpeg",
             jobId: job.id,
+            costBreakdown: {
+              billedCostCredits: String(credits),
+              costBreakdown: {
+                stage: "VIDEO_GENERATION",
+                provider: "ffmpeg",
+                method: "programmatic",
+              },
+            },
           });
         } catch (err) {
           console.warn(`[VideoGeneration] Credit deduction failed (non-fatal):`, err);

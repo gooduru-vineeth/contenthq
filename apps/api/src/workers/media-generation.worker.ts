@@ -181,7 +181,7 @@ export function createMediaGenerationWorker(): Worker {
           })
           .where(eq(generatedMedia.id, generatedMediaId));
 
-        // Deduct credits for media generation
+        // Deduct credits for media generation with cost breakdown
         try {
           const operationType = mediaType === "video" ? "MEDIA_GEN_VIDEO" as const : "MEDIA_GEN_IMAGE" as const;
           const credits = costCalculationService.getOperationCredits(operationType, { provider: provider?.name, model });
@@ -190,6 +190,15 @@ export function createMediaGenerationWorker(): Worker {
             provider: provider?.name,
             model,
             jobId: job.id,
+            costBreakdown: {
+              billedCostCredits: String(credits),
+              costBreakdown: {
+                stage: operationType,
+                provider: provider?.name,
+                model,
+                mediaType,
+              },
+            },
           });
         } catch (err) {
           console.warn(`[MediaGeneration] Credit deduction failed (non-fatal):`, err);

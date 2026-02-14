@@ -312,13 +312,17 @@ export function createVideoAssemblyWorker(): Worker {
 
         await job.updateProgress(90);
 
-        // Deduct credits for video assembly
+        // Deduct credits for video assembly with cost breakdown
         try {
           const credits = costCalculationService.getOperationCredits("VIDEO_ASSEMBLY");
           await creditService.deductCredits(userId, credits, `Video assembly for project ${projectId}`, {
             projectId,
             operationType: "VIDEO_ASSEMBLY",
             jobId: job.id,
+            costBreakdown: {
+              billedCostCredits: String(credits),
+              costBreakdown: { stage: "VIDEO_ASSEMBLY" },
+            },
           });
         } catch (err) {
           console.warn(`[VideoAssembly] Credit deduction failed (non-fatal):`, err);

@@ -6,7 +6,7 @@ import { db } from "@contenthq/db/client";
 import { scenes, sceneVisuals, projects, generationJobs } from "@contenthq/db/schema";
 import { eq, and } from "drizzle-orm";
 import { storage, getSceneVisualPath } from "@contenthq/storage";
-import { creditService } from "../services/credit.service";
+import { creditService, type CostBreakdownOpts } from "../services/credit.service";
 import { costCalculationService } from "../services/cost-calculation.service";
 import { assertProjectActive, ProjectDeletedError } from "./utils/check-project";
 
@@ -141,15 +141,26 @@ export function createVisualGenerationWorker(): Worker {
           prompt: imagePrompt,
         });
 
-        // Deduct credits for image generation
+        // Deduct credits for image generation with cost breakdown
         try {
           const credits = costCalculationService.getOperationCredits("IMAGE_GENERATION", { model: stageConfig?.model });
+          const costData: CostBreakdownOpts = {
+            billedCostCredits: String(credits),
+            costBreakdown: {
+              stage: "IMAGE_GENERATION",
+              provider: stageConfig?.provider ?? "openai",
+              model: stageConfig?.model ?? "dall-e-3",
+              imageSize: stageConfig?.imageSize ?? "1024x1024",
+              quality: stageConfig?.quality ?? "standard",
+            },
+          };
           await creditService.deductCredits(userId, credits, `Image generation for scene ${sceneId}`, {
             projectId,
             operationType: "IMAGE_GENERATION",
             provider: stageConfig?.provider,
             model: stageConfig?.model,
             jobId: job.id,
+            costBreakdown: costData,
           });
         } catch (err) {
           console.warn(`[VisualGeneration] Credit deduction failed (non-fatal):`, err);

@@ -143,13 +143,17 @@ export function createAudioMixingWorker(): Worker {
 
         await job.updateProgress(100);
 
-        // Deduct credits for audio mixing
+        // Deduct credits for audio mixing with cost breakdown
         try {
           const credits = costCalculationService.getOperationCredits("AUDIO_MIXING");
           await creditService.deductCredits(userId, credits, `Audio mixing for scene ${sceneId}`, {
             projectId,
             operationType: "AUDIO_MIXING",
             jobId: job.id,
+            costBreakdown: {
+              billedCostCredits: String(credits),
+              costBreakdown: { stage: "AUDIO_MIXING" },
+            },
           });
         } catch (err) {
           console.warn(`[AudioMix] Credit deduction failed (non-fatal):`, err);

@@ -19,6 +19,8 @@ interface CreditBalanceRow {
   user_id: string;
   balance: number | null;
   reserved_balance: number;
+  lifetime_credits_received: number;
+  lifetime_credits_used: number;
   last_updated: Date;
 }
 
@@ -35,6 +37,19 @@ interface CreditReservationRow {
   expires_at: Date;
   created_at: Date;
   settled_at: Date | null;
+}
+
+/** Optional cost breakdown metadata for detailed tracking. */
+export interface CostBreakdownOpts {
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
+  inputTokenCost?: string;
+  outputTokenCost?: string;
+  actualCostCredits?: string;
+  billedCostCredits?: string;
+  costMultiplier?: string;
+  costBreakdown?: Record<string, unknown>;
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────
@@ -174,7 +189,8 @@ async function settleReservation(
   reservationId: string,
   actualAmount: number,
   description: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
+  costBreakdown?: CostBreakdownOpts
 ) {
   return await db.transaction(async (tx) => {
     // Lock the reservation
@@ -210,17 +226,19 @@ async function settleReservation(
     const currentBalance = balance.balance ?? 0;
     const currentReserved = balance.reserved_balance ?? 0;
 
-    // Release the full reserved amount, deduct the actual cost
+    // Release the full reserved amount, deduct the actual cost, and increment lifetimeCreditsUsed
     await tx
       .update(creditBalances)
       .set({
         balance: currentBalance - actualAmount,
         reservedBalance: Math.max(0, currentReserved - reservation.amount),
+        lifetimeCreditsUsed:
+          (balance.lifetime_credits_used ?? 0) + actualAmount,
         lastUpdated: new Date(),
       })
       .where(eq(creditBalances.userId, userId));
 
-    // Record the usage transaction
+    // Record the usage transaction with optional cost breakdown
     const [transaction] = await tx
       .insert(creditTransactions)
       .values({
@@ -231,6 +249,15 @@ async function settleReservation(
         projectId: reservation.project_id,
         operationType: reservation.operation_type,
         metadata: metadata ?? null,
+        inputTokens: costBreakdown?.inputTokens ?? null,
+        outputTokens: costBreakdown?.outputTokens ?? null,
+        cachedInputTokens: costBreakdown?.cachedInputTokens ?? null,
+        inputTokenCost: costBreakdown?.inputTokenCost ?? null,
+        outputTokenCost: costBreakdown?.outputTokenCost ?? null,
+        actualCostCredits: costBreakdown?.actualCostCredits ?? null,
+        billedCostCredits: costBreakdown?.billedCostCredits ?? null,
+        costMultiplier: costBreakdown?.costMultiplier ?? null,
+        costBreakdown: costBreakdown?.costBreakdown ?? null,
       })
       .returning();
 
@@ -312,6 +339,7 @@ async function deductCredits(
     model?: string;
     jobId?: string;
     type?: CreditTransactionType;
+    costBreakdown?: CostBreakdownOpts;
   }
 ) {
   return await db.transaction(async (tx) => {
@@ -345,13 +373,17 @@ async function deductCredits(
       );
     }
 
+    // Deduct balance and atomically increment lifetimeCreditsUsed
     await tx
       .update(creditBalances)
       .set({
         balance: currentBalance - amount,
+        lifetimeCreditsUsed: (row.lifetime_credits_used ?? 0) + amount,
         lastUpdated: new Date(),
       })
       .where(eq(creditBalances.userId, userId));
+
+    const cost = opts?.costBreakdown;
 
     const [transaction] = await tx
       .insert(creditTransactions)
@@ -365,6 +397,15 @@ async function deductCredits(
         operationType: opts?.operationType ?? null,
         provider: opts?.provider ?? null,
         model: opts?.model ?? null,
+        inputTokens: cost?.inputTokens ?? null,
+        outputTokens: cost?.outputTokens ?? null,
+        cachedInputTokens: cost?.cachedInputTokens ?? null,
+        inputTokenCost: cost?.inputTokenCost ?? null,
+        outputTokenCost: cost?.outputTokenCost ?? null,
+        actualCostCredits: cost?.actualCostCredits ?? null,
+        billedCostCredits: cost?.billedCostCredits ?? null,
+        costMultiplier: cost?.costMultiplier ?? null,
+        costBreakdown: cost?.costBreakdown ?? null,
       })
       .returning();
 
@@ -392,6 +433,8 @@ async function addCredits(
         .update(creditBalances)
         .set({
           balance: (existing.balance ?? 0) + amount,
+          lifetimeCreditsReceived:
+            (existing.lifetime_credits_received ?? 0) + amount,
           lastUpdated: new Date(),
         })
         .where(eq(creditBalances.userId, userId));
@@ -400,6 +443,7 @@ async function addCredits(
         userId,
         balance: DEFAULT_FREE_CREDITS + amount,
         reservedBalance: 0,
+        lifetimeCreditsReceived: DEFAULT_FREE_CREDITS + amount,
       });
     }
 
@@ -438,6 +482,8 @@ async function adminGrantCredits(
         .update(creditBalances)
         .set({
           balance: (existing.balance ?? 0) + amount,
+          lifetimeCreditsReceived:
+            (existing.lifetime_credits_received ?? 0) + amount,
           lastUpdated: new Date(),
         })
         .where(eq(creditBalances.userId, targetUserId));
@@ -446,6 +492,7 @@ async function adminGrantCredits(
         userId: targetUserId,
         balance: DEFAULT_FREE_CREDITS + amount,
         reservedBalance: 0,
+        lifetimeCreditsReceived: DEFAULT_FREE_CREDITS + amount,
       });
     }
 
@@ -497,6 +544,7 @@ async function adminDeductCredits(
       .update(creditBalances)
       .set({
         balance: currentBalance - amount,
+        lifetimeCreditsUsed: (row.lifetime_credits_used ?? 0) + amount,
         lastUpdated: new Date(),
       })
       .where(eq(creditBalances.userId, targetUserId));
