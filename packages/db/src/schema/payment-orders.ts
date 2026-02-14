@@ -8,7 +8,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { user } from "./users";
 import { creditPacks } from "./credit-packs";
-import { paymentStatusEnum } from "./enums";
+import { subscriptions } from "./subscriptions";
+import { paymentStatusEnum, orderTypeEnum } from "./enums";
 
 export const paymentOrders = pgTable(
   "payment_orders",
@@ -20,8 +21,10 @@ export const paymentOrders = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     creditPackId: text("credit_pack_id")
-      .notNull()
       .references(() => creditPacks.id),
+    subscriptionId: text("subscription_id")
+      .references(() => subscriptions.id),
+    orderType: orderTypeEnum("order_type").notNull().default("credit_pack"),
     provider: text("provider").notNull(),
     externalOrderId: text("external_order_id"),
     externalPaymentId: text("external_payment_id"),

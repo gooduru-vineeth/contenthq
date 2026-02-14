@@ -10,38 +10,36 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { useRazorpay } from "@/hooks/use-razorpay";
+import { PaymentDialog } from "@/components/payment/payment-dialog";
 
 const PAYMENT_ENABLED = process.env.NEXT_PUBLIC_PAYMENT_ENABLED === "true";
 
+type Plan = {
+  id: string;
+  name: string;
+  description?: string | null;
+  priceInr: number;
+  priceUsd?: number;
+  credits: number;
+  bonusCredits?: number | null;
+  billingInterval?: string;
+};
+
 export default function BillingPage() {
   const utils = trpc.useUtils();
-  const { openCheckout } = useRazorpay();
-  const [purchasingPackId, setPurchasingPackId] = useState<string | null>(null);
-  const [subscribingPlanId, setSubscribingPlanId] = useState<string | null>(null);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
+  const [paymentDialog, setPaymentDialog] = useState<{
+    open: boolean;
+    type: "subscription" | "credit_pack";
+    item: Plan | null;
+  }>({ open: false, type: "subscription", item: null });
 
   // Fetch subscription plans
   const { data: plans, isPending: plansPending } = trpc.subscription.getPlans.useQuery();
   const { data: mySubscription } = trpc.subscription.getMy.useQuery();
 
-  // Subscribe mutation
-  const subscribeMutation = trpc.subscription.subscribe.useMutation({
-    onSuccess: () => {
-      setSubscribingPlanId(null);
-      toast.success("Subscribed successfully!");
-      utils.subscription.getMy.invalidate();
-      utils.billing.getBalance.invalidate();
-    },
-    onError: (error) => {
-      setSubscribingPlanId(null);
-      toast.info(error.message || "Subscription coming soon!");
-    },
-  });
-
-  const handleSubscribe = (planId: string) => {
-    setSubscribingPlanId(planId);
-    subscribeMutation.mutate({ planId });
+  const handleSubscribe = (plan: Plan) => {
+    setPaymentDialog({ open: true, type: "subscription", item: plan });
   };
 
   // Fetch balance
@@ -64,61 +62,8 @@ export default function BillingPage() {
     { enabled: PAYMENT_ENABLED }
   );
 
-  // Mutations
-  const createOrderMutation = trpc.payment.createOrder.useMutation({
-    onSuccess: async (data) => {
-      try {
-        await openCheckout({
-          key: data.clientKey,
-          amount: data.amount,
-          currency: "INR",
-          name: "ContentHQ",
-          description: "ContentHQ Credit Purchase",
-          order_id: data.externalOrderId,
-          handler: (response) => {
-            verifyPaymentMutation.mutate({
-              orderId: data.orderId,
-              paymentId: response.razorpay_payment_id,
-              signature: response.razorpay_signature,
-            });
-          },
-          theme: { color: "#000000" },
-          modal: {
-            ondismiss: () => {
-              setPurchasingPackId(null);
-              toast.info("Payment cancelled");
-            },
-          },
-        });
-      } catch {
-        setPurchasingPackId(null);
-        toast.error("Failed to open payment checkout");
-      }
-    },
-    onError: (error) => {
-      setPurchasingPackId(null);
-      toast.error(error.message || "Failed to create order");
-    },
-  });
-
-  const verifyPaymentMutation = trpc.payment.verifyPayment.useMutation({
-    onSuccess: () => {
-      setPurchasingPackId(null);
-      toast.success("Payment successful! Credits added to your account");
-      utils.billing.getBalance.invalidate();
-      utils.billing.getAvailableBalance.invalidate();
-      utils.billing.getTransactions.invalidate();
-      utils.payment.getOrders.invalidate();
-    },
-    onError: (error) => {
-      setPurchasingPackId(null);
-      toast.error(error.message || "Payment verification failed");
-    },
-  });
-
-  const handleBuyPack = (packId: string) => {
-    setPurchasingPackId(packId);
-    createOrderMutation.mutate({ creditPackId: packId });
+  const handleBuyPack = (pack: Plan) => {
+    setPaymentDialog({ open: true, type: "credit_pack", item: pack });
   };
 
   const purchasedCredits = balance?.balance ?? 0;
@@ -295,8 +240,8 @@ export default function BillingPage() {
                       size="sm"
                       className="w-full h-7 text-xs"
                       variant={plan.popular ? "default" : "outline"}
-                      disabled={isCurrentPlan || subscribingPlanId === plan.id}
-                      onClick={() => handleSubscribe(plan.id)}
+                      disabled={isCurrentPlan}
+                      onClick={() => handleSubscribe(plan)}
                     >
                       {isCurrentPlan
                         ? "Current Plan"
@@ -437,10 +382,10 @@ export default function BillingPage() {
                     </div>
                     <Button
                       className="w-full"
-                      disabled={!pack.active || purchasingPackId === pack.id}
-                      onClick={() => handleBuyPack(pack.id)}
+                      disabled={!pack.active}
+                      onClick={() => handleBuyPack(pack)}
                     >
-                      {purchasingPackId === pack.id ? "Processing..." : "Buy Now"}
+                      Buy Now
                     </Button>
                   </CardContent>
                 </Card>
@@ -565,6 +510,21 @@ export default function BillingPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        open={paymentDialog.open}
+        onOpenChange={(open) => setPaymentDialog({ ...paymentDialog, open })}
+        type={paymentDialog.type}
+        item={paymentDialog.item}
+        onSuccess={() => {
+          utils.subscription.getMy.invalidate();
+          utils.billing.getBalance.invalidate();
+          utils.billing.getAvailableBalance.invalidate();
+          utils.billing.getTransactions.invalidate();
+          utils.payment.getOrders.invalidate();
+        }}
+      />
     </div>
   );
 }

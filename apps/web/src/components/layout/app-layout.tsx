@@ -2,6 +2,7 @@
 
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { SubscriptionRenewalBanner } from "@/components/subscription/renewal-banner";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -12,7 +13,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       <div className="flex flex-1 flex-col md:ml-64">
         <Header />
-        <main className="flex-1 p-6 md:p-8">{children}</main>
+        <div className="px-6 pt-6 md:px-8 md:pt-8">
+          <SubscriptionRenewalBanner />
+        </div>
+        <main className="flex-1 p-6 md:p-8 pt-0 md:pt-0">{children}</main>
       </div>
     </div>
   );
