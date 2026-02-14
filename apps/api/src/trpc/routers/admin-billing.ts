@@ -6,6 +6,7 @@ import {
   creditBalances,
   creditTransactions,
   bonusCredits,
+  paymentOrders,
 } from "@contenthq/db/schema";
 import { user } from "@contenthq/db/schema";
 import { eq, sql, like, or, and, gte, desc } from "drizzle-orm";
@@ -314,4 +315,98 @@ export const adminBillingRouter = router({
         .orderBy(desc(bonusCredits.createdAt))
         .limit(input.limit);
     }),
+
+  /**
+   * Process authorized payments that haven't been processed yet.
+   * This is a one-time fix for payments that were authorized before
+   * the webhook was updated to handle both authorized and captured events.
+   */
+  processAuthorizedPayments: adminProcedure.mutation(async () => {
+    // Find all authorized payments that don't have a credit transaction
+    const authorizedOrders = await db
+      .select()
+      .from(paymentOrders)
+      .where(
+        and(
+          eq(paymentOrders.status, "authorized"),
+          eq(paymentOrders.orderType, "credit_pack"),
+          sql`${paymentOrders.creditTransactionId} IS NULL`
+        )
+      );
+
+    const results: Array<{ orderId: string; success: boolean; error?: string }> = [];
+
+    for (const order of authorizedOrders) {
+      try {
+        await db.transaction(async (tx) => {
+          // Lock the credit balance row
+          const balanceResult = await tx.execute(
+            sql`SELECT * FROM credit_balances WHERE user_id = ${order.userId} FOR UPDATE`
+          );
+          let currentBalance = balanceResult.rows?.[0] as { balance: number } | undefined;
+
+          if (!currentBalance) {
+            // Create balance if not exists
+            await tx.insert(creditBalances).values({
+              userId: order.userId,
+              balance: 0,
+            });
+            currentBalance = { balance: 0 };
+          }
+
+          // Add credits
+          const newBalance = (currentBalance.balance ?? 0) + order.credits;
+
+          await tx
+            .update(creditBalances)
+            .set({
+              balance: newBalance,
+              lastUpdated: new Date(),
+            })
+            .where(eq(creditBalances.userId, order.userId));
+
+          // Record transaction
+          const [transaction] = await tx
+            .insert(creditTransactions)
+            .values({
+              userId: order.userId,
+              type: "purchase",
+              amount: order.credits,
+              description: `Purchased ${order.credits} credits (manual processing)`,
+              metadata: {
+                paymentOrderId: order.id,
+                provider: order.provider,
+                externalPaymentId: order.externalPaymentId,
+                amount: order.amount,
+                currency: order.currency,
+                note: "Manually processed authorized payment",
+              },
+            })
+            .returning();
+
+          // Update order to mark as processed
+          await tx
+            .update(paymentOrders)
+            .set({
+              creditTransactionId: transaction.id,
+              updatedAt: new Date(),
+            })
+            .where(eq(paymentOrders.id, order.id));
+        });
+
+        results.push({ orderId: order.id, success: true });
+      } catch (error) {
+        results.push({
+          orderId: order.id,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return {
+      totalProcessed: authorizedOrders.length,
+      results,
+    };
+  }),
 });
